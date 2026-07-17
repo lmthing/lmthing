@@ -2,7 +2,7 @@
 
 Each `hooks/<slug>.ts` file **default-exports exactly one** hook def; the slug is the filename basename, and a duplicate slug throws fail-loud at load (`sdk/org/libs/cli/src/app/hooks/loader.ts:206-244`). A project's own hooks are USER code: their `.ts` is transpiled to CJS and evaluated **in-proc** (`sdk/org/libs/cli/src/app/hooks/loader.ts:358-374`), while an installed space's `spaces/<id>/hooks/` are store code, loaded worker-isolated with a handler shim (`sdk/org/libs/cli/src/app/hooks/loader.ts:271-298`).
 
-Hook files are authored by the `writeHook(slug, src)` global, which writes `hooks/<slug>.ts` under the current app (`sdk/org/libs/cli/src/app/authoring/globals.ts:218-228`); the live-project twin is `writeProjectHook(slug, src)` (`sdk/org/libs/cli/src/app/authoring/globals.ts:311-318`). Both globals are injected **only** when the authoring agent holds the `hooks:write` capability grant (`sdk/org/libs/core/src/exec/app-globals.ts:206-211`). See [../../space/agents/capabilities.md](../../space/agents/capabilities.md).
+Hook files are authored by the live-project global `writeProjectHook(slug, src)`, which writes `hooks/<slug>.ts` into the project (`sdk/org/libs/cli/src/app/authoring/globals.ts#writeProjectHook`), injected **only** when the authoring agent holds the `hooks:write` capability grant (`sdk/org/libs/core/src/exec/app-globals.ts:217`). See [../../space/agents/capabilities.md](../../space/agents/capabilities.md).
 
 ## The hook types
 
@@ -18,7 +18,7 @@ A `cron` hook needs exactly one of `every` / `daily` (`sdk/org/libs/cli/src/app/
 
 **There is no `database` hook type any more.** `{type:'database'}` was removed with no back-compat: a file still declaring it is dropped-with-warn (the rest of the project still loads), and `validateHook` throws a migration error as a backstop (`sdk/org/libs/cli/src/app/hooks/loader.ts:414-418,474-488`). To react to database writes you subscribe an `event` hook to the synthetic `project/db.<table>.<event>` address — this is what [./database.md](./database.md) documents.
 
-The **gross shape** is checked at write time: `writeHook`/`writeProjectHook` evaluate the module and reject (thrown, retryable) a `export default` that is not an object, or one whose `type` is not `cron`/`event`/`webhook` `sdk/org/libs/cli/src/app/authoring/lint.ts#lintHookSource`. The finer per-type shape (`every`/`daily`/`on.event`/`trigger`/`handler`) stays with the **fail-soft** loader, so a hook that misses those is skipped-with-warn at load rather than blocking the write.
+The **gross shape** is checked at write time: `writeProjectHook` evaluates the module and rejects (thrown, retryable) a `export default` that is not an object, or one whose `type` is not `cron`/`event`/`webhook` `sdk/org/libs/cli/src/app/authoring/lint.ts#lintHookSource`. The finer per-type shape (`every`/`daily`/`on.event`/`trigger`/`handler`) stays with the **fail-soft** loader, so a hook that misses those is skipped-with-warn at load rather than blocking the write.
 
 ## `trigger` vs `handler`
 

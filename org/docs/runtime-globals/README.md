@@ -27,7 +27,7 @@ Sub-docs, by global family:
 | [events-and-integrations.md](./events-and-integrations.md) | `emitEvent`, `callConnection`, `integrationStatus` |
 | [store-and-consent.md](./store-and-consent.md) | `storeSearch`, `storeInspect`, `installSpace`, the `@consent` model |
 | [session-and-utils.md](./session-and-utils.md) | `setSessionMeta`, `sleep`, `fetch`, and the host-tools substrate |
-| [app-authoring.md](./app-authoring.md) | `writePage`/`writeApi`/`writeHook`/`writeTableSchema`, `createProject`/`selectProject`, the live-project `writeProject*` twins |
+| [app-authoring.md](./app-authoring.md) | `createProject`/`selectProject` (live build target), the live-project `writeProject*` writers, `apiCall` |
 | [data-db.md](./data-db.md) | `db.*`, `apiCall` |
 
 Capability frontmatter (the `capabilities:` list that grants the project-app globals) is
@@ -136,13 +136,13 @@ anything*", `:190`) all throw at space load.
 |---|---|---|---|
 | `db:read` | `{ tables?: [] }` | `db.query`, `db.tables` | [data-db.md](./data-db.md) |
 | `db:write` | `{ tables?: [] }` | `db.insert`, `db.update`, `db.remove` | [data-db.md](./data-db.md) |
-| `db:schema` | `{ tables?: [] }` | `db.createTable`, `db.addColumn`, `writeTableSchema`, `writeProjectTable` | [data-db.md](./data-db.md) · [app-authoring.md](./app-authoring.md) |
+| `db:schema` | `{ tables?: [] }` | `db.createTable`, `db.addColumn`, `writeProjectTable` | [data-db.md](./data-db.md) · [app-authoring.md](./app-authoring.md) |
 | `api:call` | `{ allow: [] }` **required** | `apiCall` | [data-db.md](./data-db.md) |
 | `connections:use` | `{ providers: [] }` **required** | `callConnection` | [events-and-integrations.md](./events-and-integrations.md) |
-| `pages:write` | bare | `writePage`, `writeProjectPage` | [app-authoring.md](./app-authoring.md) |
-| `api:write` | bare | `writeApi`, `writeProjectApi` | [app-authoring.md](./app-authoring.md) |
-| `hooks:write` | bare | `writeHook`, `writeProjectHook`, `writeProjectEvent`, `writeProjectFunction` | [app-authoring.md](./app-authoring.md) |
-| `project:manage` | bare | `createProject`, `selectProject` | [app-authoring.md](./app-authoring.md) |
+| `pages:write` | bare | `writeProjectPage`, `writeProjectComponent` | [app-authoring.md](./app-authoring.md) |
+| `api:write` | bare | `writeProjectApi` | [app-authoring.md](./app-authoring.md) |
+| `hooks:write` | bare | `writeProjectHook`, `writeProjectEvent`, `writeProjectFunction` | [app-authoring.md](./app-authoring.md) |
+| `project:manage` | bare | `createProject`, `selectProject` (live build target) | [app-authoring.md](./app-authoring.md) |
 | `store:read` | bare | `storeSearch`, `storeInspect` | [store-and-consent.md](./store-and-consent.md) |
 | `store:install` | bare | `installSpace` (**consent-marked**) | [store-and-consent.md](./store-and-consent.md) |
 | `events:emit` | bare | `emitEvent` | [events-and-integrations.md](./events-and-integrations.md) |
@@ -261,8 +261,7 @@ Y = value-yielding (ends the turn). S = synchronous host call. F = fire-and-forg
 | `db.query` / `db.tables` | S | Read the project's SQLite rows / list tables | `db:read` | [data-db.md](./data-db.md) |
 | `db.insert` / `db.update` / `db.remove` | S | Write rows | `db:write` | [data-db.md](./data-db.md) |
 | `db.createTable` / `db.addColumn` | S | Evolve the live schema | `db:schema` | [data-db.md](./data-db.md) |
-| `writePage` / `writeApi` / `writeHook` / `writeTableSchema` | S | Author into the **store catalog** template (`store/projects/<id>/`) | `pages:write` / `api:write` / `hooks:write` / `db:schema` | [app-authoring.md](./app-authoring.md) |
-| `createProject` / `selectProject` | S | Scaffold or bind the catalog app the writers target | `project:manage` | [app-authoring.md](./app-authoring.md) |
+| `createProject` / `selectProject` | S | Create a NEW **live** project (under `<lmthingRoot>/<slug>/`) or bind an existing one as the app-build target | `project:manage` | [app-authoring.md](./app-authoring.md) |
 | `writeProjectPage` / `writeProjectApi` / `writeProjectComponent` / `writeProjectTable` / `writeProjectHook` / `writeProjectEvent` / `writeProjectFunction` | S | Author into the **live project** and republish/rebuild | same grants as above **and** a host impl (project-rooted session); `writeProjectComponent` on `pages:write` | [app-authoring.md](./app-authoring.md) |
 | `listProjectDir(dir)` / `readProjectFile(path)` | S | List/read project files, rooted at `projectRoot` — the **only** way an agent reads project files now | `projectRoot` set (**not** a capability) | [app-authoring.md](./app-authoring.md) · [../format/project/README.md](../format/project/README.md) |
 | `console.log/warn/error` | S | Log via the render host | none | [session-and-utils.md](./session-and-utils.md) |

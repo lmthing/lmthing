@@ -57,12 +57,12 @@ Project-as-application globals are declared **only when the owning agent holds t
 - **`db.*`** — the three `db:*` verbs share ONE `db` object, so they cannot be three separate `declare const db` blocks. `composeDbDts({ read, write, schema })` unions the present member strings (`DB_READ_MEMBERS` / `DB_WRITE_MEMBERS` / `DB_SCHEMA_MEMBERS` `library-dts.ts:145-155`) into a single `declare const db`, returning `''` when none are present (so a stray `db` call fails typecheck) `library-dts.ts:164-171`. In the agent sandbox `db.*` is a **synchronous** host call (non-Promise), unlike the value-yielding `apiCall` `library-dts.ts:140-141`.
 - **`api:call`** → `API_CALL_DTS` (`apiCall`, value-yielding Promise) `library-dts.ts:175`, replaced by project-generated typed overloads when `appDts` is supplied (see below).
 - **`connections:use`** → `composeConnectionsDts(providers)` types `callConnection`'s `provider` param to the **union of granted providers**, so a call to an undeclared provider fails typecheck `library-dts.ts:185-188`.
-- **`pages:write`** → `PAGES_WRITE_DTS` (`writePage`) + `PROJECT_PAGE_DTS` (`writeProjectPage`) + `PROJECT_COMPONENT_DTS` (`writeProjectComponent` — the typed writer for shared `components/<Name>.tsx`, the only surface for it now that generic fs is gone) `library-dts.ts:204,214,219,300`.
-- **`api:write`** → `API_WRITE_DTS` (`writeApi`) + `PROJECT_API_DTS` (`writeProjectApi`) `library-dts.ts:205,215,301`.
-- **`hooks:write`** → `HOOKS_WRITE_DTS` (`writeHook`) + `PROJECT_AUTHORING_DTS` (`writeProjectHook`/`writeProjectEvent`/`writeProjectFunction`) `library-dts.ts:206,228-230,302`.
-- **`db:schema`** → in addition to the `db.createTable`/`addColumn` members, the standalone `WRITE_TABLE_SCHEMA_DTS` (`writeTableSchema` — catalog template) and `PROJECT_TABLE_DTS` (`writeProjectTable` — live project, optional third arg seeds rows) `library-dts.ts:237,248`.
+- **`pages:write`** → `PROJECT_PAGE_DTS` (`writeProjectPage`) + `PROJECT_COMPONENT_DTS` (`writeProjectComponent` — the typed writer for shared `components/<Name>.tsx`, the only surface for it now that generic fs is gone) `library-dts.ts#PROJECT_PAGE_DTS` · `library-dts.ts#CAPABILITY_DTS_FRAGMENTS`.
+- **`api:write`** → `PROJECT_API_DTS` (`writeProjectApi`) `library-dts.ts#PROJECT_API_DTS`.
+- **`hooks:write`** → `PROJECT_AUTHORING_DTS` (`writeProjectHook`/`writeProjectEvent`/`writeProjectFunction`) `library-dts.ts#PROJECT_AUTHORING_DTS`.
+- **`db:schema`** → in addition to the `db.createTable`/`addColumn` members, the standalone `PROJECT_TABLE_DTS` (`writeProjectTable` — live project, optional third arg seeds rows) `library-dts.ts#PROJECT_TABLE_DTS`.
 - **any project-rooted session** → `PROJECT_READ_DTS` (`listProjectDir`/`readProjectFile`) — project-rooted introspection, now emitted on `projectRoot` ALONE (relaxed from "needs a db grant"): they are the only way any agent reads project files now that the space-rooted `readFile`/`listDir` wrappers are gone, so THING reads its `instructions.md`/`documents/` through them `library-dts.ts:257-258`, gated at `exec/bootstrap.ts:325`.
-- **`project:manage`** → `PROJECT_MANAGE_DTS` (`createProject`/`selectProject`) `library-dts.ts:264-265`.
+- **`project:manage`** → `PROJECT_MANAGE_DTS` (`createProject`/`selectProject` — live-project create/select) `library-dts.ts#PROJECT_MANAGE_DTS`.
 - **`store:read`** → `STORE_READ_DTS` (`storeSearch`/`storeInspect`) `library-dts.ts:271-274`.
 - **`store:install`** → `STORE_INSTALL_DTS` (`installSpace`, consent-marked) `library-dts.ts:281-282`.
 - **`events:emit`** → `EVENTS_EMIT_DTS` (`emitEvent`) `library-dts.ts:288-289`.
@@ -84,7 +84,7 @@ The flat standalone map is `CAPABILITY_DTS_FRAGMENTS` `library-dts.ts:298-307`; 
 9. `opts.currentTask ? CURRENT_TASK_DTS : ''` — the fork/delegate `currentTask.resolve()` capture global `bootstrap.ts:270`
 10. `...(opts.extraDecls ?? [])` — fork seed/upstream vars, delegate query/context
 
-`buildAppCapabilityDts(app, appDts, projectRoot)` gates each app fragment per grant `bootstrap.ts:311-343`: `composeDbDts` from the three `db:*` flags; `writeTableSchema`+`writeProjectTable` on `db:schema` `bootstrap.ts:320`; `listProjectDir`/`readProjectFile` on a **project-rooted** session (`projectRoot`, no db grant required) `bootstrap.ts:325`; the project-generated typed `apiCall` overloads (`appDts`) in place of the generic fragment when `api:call` is held AND `appDts` is non-empty `bootstrap.ts:329`; `composeConnectionsDts` on `connections:use` `bootstrap.ts:332-335`; then each standalone `CAPABILITY_DTS_FRAGMENTS[id]` for the remaining grants present `bootstrap.ts:339-341`.
+`buildAppCapabilityDts(app, appDts, projectRoot)` gates each app fragment per grant `bootstrap.ts:311-343`: `composeDbDts` from the three `db:*` flags; `writeProjectTable` on `db:schema` `bootstrap.ts:320`; `listProjectDir`/`readProjectFile` on a **project-rooted** session (`projectRoot`, no db grant required) `bootstrap.ts:325`; the project-generated typed `apiCall` overloads (`appDts`) in place of the generic fragment when `api:call` is held AND `appDts` is non-empty `bootstrap.ts:329`; `composeConnectionsDts` on `connections:use` `bootstrap.ts:332-335`; then each standalone `CAPABILITY_DTS_FRAGMENTS[id]` for the remaining grants present `bootstrap.ts:339-341`.
 
 ### Which context gets what
 

@@ -9,7 +9,7 @@ api/sources/POST.ts        →   POST /sources          (name "addSource")
 
 A `[seg]` directory is a dynamic param — `[id]` becomes the route pattern segment `:id`, and its name is collected into `paramNames` `sdk/org/libs/cli/src/app/api/loader.ts:130-142`. At request time `matchRoute` matches the concrete path against each same-method pattern and extracts the params (URL-decoded) `sdk/org/libs/cli/src/app/api/loader.ts#matchRoute`.
 
-Handlers are authored by the `api:write` capability's `writeApi(route, src)` global, where the route's last segment is the uppercase method — it throws on an invalid method or a missing endpoint path before the method, and writes to `api/<segments…>/<METHOD>.ts` `sdk/org/libs/cli/src/app/authoring/globals.ts:198-216`. The set of valid methods is `GET | POST | PUT | PATCH | DELETE` `sdk/org/libs/cli/src/app/authoring/globals.ts:56`. Which agent may call `writeApi` is gated by the `api:write` grant → see [`space/agents/capabilities.md`](../../space/agents/capabilities.md).
+Handlers are authored by the `api:write` capability's `writeProjectApi(route, src)` global, where the route's last segment is the uppercase method — it throws on an invalid method or a missing endpoint path before the method, and writes to `api/<segments…>/<METHOD>.ts` `sdk/org/libs/cli/src/app/authoring/globals.ts:198-216`. The set of valid methods is `GET | POST | PUT | PATCH | DELETE` `sdk/org/libs/cli/src/app/authoring/globals.ts:56`. Which agent may call `writeProjectApi` is gated by the `api:write` grant → see [`space/agents/capabilities.md`](../../space/agents/capabilities.md).
 
 ## Format — a full ESM module
 
@@ -46,7 +46,7 @@ The real example imports `HttpError` from `@app/runtime`, exports `name`/`descri
 
 `Input`/`Output` are turned into JSON Schema per endpoint by `generateEndpointContracts` via `ts-json-schema-generator` `sdk/org/libs/cli/src/app/build/schema.ts:11-12,179-198`.
 
-The `name` + default/`handler` contract is now **enforced at write time**: `writeApi`/`writeProjectApi` run the loader's own name check plus a project-unique-name scan and reject a violating write with a thrown, retryable error, instead of letting it fail later at load `sdk/org/libs/cli/src/app/authoring/lint.ts#lintApiHandler`.
+The `name` + default/`handler` contract is now **enforced at write time**: `writeProjectApi` runs the loader's own name check plus a project-unique-name scan and rejects a violating write with a thrown, retryable error, instead of letting it fail later at load `sdk/org/libs/cli/src/app/authoring/lint.ts#lintApiHandler`.
 
 ## `Input` is one object, assembled by method
 

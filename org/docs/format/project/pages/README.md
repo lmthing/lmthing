@@ -2,7 +2,7 @@
 
 A project-app's `pages/` directory holds **real client-side React** — each non-`_`-prefixed `.tsx`/`.jsx` file is a file-routed page, built once on save/boot (never per request) into a self-contained static bundle under `<projectRoot>/.data/pages-dist/` and served under `…/app/<project>/*` (`sdk/org/libs/cli/src/app/build/pages.ts:1-26`). Pages are pure browser code — there is no pod-side loader; they pull data over HTTP through `@app/runtime` (`sdk/org/CLAUDE.md` "pages/ are real client-side React").
 
-Pages are written by the capability-gated `writePage(route, src)` global (catalog authoring) and its live-project twin `writeProjectPage(route, src)`, both injected only when the agent holds the `pages:write` grant (`sdk/org/libs/cli/src/app/authoring/globals.ts:185-196`, `sdk/org/libs/cli/src/app/authoring/globals.ts:376-395`; DTS gated at `sdk/org/libs/core/src/typecheck/library-dts.ts:268`). See [capabilities.md](../../space/agents/capabilities.md) for the grant model.
+Pages are written by the capability-gated live-project global `writeProjectPage(route, src, opts?)`, injected only when the agent holds the `pages:write` grant (`sdk/org/libs/cli/src/app/authoring/globals.ts#writeProjectPage`; DTS gated at `sdk/org/libs/core/src/typecheck/library-dts.ts#PROJECT_PAGE_DTS`). See [capabilities.md](../../space/agents/capabilities.md) for the grant model.
 
 A page **must have a default export** (the component the route renders); a write without one is rejected at write time with a thrown, retryable error rather than failing later as an esbuild bundle error `sdk/org/libs/cli/src/app/authoring/lint.ts#lintPageSource`.
 
@@ -17,7 +17,7 @@ pages/feed/[articleId].tsx           →  /feed/:articleId
 pages/feed/[articleId]/research.tsx  →  /feed/:articleId/research
 ```
 
-The route table above is grounded in `routePathFor` (`sdk/org/libs/cli/src/app/build/pages.ts:184-194`) and the matcher `matchRoutes`, which splits both request and pattern into segments and captures `:param` segments (`sdk/org/libs/cli/src/app/runtime/router.tsx#matchRoutes`). Dynamic-segment authoring uses `[seg]` wrapped in brackets and the writer accepts it as a valid path segment (`sdk/org/libs/cli/src/app/authoring/globals.ts#AppAuthoringGlobals.currentApp`). Directories named `components/` and `lib/` under `pages/` hold shared code, not routes, and are skipped during discovery (`sdk/org/libs/cli/src/app/build/pages.ts#walkPages`).
+The route table above is grounded in `routePathFor` (`sdk/org/libs/cli/src/app/build/pages.ts:184-194`) and the matcher `matchRoutes`, which splits both request and pattern into segments and captures `:param` segments (`sdk/org/libs/cli/src/app/runtime/router.tsx#matchRoutes`). Dynamic-segment authoring uses `[seg]` wrapped in brackets and the writer accepts it as a valid path segment (`sdk/org/libs/cli/src/app/authoring/globals.ts#writeProjectPage`). Directories named `components/` and `lib/` under `pages/` hold shared code, not routes, and are skipped during discovery (`sdk/org/libs/cli/src/app/build/pages.ts#walkPages`).
 
 ## Special files: `_app` / `_layout`
 

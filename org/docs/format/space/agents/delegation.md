@@ -49,22 +49,19 @@ Historically the agent level was a silent no-op (`[]` still delegated unrestrict
 
 ## Worked example
 
-From the `app-architect` agent, which delegates to an explicit allowlist of specialist agents `.lmthing/system/spaces/system-appbuilder/agents/app-architect/instruct.md:20-25`, and the `data-modeler` agent, which declares the "hard none" `[]` `.lmthing/system/spaces/system-appbuilder/agents/data-modeler/instruct.md:10`:
+From the `system-files/dispatch` agent, which delegates to an explicit allowlist of its two reader agents `sdk/org/libs/core/system-spaces/system-files/agents/dispatch/instruct.md:5-7`, and the `system-files/sheet` agent, which declares the "hard none" `[]` `sdk/org/libs/core/system-spaces/system-files/agents/sheet/instruct.md:6`:
 
 ```yaml
-# app-architect/instruct.md — explicit allowlist (mode: 'allowlist')
+# dispatch/instruct.md — explicit allowlist (mode: 'allowlist')
 canDelegateTo:
-  - system-appbuilder/data-modeler
-  - system-appbuilder/page-builder
-  - system-appbuilder/api-author
-  - system-appbuilder/automator
-  - system-research/researcher
+  - system-files/reader
+  - system-files/sheet
 
-# data-modeler/instruct.md — hard none (mode: 'none'); delegate not injected
+# sheet/instruct.md — hard none (mode: 'none'); delegate not injected
 canDelegateTo: []
 ```
 
-With the allowlist above, `delegate("system-appbuilder", "data-modeler")` is permitted, while a target outside the list throws the `formatDelegateDenial` message listing exactly those five entries `sdk/org/libs/core/src/exec/target-match.ts:185-209`.
+With the allowlist above, `delegate("system-files", "reader")` is permitted, while a target outside the list throws the `formatDelegateDenial` message listing exactly those two entries `sdk/org/libs/core/src/exec/target-match.ts:185-209`.
 
 ## See also
 

@@ -147,7 +147,7 @@ The mock module is an ESM file whose default export is either a `MockHandler` fu
 
 ### `--request` (headless single-shot)
 
-`--request "<msg>"` is the non-interactive capstone path `sdk/org/libs/cli/src/cli/bin.ts:508-599`. It: calls `ensureRuntime()`; defaults `spaceDir` to `process.cwd()`; uses a `plain` Ink host; sets `projectSpacesDir = <root>/user/spaces` **as an absolute path** (it propagates into fork/delegate VMs as `LMTHING_PROJECT_SPACES_DIR`); preloads every directory under it as a space so previously-built agents stay delegatable; boots the `user` project app db (`bootProjectApp`, hard-exits on failure); generates the typed `apiCall` DTS when `<root>/user/api` exists (non-fatal on failure); injects the catalog authoring globals (`writePage`/`writeApi`/`writeHook`/`writeTableSchema`/`createProject`/`selectProject`); runs **one** turn of the `thing` agent; then disposes.
+`--request "<msg>"` is the non-interactive capstone path `sdk/org/libs/cli/src/cli/bin.ts:508-599`. It: calls `ensureRuntime()`; defaults `spaceDir` to `process.cwd()`; uses a `plain` Ink host; sets `projectSpacesDir = <root>/user/spaces` **as an absolute path** (it propagates into fork/delegate VMs as `LMTHING_PROJECT_SPACES_DIR`); preloads every directory under it as a space so previously-built agents stay delegatable; boots the `user` project app db (`bootProjectApp`, hard-exits on failure); generates the typed `apiCall` DTS when `<root>/user/api` exists (non-fatal on failure); injects the live-project authoring globals (`writeProjectTable`/`writeProjectApi`/`writeProjectPage`/`writeProjectComponent`/`writeProjectHook`/… plus `createProject`/`selectProject`); runs **one** turn of the `thing` agent; then disposes.
 
 ---
 

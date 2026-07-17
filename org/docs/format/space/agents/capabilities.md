@@ -10,12 +10,12 @@ There are 13 recognized capability ids, enumerated in `CapabilityId` / `CAPABILI
 |---|---|---|
 | `db:read` | `db.query`, `db.tables` | optional `{ tables: [...] }` |
 | `db:write` | `db.insert`, `db.update`, `db.remove` | optional `{ tables: [...] }` |
-| `db:schema` | `db.createTable`, `db.addColumn`, `writeTableSchema`, `writeProjectTable` | optional `{ tables: [...] }` |
-| `pages:write` | `writePage`, `writeProjectPage` | bare |
-| `api:write` | `writeApi`, `writeProjectApi` | bare |
-| `hooks:write` | `writeHook`, `writeProjectHook`/`Event`/`Function` | bare |
+| `db:schema` | `db.createTable`, `db.addColumn`, `writeProjectTable` | optional `{ tables: [...] }` |
+| `pages:write` | `writeProjectPage`, `writeProjectComponent` | bare |
+| `api:write` | `writeProjectApi` | bare |
+| `hooks:write` | `writeProjectHook`/`Event`/`Function` | bare |
 | `knowledge:write` | `writeKnowledge` (own space only) | optional `{ spaces: [...] }` |
-| `project:manage` | `createProject`, `selectProject` | bare |
+| `project:manage` | `createProject`, `selectProject` (live-project create/select) | bare |
 | `api:call` | `apiCall(name, input)` | required `{ allow: [...] }` |
 | `connections:use` | `callConnection(provider, req)` | required `{ providers: [...] }` |
 | `store:read` | `storeSearch`, `storeInspect` | bare |
@@ -24,9 +24,9 @@ There are 13 recognized capability ids, enumerated in `CapabilityId` / `CAPABILI
 
 `knowledge:write` earns the SYNCHRONOUS `writeKnowledge(domain, field, option, markdown, opts?)` global (`sdk/org/libs/core/src/globals/write-knowledge.ts#createWriteKnowledgeGlobal`), injected in `createChildVM` on the grant and scoped — like `loadKnowledge` — to the running agent's own `knowledge/` dir, so it can only author its OWN space (there is no `space` parameter to spoof) (`sdk/org/libs/core/src/exec/bootstrap.ts:191-197`). The optional `{ spaces: [...] }` allow-list is parsed for a future cross-space grant but not yet enforced (`sdk/org/libs/core/src/spaces/capabilities.ts#parseKnowledgeWriteConfig`). `opts.source` (`'user'|'researched'|'agent'`) prepends a provenance blockquote used by conflict resolution.
 
-Any `db:*` grant ALSO earns the project-rooted introspection reads `listProjectDir`/`readProjectFile`, but only in a project-rooted session — they are gated on `projectRoot` + any db grant, exactly like `db` itself (`sdk/org/libs/core/src/exec/app-globals.ts:238-241`, DTS at `sdk/org/libs/core/src/exec/bootstrap.ts#AmbientDtsOpts`).
+Any `db:*` grant ALSO earns the project-rooted introspection reads `listProjectDir`/`readProjectFile`, but only in a project-rooted session — they are gated on `projectRoot` + any db grant, exactly like `db` itself (`sdk/org/libs/core/src/exec/app-globals.ts:230-233`, DTS at `sdk/org/libs/core/src/exec/bootstrap.ts#AmbientDtsOpts`).
 
-The `db:*` grants map to the scoped `db` verbs shown above (`sdk/org/libs/core/src/exec/app-globals.ts:130-170`); `db:schema` additionally earns the standalone catalog writer `writeTableSchema` plus its live-project twin `writeProjectTable` (`sdk/org/libs/core/src/exec/app-globals.ts:224-228`). `pages:write`/`api:write` earn the catalog writer AND the live-project twin (`writeProjectPage`/`writeProjectApi`) (`sdk/org/libs/core/src/exec/app-globals.ts:208-215`); `hooks:write` earns `writeHook` plus the live-project `writeProjectHook`/`writeProjectEvent`/`writeProjectFunction` (`sdk/org/libs/core/src/exec/app-globals.ts:216-223`). `project:manage` earns `createProject`/`selectProject` (`sdk/org/libs/core/src/exec/app-globals.ts:229-232`).
+The `db:*` grants map to the scoped `db` verbs shown above (`sdk/org/libs/core/src/exec/app-globals.ts:130-170`); `db:schema` additionally earns the live-project writer `writeProjectTable` (`sdk/org/libs/core/src/exec/app-globals.ts:219`). `pages:write` earns `writeProjectPage`/`writeProjectComponent` and `api:write` earns `writeProjectApi` (`sdk/org/libs/core/src/exec/app-globals.ts:206-208`); `hooks:write` earns the live-project `writeProjectHook`/`writeProjectEvent`/`writeProjectFunction` (`sdk/org/libs/core/src/exec/app-globals.ts:213-215`). `project:manage` earns `createProject`/`selectProject` — the LIVE-project create/select globals (`sdk/org/libs/core/src/exec/app-globals.ts:220-223`). The old STORE-CATALOG writers (`writePage`/`writeApi`/`writeHook`/`writeTableSchema`) have been removed.
 
 `api:call`, `connections:use`, `store:read`, `store:install`, and `events:emit` are value-yielding globals wired through the yield router in `createChildVM` rather than by `injectAppGlobals`, and each is injected on its own grant in one contiguous block: `apiCall` on `api:call` (`sdk/org/libs/core/src/exec/bootstrap.ts:173`), `callConnection` on `connections:use` (`:177`), `storeSearch`+`storeInspect` on `store:read` (`:191-194`), `installSpace` on `store:install` (`:198`), and `emitEvent` on `events:emit` (`:202-204`) — the last with its emitting scope derived HOST-side at injection (`deriveEventScope(spaceDir, projectRoot)`), so sandbox code cannot spoof another scope's events (`sdk/org/libs/core/src/exec/bootstrap.ts:199-204`).
 
@@ -34,7 +34,7 @@ The `db:*` grants map to the scoped `db` verbs shown above (`sdk/org/libs/core/s
 
 The capability model has two cooperating sides kept in lockstep by `AppCapabilities` (`sdk/org/libs/core/src/spaces/capabilities.ts:91-105`).
 
-**Inject side (host-enforced security boundary).** `injectAppGlobals(vm, { app, projectRoot, appGlobals })` injects a global onto the VM only when its grant is present in `app` (`sdk/org/libs/core/src/exec/app-globals.ts:190-242`). The host hands in UNSCOPED engine impls; core wraps each in a capability-scope check, so the boundary is host-side and enforced on EVERY call, not just at injection time (`sdk/org/libs/core/src/exec/app-globals.ts:13-28`). The `db` global is additionally gated on `projectRoot` — a session/fork/delegate running outside a project receives no `db` (`sdk/org/libs/core/src/exec/app-globals.ts:199-205`). The authoring globals are gated on the capability grant ALONE (not `projectRoot`), because the appbuilder legitimately has no project until `createProject` establishes one (`sdk/org/libs/core/src/exec/app-globals.ts:207-232`). A second, independent gate is the host itself: each `writeProject*` impl is supplied only by a project-rooted session, so a catalog-only appbuilder session leaves it absent even with the grant (`sdk/org/libs/core/src/exec/app-globals.ts:210-213`).
+**Inject side (host-enforced security boundary).** `injectAppGlobals(vm, { app, projectRoot, appGlobals })` injects a global onto the VM only when its grant is present in `app` (`sdk/org/libs/core/src/exec/app-globals.ts:187-234`). The host hands in UNSCOPED engine impls; core wraps each in a capability-scope check, so the boundary is host-side and enforced on EVERY call, not just at injection time (`sdk/org/libs/core/src/exec/app-globals.ts:13-28`). The `db` global is additionally gated on `projectRoot` — a session/fork/delegate running outside a project receives no `db` (`sdk/org/libs/core/src/exec/app-globals.ts:197-202`). The authoring globals are gated on the capability grant ALONE (not `projectRoot`), because `createProject` legitimately runs before the target project exists (`sdk/org/libs/core/src/exec/app-globals.ts:206-223`). A second, independent gate is the host itself: each `writeProject*` impl is supplied only by a project-rooted session, so a session without live impls leaves it absent even with the grant (`sdk/org/libs/core/src/exec/app-globals.ts:206-219`).
 
 **DTS side (typecheck).** `buildAppCapabilityDts(app, appDts)` emits exactly the declarations the grants earned; a grant that is absent is absent from the DTS, so a stray call fails typecheck — the same "not listed ⇒ not injected AND absent from the DTS" invariant enforced for `ask`/`fork`/`delegate` (`sdk/org/libs/core/src/exec/bootstrap.ts:274-313`). The three `db:*` verbs share one `db` object composed by `composeDbDts({ read, write, schema })`, which pushes only the granted verb-member blocks and returns `''` when no db cap is present (`sdk/org/libs/core/src/typecheck/library-dts.ts:149-156`). The standalone globals are pulled from `CAPABILITY_DTS_FRAGMENTS` keyed by id (`sdk/org/libs/core/src/typecheck/library-dts.ts:279-288`).
 
@@ -70,18 +70,14 @@ A tasklist node may further NARROW its inherited grants to a per-node subset via
 
 ## Least-privilege split across specialist agents
 
-In the `system-appbuilder` space each specialist holds only the slice its job needs (`sdk/org/libs/core/system-spaces/system-appbuilder/knowledge/app_building/model/capability-model.md:41-48`). The real on-disk frontmatter:
+App-building splits its authority across two agents: **THING** picks the target project but cannot write files, and the **automator** writes the whole app but cannot create projects. The real on-disk frontmatter:
 
 | Agent | `capabilities:` |
 |---|---|
-| `app-architect` | `project:manage`, `db:schema`, `db:read`, `pages:write`, `api:write`, `hooks:write` (`.../app-architect/instruct.md:7-13`) |
-| `data-modeler` | `db:schema`, `db:read` (`.../data-modeler/instruct.md:7-9`) |
-| `page-builder` | `pages:write`, `db:read` (`.../page-builder/instruct.md:7-9`) |
-| `api-author` | `api:write`, `db:read` (`.../api-author/instruct.md:7-9`) |
-| `automator` | `hooks:write`, `db:schema`, `db:read`, `db:write`, `pages:write`, `api:write` (`.../automator/instruct.md:7-13`) |
-| `engineer` (`system-engineer`) | `hooks:write` only (`sdk/org/libs/core/system-spaces/system-engineer/agents/engineer/instruct.md:6-7`) |
+| `user-thing/thing` | `project:manage`, `db:read`, `db:write`, `store:read`, `store:install`, `api:call` (`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:6-19`) |
+| `system-appbuilder/automator` | `hooks:write`, `db:schema`, `db:read`, `db:write`, `pages:write`, `api:write` (`sdk/org/libs/core/system-spaces/system-appbuilder/agents/automator/instruct.md:7-13`) |
 
-(all paths relative to `sdk/org/libs/core/system-spaces/system-appbuilder/agents/` unless stated). A page-builder cannot write a table; a data-modeler cannot write a page. The `automator` is the broad one — it authors the LIVE project (data model + automation + UI), so it holds every authoring grant except `project:manage`.
+THING holds `project:manage` (`createProject`/`selectProject`) but none of the `writeProject*` grants; the `automator` is the broad one — it authors the LIVE project (data model + automation + UI), so it holds every authoring grant except `project:manage`. THING creates or selects the project, then delegates the build to the automator, which the runtime re-roots at that project.
 
 ## Worked example
 

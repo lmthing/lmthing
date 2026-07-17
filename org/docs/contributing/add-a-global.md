@@ -246,10 +246,11 @@ one place session and fork VMs share this substrate; do not duplicate shims in c
 4. Test in `sdk/org/libs/core/src/globals/host-tools.test.ts` — inject into a bare VM and
    `evalCode` a call.
 
-The project-app `db` object and the authoring writers (`writePage`/`writeApi`/`writeHook`/
-`writeTableSchema` + their `writeProject*` twins) are also synchronous, but injected
-separately via `injectAppGlobals` (`sdk/org/libs/core/src/exec/app-globals.ts:180-223`,
-called at `sdk/org/libs/core/src/exec/bootstrap.ts:143`) and gated on `caps.app`. Extend
+The project-app `db` object and the live-project authoring writers (`writeProjectTable`/
+`writeProjectPage`/`writeProjectApi`/`writeProjectHook`/…, plus `createProject`/`selectProject`)
+are also synchronous, but injected separately via `injectAppGlobals`
+(`sdk/org/libs/core/src/exec/app-globals.ts:198-232`, called at
+`sdk/org/libs/core/src/exec/bootstrap.ts:143`) and gated on `caps.app`. Extend
 those rather than `host-tools.ts` when the effect is project-rooted — see
 [../runtime-globals/README.md](../runtime-globals/README.md) (`app-authoring.md`,
 `data-db.md`).

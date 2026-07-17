@@ -1,6 +1,6 @@
 # `project/` — the project-as-application format
 
-A **project** can own a full **app** built on the shared pod runtime: a project-rooted SQLite DB, worker-isolated Node API handlers, client-side React pages, in-proc hooks, and its own project-scoped spaces — the app layer lives at the project level as siblings of `spaces/` (`org/app/README.md` (migrated design)). Apps are authored by the **`system-appbuilder`** space (THING delegates "build me an app" to its `app-architect`) and distributed via the **`store/projects/`** catalog (`org/app/README.md` (migrated design); `sdk/org/libs/cli/src/server/routes/apps.ts` `handleInstallApp`). Two shipped reference apps: the full `store/projects/blog/` and the minimal hand-authored `store/projects/demo-feed/` (`store/projects/manifest.json`).
+A **project** can own a full **app** built on the shared pod runtime: a project-rooted SQLite DB, worker-isolated Node API handlers, client-side React pages, in-proc hooks, and its own project-scoped spaces — the app layer lives at the project level as siblings of `spaces/` (`org/app/README.md` (migrated design)). Apps are built **live** by the **`system-appbuilder`** space's `automator` agent (THING delegates "build me an app" to it, into a live project it first `createProject`s), authoring the same on-disk shape directly into the project. Separately, pre-made reference apps are distributed via the **`store/projects/`** catalog and materialized by the unchanged install flow (`org/app/README.md` (migrated design); `sdk/org/libs/cli/src/server/routes/apps.ts` `handleInstallApp`). Two shipped reference apps: the full `store/projects/blog/` and the minimal hand-authored `store/projects/demo-feed/` (`store/projects/manifest.json`).
 
 ## Directory layout
 
@@ -79,12 +79,12 @@ Every authoring/data power is a **capability** granted in an agent's `instruct.m
 |---|---|
 | `db:read` | `db.query`, `db.tables` (`sdk/org/libs/core/src/exec/app-globals.ts` `buildScopedDb`:134,141) |
 | `db:write` | `db.insert`, `db.update`, `db.remove` (`app-globals.ts`:149) |
-| `db:schema` | `db.createTable`/`addColumn`, `writeTableSchema`/`writeProjectTable` (`app-globals.ts`:165,229,233) |
-| `pages:write` | `writePage`/`writeProjectPage`/`writeProjectComponent` (`app-globals.ts`:212,218,219) |
-| `api:write` | `writeApi`/`writeProjectApi` (`app-globals.ts`:213,220) |
-| `hooks:write` | `writeHook`/`writeProjectHook`/`writeProjectEvent`/`writeProjectFunction` (`app-globals.ts`:221,226-228) |
+| `db:schema` | `db.createTable`/`addColumn`, `writeProjectTable` (`app-globals.ts`:165,224) |
+| `pages:write` | `writeProjectPage`/`writeProjectComponent` (`app-globals.ts`:209,210) |
+| `api:write` | `writeProjectApi` (`app-globals.ts`:211) |
+| `hooks:write` | `writeProjectHook`/`writeProjectEvent`/`writeProjectFunction` (`app-globals.ts`:217-219) |
 | `api:call` | `apiCall(name, input)` — requires a non-empty `{allow:[...]}` (`sdk/org/libs/core/src/spaces/capabilities.ts` `parseApiCallConfig`) |
-| `project:manage` | `createProject`, `selectProject` (`app-globals.ts`:235-236) |
+| `project:manage` | `createProject`, `selectProject` — live-project create/select (`app-globals.ts`:225-229) |
 
 `db:*` grants narrow to named tables via `{tables:[...]}`, enforced per-verb at every call by `assertTableAllowed` (`sdk/org/libs/core/src/exec/app-globals.ts` `assertTableAllowed`). This keeps two agents in one project in their own lanes on the shared db (`store/projects/blog/spaces/newsroom/agents/fetcher/instruct.md`). Full grant/config/fail-loud rules → [../space/agents/capabilities.md](../space/agents/capabilities.md).
 

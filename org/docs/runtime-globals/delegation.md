@@ -58,7 +58,6 @@ canDelegateTo:
   - system-research/researcher
   - system-architect/architect
   - system-engineer/engineer
-  - system-appbuilder/app-architect
   - system-appbuilder/automator
   - system-store/finder
   - system-vision/vision

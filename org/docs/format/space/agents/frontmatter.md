@@ -58,30 +58,32 @@ The frontmatter's markdown body becomes the agent's `instructBody` `sdk/org/libs
 
 ## Worked example
 
-Adapted from `sdk/org/libs/core/system-spaces/system-appbuilder/agents/app-architect/instruct.md` — every allowed key in one block:
+Adapted from `sdk/org/libs/core/system-spaces/system-appbuilder/agents/automator/instruct.md` — every allowed key in one block:
 
 ```markdown
 ---
-title: App Architect
+title: Automator
 knowledge:
   - app_building/model          # -> knowledge/app_building/model/
-functions: []                    # -> functions/*
+functions:
+  - uuid                         # -> functions/*
 components: []                    # -> components/{view,form}/*
 capabilities:
-  - project:manage
+  - hooks:write
   - db:schema
   - db:read
-defaultAction: build_app         # runs the build_app action's tasklist host-driven
+  - db:write
+  - pages:write
+  - api:write
+defaultAction: build_live_project   # runs the action's tasklist host-driven
 actions:
-  - id: build_app
-    label: Build App
-    description: Turn a request into a working project.
-    tasklist: build_app          # must resolve in tasklists/
-canDelegateTo:
-  - system-appbuilder/data-modeler
+  - id: build_live_project
+    label: Build Live Project
+    description: Build or extend the app in the live project.
+    tasklist: build_live_project    # must resolve in tasklists/
 ---
 
-You are the App Architect. ...instruction body...
+You are the Automator. ...instruction body...
 ```
 
 A key not on the allow-list (e.g. a typo'd `capabilties:`) aborts the whole space load `sdk/org/libs/core/src/spaces/load.ts:461-466`.

@@ -32,7 +32,7 @@ The pod supplies the impl as a **stable live forwarder**, not a build-time snaps
 | `db:write` | `insert(table, values)`, `update(table, {where,set})`, `remove(table, {where})` | `DB_WRITE_MEMBERS` `library-dts.ts:134-136` |
 | `db:schema` | `createTable(schema)`, `addColumn(table, name, column)` | `DB_SCHEMA_MEMBERS` `library-dts.ts:139-140` |
 
-`db:schema` additionally earns two standalone (non-`db`) globals: `writeTableSchema` (writes a **catalog** template) and `writeProjectTable` (writes `<projectRoot>/database/<name>.json` into the LIVE project and re-derives its db) `sdk/org/libs/core/src/exec/bootstrap.ts#AmbientDtsOpts`. See [app-authoring.md](./app-authoring.md).
+`db:schema` additionally earns the standalone (non-`db`) global `writeProjectTable` — it writes `<projectRoot>/database/<name>.json` into the LIVE project (optional third arg seeds rows) and re-derives its db `sdk/org/libs/core/src/exec/bootstrap.ts#AmbientDtsOpts`. See [app-authoring.md](./app-authoring.md).
 
 The declared signatures (verbatim from `DB_READ_MEMBERS` / `DB_WRITE_MEMBERS` / `DB_SCHEMA_MEMBERS`, `sdk/org/libs/core/src/typecheck/library-dts.ts:129-140`):
 

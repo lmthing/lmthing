@@ -133,7 +133,7 @@ A task's resolved output is stored in `allOutputs[id]` (`sdk/org/libs/core/src/t
 
 ### `forEach` fan-out
 
-When a task declares `forEach: "<upstreamTaskId>.<field>"` (or bare `"<upstreamTaskId>"`), the host resolves the referenced upstream array and runs the task **once per element in parallel**, injecting `item` + `index` as extra seed, and collects the resolved values into an array for dependents (`resolveForEachItems` + the `Promise.all` map, `sdk/org/libs/core/src/tasklist/orchestrator.ts:10-20`, `:263-278`). A non-array / missing reference resolves to `[]` (`:19`). The model never writes the loop. A salvaged element is labelled `"<taskId>[<index>]"` in the degradation aggregation (`:270-272`).
+When a task declares `forEach: "<upstreamTaskId>.<field>"` (or bare `"<upstreamTaskId>"`), the host resolves the referenced upstream array and runs the task **once per element in parallel**, injecting `item` + `index` as extra seed, and collects the resolved values into an array for dependents (`sdk/org/libs/core/src/tasklist/orchestrator.ts#resolveForEachItems` + the `Promise.all` map). A non-array / missing reference resolves to `[]`. The model never writes the loop. **Each element is resilient**: if its fork fails — a bad resolve, a thrown error, or a QuickJS VM error — the host retries that one element with a **fresh** fork up to `FOREACH_ITEM_ATTEMPTS` times, then salvages a neutral schema-valid placeholder for it, so one failed element never rejects the collection and sinks a required task (`sdk/org/libs/core/src/tasklist/orchestrator.ts#FOREACH_ITEM_ATTEMPTS`). A salvaged element is labelled `"<taskId>[<index>]"` in the degradation aggregation.
 
 ### `optional` tasks
 

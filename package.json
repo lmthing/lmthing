@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "pnpm --filter ./studio dev",
     "thing": "node sdk/org/scripts/thing-dev.mjs",
+    "lmthing": "cd sdk/org && pnpm lmthing",
+    "lmthing:watch": "cd sdk/org && pnpm lmthing:watch",
     "build": "pnpm --filter ./studio build",
     "build:pages": "pnpm --filter ./studio build:pages",
     "lint": "pnpm --filter ./studio lint",

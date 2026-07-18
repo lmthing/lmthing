@@ -109,9 +109,9 @@ THING holds both store grants `sdk/org/libs/core/system-spaces/user-thing/agents
    A denied card rejects — do not retry unless the user asks again.
 ````
 
-`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:315-325` (the `…` elides three comment lines about reading `inst.error` only)
+`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:358-368` (the `…` elides three comment lines about reading `inst.error` only)
 
-The same instruct carries a rule that follows directly from the consent model: **never call `installSpace` on an unverified id** — because the call is consent-gated it *always* interrupts the user with a card, and asking someone to approve installing something that cannot exist is a bug. Verify with `storeInspect` first (`undefined` ⇒ not in the catalog) `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:327-340`. A multi-service request runs the whole find → install → configure sequence **once per distinct integration**, so each install raises its own consent card `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:299-301`.
+The same instruct carries a rule that follows directly from the consent model: **never call `installSpace` on an unverified id** — because the call is consent-gated it *always* interrupts the user with a card, and asking someone to approve installing something that cannot exist is a bug. Verify with `storeInspect` first (`undefined` ⇒ not in the catalog) `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:370-383`. A multi-service request runs the whole find → install → configure sequence **once per distinct integration**, so each install raises its own consent card `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:342-344`.
 
 ---
 

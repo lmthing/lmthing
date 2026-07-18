@@ -24,7 +24,7 @@ A **two-part** ref (`domain/field`) is surfaced on demand — the system prompt 
 
 Aspect files are plain markdown and need no frontmatter `store/projects/blog/spaces/newsroom/knowledge/journalism/source-evaluation/credibility-signals.md:1`. If an aspect *does* carry frontmatter it is validated against an allow-list — `description` is required, `icon`/`color`/`label` are optional, any other key throws `sdk/org/libs/core/src/spaces/load.ts:330-353`.
 
-The field overview body should name each sibling aspect file so the agent knows what it can drill into `store/projects/blog/spaces/newsroom/knowledge/journalism/source-evaluation/index.md:23-27`.
+The field overview body is **guidance**: the axis the field splits on and, in prose, what each aspect is *for*, so the agent can choose the right one. It should **not** hand-maintain a menu of the aspect *filenames* — that list is supplied automatically and authoritatively from disk, so a hand-written one only drifts stale. Both surfacing paths add it for you: a two-part `knowledge:` preload's system block lists the aspect files from the loaded space tree `sdk/org/libs/core/src/context/system-block.ts:295-301`, and an on-demand `loadKnowledge(domain, field)` menu load appends the **real option list read straight off the directory** (every `<slug>.md` except `index.md`, sorted) beneath the overview, in full `sdk/org/libs/core/src/globals/load-knowledge.ts#listKnowledgeOptions`. Describe the aspects; do not enumerate their slugs `store/projects/blog/spaces/newsroom/knowledge/journalism/source-evaluation/index.md:23-27`.
 
 ## Loaded on demand
 

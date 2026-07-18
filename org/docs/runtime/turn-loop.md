@@ -23,7 +23,7 @@ every delegate call the same function with different `deps`
 `sdk/org/libs/core/src/fork/fork.ts:536` — a fork's own loop, and again at `:563` for the
 forced-resolve nudge).
 
-Key `TurnLoopDeps` fields (`turn-loop.ts:196-237`):
+Key `TurnLoopDeps` fields (`turn-loop.ts:248-289`):
 
 | field | meaning |
 |---|---|
@@ -32,70 +32,70 @@ Key `TurnLoopDeps` fields (`turn-loop.ts:196-237`):
 | `systemBlock`, `ambientDts` | system prompt + the ambient `.d.ts` every statement typechecks against |
 | `streamFn(opts) → StreamSession` | provider stream (`eval/stream-types.ts:37-52`) |
 | `processYield(req) → Promise<unknown>` | host resolver for a `YieldRequest` |
-| `maxRetries` | default **3** (`turn-loop.ts:303`) |
+| `maxRetries` | default **3** (`turn-loop.ts:355`) |
 | `budget` | `Budget` — episodes / tool calls / wall clock (`eval/budget.ts`) |
 | `initialContext` / `onContextSnapshot` | cross-turn typecheck scope carried by the Session |
 | `beforeTurn()` | transient per-turn reminder — the composed soft-reminder block (top-level session only: open todos + an unnamed-session naming nudge) |
-| `streamIdleMs` | no-token watchdog, default **60000** (`turn-loop.ts:438`) |
-| `maxContinueNudges` | default **4** (`turn-loop.ts:334`) |
+| `streamIdleMs` | no-token watchdog, default **60000** (`turn-loop.ts:490`) |
+| `maxContinueNudges` | default **4** (`turn-loop.ts:386`) |
 | `tracer` / `scope` / `traceContext` / `model` | observability + per-request model override |
 
 Return value is `'done'` (model finished, or `process.exit(...)`) or `'error'` (retries exhausted /
 unrecoverable stream error). A **budget breach does not return** — it throws
-`BudgetExceededError` out of `runTurnLoop` (`turn-loop.ts:342,639`).
+`BudgetExceededError` out of `runTurnLoop` (`turn-loop.ts:394,691`).
 
 ---
 
 ## 2. One turn, end to end
 
 ```
-while (attempt < maxRetries)                       // turn-loop.ts:336
-  budget.tickEpisode()                             // :342  — counts THIS LLM request
-  messages = history.getPromptMessages() + beforeTurn()?   // :344-350 (reminder is transient)
-  stream = streamFn({ system, messages, model })   // :353
-  for each chunk (raced against an idle timer):    // :445-459
-     text  = fenceFilter.feed(chunk)               // :463  strip ``` fences / partial lang tags
-     stmts = detector.feed(text)                   // :463  complete top-level TS statements
-     for each stmt:                                // :465
-        stmt = sanitize(stmt)                      // :472  comment out leaked model habits (e.g. </think>)
-        processStatement(stmt)                     // :473
+while (attempt < maxRetries)                       // turn-loop.ts:388
+  budget.tickEpisode()                             // :394  — counts THIS LLM request
+  messages = history.getPromptMessages() + beforeTurn()?   // :396-402 (reminder is transient)
+  stream = streamFn({ system, messages, model })   // :405
+  for each chunk (raced against an idle timer):    // :497-511
+     text  = fenceFilter.feed(chunk)               // :515  strip ``` fences / partial lang tags
+     stmts = detector.feed(text)                   // :515  complete top-level TS statements
+     for each stmt:                                // :517
+        stmt = sanitize(stmt)                      // :524  comment out leaked model habits (e.g. </think>)
+        processStatement(stmt)                     // :525
           prose? → drop           typecheck fail? → abort stream, turnError
           eval fail? → abort stream, turnError     pendingYield? → abort stream
-  flush fenceFilter + detector tail                // :541-554 (only when not aborted)
-  history.append(assistant: parsedStatements)      // :593
-  if turnError   → error block, retry (or 'error')            // :596-614
-  if pendingYield→ resolve yields, bind, VARIABLES, attempt=0 // :616-758
-  if no statements → 'done'                                   // :769-772
-  if last stmt was a non-yielding call-binding → CONTINUATION_NUDGE, attempt=0  // :781-789
+  flush fenceFilter + detector tail                // :593-606 (only when not aborted)
+  history.append(assistant: parsedStatements)      // :645
+  if turnError   → error block, retry (or 'error')            // :648-666
+  if pendingYield→ resolve yields, bind, VARIABLES, attempt=0 // :668-815
+  if no statements → 'done'                                   // :826-829
+  if last stmt was a non-yielding call-binding → CONTINUATION_NUDGE, attempt=0  // :838-846
   → 'done'
 ```
 
-### Statement pipeline (`processStatement`, `turn-loop.ts:383-423`)
+### Statement pipeline (`processStatement`, `turn-loop.ts:435-475`)
 
 Before a statement enters the pipeline it passes through the `sanitize` closure
-(`turn-loop.ts:431-435`) at *both* statement sites (streaming loop `:472`, trailing flush `:548`),
+(`turn-loop.ts:483-487`) at *both* statement sites (streaming loop `:524`, trailing flush `:600`),
 which neutralizes known **model output habits** — see [§2.1](#21-model-output-habits) below. The
 returned text is what every downstream step (log, trace, `processStatement`) sees, so the trace stays
 honest with what actually ran.
 
-1. **prose drop** — `looksLikeProse(stmt)` (`:173-194`). A natural-language sentence the model
+1. **prose drop** — `looksLikeProse(stmt)` (`:225-246`). A natural-language sentence the model
    narrated instead of code never parses as TS, so dropping it avoids burning a retry. Conservative:
    bails on any code punctuation (`=(){}[];\`<>`, `=>`, `.\w`, `await`), on a TS keyword start
-   (`TS_KEYWORD_START`, `:155`), and on <3 words; requires an English function word
-   (`ENGLISH_FUNCTION_WORDS`, `:160-165`) — but an apostrophe contraction ("I'll start by") is
-   unambiguously prose (`:187`). Dropped statements are logged and traced as
-   `/* dropped non-code prose: … */` (`:475-476`).
+   (`TS_KEYWORD_START`, `:207`), and on <3 words; requires an English function word
+   (`ENGLISH_FUNCTION_WORDS`, `:212-217`) — but an apostrophe contraction ("I'll start by") is
+   unambiguously prose (`:239`). Dropped statements are logged and traced as
+   `/* dropped non-code prose: … */` (`:527-528`).
 2. **typecheck** — `runTsc({ ambientDts: fullAmbient(), sessionContext: accumulatedContext, statement })`
-   (`:386`). See [typecheck.md](./typecheck.md).
+   (`:438`). See [typecheck.md](./typecheck.md).
 3. **transpile + globalThis propagation** — `transpileStatement(stmt)` then, for each name from
-   `extractBindingNames(stmt)`, append `try { globalThis['<n>'] = <n>; } catch {}` (`:397-403`).
+   `extractBindingNames(stmt)`, append `try { globalThis['<n>'] = <n>; } catch {}` (`:449-455`).
    This is load-bearing: **every `evalStatement` is its own ES module**, so without the propagation a
    later statement cannot see an earlier `const`.
-4. **eval** — `vm.evalStatement(jsCode)` (`:404`).
+4. **eval** — `vm.evalStatement(jsCode)` (`:456`).
 5. **pending-yield check** — if `vm.pendingYields` is non-empty the statement suspended on a
-   value-yielding call; record it and hand back to the loop (`:411-417`).
+   value-yielding call; record it and hand back to the loop (`:463-469`).
 6. **commit** — push to `parsedStatements`, append to `accumulatedContext`, and set
-   `lastStmtNonYieldBinding` = "bound a name AND contains a call" (`:419-422`).
+   `lastStmtNonYieldBinding` = "bound a name AND contains a call" (`:471-474`).
 
 #### 2.1 Model output habits
 
@@ -135,10 +135,10 @@ are host-authored, not model-generated, so they do **not** run through this; see
   TS parses it as complete: it must end in `;` or `}` and contain no missing/synthetic tokens
   (`boundary.ts:78-84`, `hasMissingOrErrorTokens` at `:97-104`). A prose guard stops it carving a bare identifier out of `I'll start by…` —
   it returns the whole physical line instead so the prose-drop can discard it (`boundary.ts:66-70`).
-- `FenceLineFilter` (`turn-loop.ts:112-151`) strips markdown fences from the live stream, making drop
+- `FenceLineFilter` (`turn-loop.ts:164-203`) strips markdown fences from the live stream, making drop
   decisions **only on complete lines** so a mid-statement token that arrives as its own chunk
-  (`JSON`, ` on`, `ts`) is never swallowed. The static `stripMarkdownFences` (`:93-98`) is safe only on
-  final text. `FENCE_LANG_SUFFIXES` (`:76-82`) catches a fence tag split across chunks
+  (`JSON`, ` on`, `ts`) is never swallowed. The static `stripMarkdownFences` (`:145-150`) is safe only on
+  final text. `FENCE_LANG_SUFFIXES` (`:128-134`) catches a fence tag split across chunks
   (` ```typ ` + `escript`).
 - **Model output habits** are neutralized per statement by `sanitizeModelHabits` — a leaked reasoning
   tag or chat control token is commented out before it can burn a retry. See [§2.1](#21-model-output-habits).
@@ -224,7 +224,7 @@ globals → [runtime-globals/README.md](../runtime-globals/README.md).
 ## 5. Yield servicing and binding
 
 When `processStatement` sees `vm.pendingYields.length > 0` it aborts the model stream
-(`turn-loop.ts:504-508`) and the loop takes over (`:616-758`).
+(`turn-loop.ts:556-560`) and the loop takes over (`:668-815`).
 
 **Sequential batches.** A statement normally yields once, or one *concurrent* batch
 (`await Promise.all([fork(…), fork(…)])`). But a model-awaited helper can await host calls
@@ -232,7 +232,7 @@ sequentially — `webFetch` does a plain fetch and then, for a JS-rendered page,
 render service; `webSearch`'s `auto` chain falls Tavily→Bing→DuckDuckGo. Each later await only appears
 as a pending yield *after* `drivePendingJobs()` resumes the previous one. So the loop drains in rounds
 until `vm.pendingYields` is empty, bounded by `MAX_SEQUENTIAL_YIELDS = 64` (`turn-loop.ts:29`,
-`:632-670`):
+`:684-722`):
 
 ```ts
 let batch = vm.pendingYields.splice(0);
@@ -249,20 +249,20 @@ for (let guard = 0; batch.length > 0 && guard < MAX_SEQUENTIAL_YIELDS; guard++) 
 
 Each batch is resolved **in parallel** with `Promise.all`; every resolved yield ticks
 `budget.tickToolCalls` and emits `yield` / `yield_resolved` trace events with a per-turn `yieldId`
-(`:642-649`).
+(`:694-701`).
 
 There is no one-by-one `await` loop and no `await Promise.resolve()` microtask flush: a batch is
 resolved with a single parallel `Promise.all`, then `vm.drivePendingJobs()` drains the VM's job queue
-(`turn-loop.ts:632-670`).
+(`turn-loop.ts:684-722`).
 
 **Binding is host-side.** In this sync-eval model the QuickJS continuation *after* `await` does not
-re-run the binding, so `bindYieldResults` (`turn-loop.ts:272-299`, exported) maps values onto the
+re-run the binding, so `bindYieldResults` (`turn-loop.ts:324-351`, exported) maps values onto the
 statement's binding pattern (`extractBindingPattern`, `context/variables.ts:56-65`):
 
 - `simple` (`const x = …`) → the single resolved value, or the **array** of values when the statement
-  yielded more than once (it awaited a combinator like `Promise.all`) — `turn-loop.ts:282,290-292`;
-- `array` (`const [a, b] = …`) → positional (`turn-loop.ts:285-287`);
-- `object` (`const { a, b } = …`) → by key (`turn-loop.ts:288-290`).
+  yielded more than once (it awaited a combinator like `Promise.all`) — `turn-loop.ts:334,342-344`;
+- `array` (`const [a, b] = …`) → positional (`turn-loop.ts:337-339`);
+- `object` (`const { a, b } = …`) → by key (`turn-loop.ts:340-342`).
 
 Then, for every bound name, the VM's **own** computed value wins where it diverges:
 
@@ -272,36 +272,50 @@ for (const name of pattern.names) {
   if (vmValue !== undefined) variables[name] = vmValue;
 }
 ```
-`turn-loop.ts:294-297`. They agree whenever the yielding call *is* the awaited expression; they
+`turn-loop.ts:346-349`. They agree whenever the yielding call *is* the awaited expression; they
 diverge when the yield is nested inside another async function the model awaited (e.g. `webSearch()`
 awaiting `fetch()` internally) — there the raw resolved value is the *inner* yield's value, while the
 VM's bytecode (resumed by `drivePendingJobs()` plus the per-statement `globalThis[name] = name`
 propagation) already computed the correct outer one. Finally each name is written back with
-`vm.setVar(name, value)` (`:698-700`), which puts it on `ctx.global` and in the host scope for the
+`vm.setVar(name, value)` (`:750-752`), which puts it on `ctx.global` and in the host scope for the
 next turn.
 
 **Then the model is re-prompted.** The yielding statement is appended to `accumulatedContext`
-(`:712`) and a `user` message with `blockType:'variables'` is appended (`:754`), built from:
+(`:764`) and a `user` message with `blockType:'variables'` is appended (`:811`), built from:
 
 - `emitVariables(variables, accumulatedContext)` (`context/variables.ts:9-28`) — a `VARIABLES` list
-  (values via `serialize`: 200-char string cap, depth cap 6, 4 KiB byte cap —
-  `globals/serialize.ts:6-7,33-38`), a `SCOPE (already declared — do not redeclare)` line, and an
+  (values via `serialize`: 200-char string cap, depth cap 6, 4 KiB byte cap by default —
+  `globals/serialize.ts#SerializeOpts`), a `SCOPE (already declared — do not redeclare)` line, and an
   `ALREADY EXECUTED` block;
 - `formatInspectResult(inspectArgs)` lines folded into the same `VARIABLES` header — `inspect()` is
   normally called *without* a binding, so without this a bare `inspect(x)` would surface nothing
-  (`turn-loop.ts:722-743`);
+  (`turn-loop.ts:774-795`). Its own `serialize` call raises the string cap to 20,000 chars
+  (`globals/inspect.ts#INSPECT_STR_CAP`, byte cap 24,000) instead of the standard 200 — `inspect()`
+  *is* the model's explicit escape hatch from the standard preview cap, so re-applying that same cap
+  to its output would silently defeat the tool. `applyQuery`'s `slice` query narrows a STRING result
+  the same way it narrows an array (`globals/inspect.ts#applyQuery`) — both a big value's raw preview
+  and a `slice`-narrowed window of it are shown in full, not re-truncated;
 - `formatReadDocuments(yields, resolvedValues)` (`:48-66`) — the **full** text of any successfully
   read document, because the `VARIABLES` preview would only show its first 200 chars;
-- `budget.nearLimitWarning()` when close to a cap (`:752-753`).
+- `formatLoadKnowledgeContents(yields, resolvedValues)` (`eval/turn-loop.ts#formatLoadKnowledgeContents`)
+  — the identical **full-text** treatment for `loadKnowledge`, closing the same 200-char-preview gap
+  `formatReadDocuments` already closed for `readDocument`. A loaded knowledge file is exactly as much
+  "the thing to ground an answer in" as an uploaded document; before this, anything past char 200 was
+  silently invisible to the model, which then free-invented the rest instead of quoting it — confirmed
+  in production by a classification guide whose decisive exception clause landed past char 200 (never
+  read), and a grounded-answer task that fabricated facts a longer knowledge file held in full while
+  still citing that file as its "source". `exec/prelude.ts` gets the identical treatment for a task's
+  declarative `prelude:` `loadKnowledge` statements (its own independent yield-batch loop);
+- `budget.nearLimitWarning()` when close to a cap (`:809-810`).
 
-On a **clean** resolution `attempt` is reset to `0` and the loop continues (`:765`) — a resolved yield
+On a **clean** resolution `attempt` is reset to `0` and the loop continues (`:822`) — a resolved yield
 starts a *fresh* turn, it does not consume a retry. The reset is **withheld when the turn's yields
 errored** and execution only reached here because `attempt >= maxRetries` (the fall-through binds the
-failed names to `undefined` to limp forward, `:679`): that is not progress, so `attempt` keeps climbing
+failed names to `undefined` to limp forward, `:731`): that is not progress, so `attempt` keeps climbing
 and the loop terminates with `'error'`. Otherwise a model that stubbornly re-emits the same failing
 yield (e.g. a forbidden `delegate`) would zero its retry budget every cycle and loop forever, each cycle
 appending another error+VARIABLES block until the history string overflows V8's max length ("Invalid
-string length") `sdk/org/libs/core/src/eval/turn-loop.ts:765`.
+string length") `sdk/org/libs/core/src/eval/turn-loop.ts:822`.
 
 ---
 
@@ -350,22 +364,22 @@ lift its own ceiling. The Session mints a fresh one per run (`session.ts:203,304
 
 | limit | ticked where | on breach |
 |---|---|---|
-| `maxEpisodes` | `tickEpisode()` once per LLM request, **before** the stream (`turn-loop.ts:342`) | `BudgetExceededError('episodes', …)` |
-| `maxToolCalls` | `tickToolCalls(batch.length)` per resolved yield batch (`turn-loop.ts:641`) | `BudgetExceededError('toolCalls', …)` |
+| `maxEpisodes` | `tickEpisode()` once per LLM request, **before** the stream (`turn-loop.ts:394`) | `BudgetExceededError('episodes', …)` |
+| `maxToolCalls` | `tickToolCalls(batch.length)` per resolved yield batch (`turn-loop.ts:693`) | `BudgetExceededError('toolCalls', …)` |
 | `maxForkDepth` | `assertForkDepth(depth)` from the fork engine (`budget.ts:89-93`) | `BudgetExceededError('forkDepth', …)` |
 | `maxWallClockMs` | `assertWallClock()` inside both ticks (`budget.ts:73,82`, impl `:96-100`) | `BudgetExceededError('wallClock', …)` |
 
 Notes:
 
 - `tickEpisode()` is deliberately **outside** the stream `try/catch` so a budget throw can never be
-  swallowed as an abort (`turn-loop.ts:338-342`). It counts *retries* too — every LLM request is an
+  swallowed as an abort (`turn-loop.ts:390-394`). It counts *retries* too — every LLM request is an
   episode.
 - A `BudgetExceededError` raised *inside* a yield (e.g. a fork rejected by the depth cap) is
   re-thrown, not converted into a tool error: `if (err instanceof BudgetExceededError) throw err;`
-  (`turn-loop.ts:657`).
+  (`turn-loop.ts:709`).
 - **Soft warning first.** `nearLimitWarning()` (`budget.ts:108-131`) returns a "wrap up immediately and
   call `currentTask.resolve()` now" message when ≤2 episodes remain or ≥80 % of the tool-call /
-  wall-clock cap is spent; the turn loop appends it to the `VARIABLES` block (`turn-loop.ts:752-753`).
+  wall-clock cap is spent; the turn loop appends it to the `VARIABLES` block (`turn-loop.ts:809-810`).
 - `snapshot()` (`budget.ts:134-136`) backs the in-VM `progress()` global (`session.ts:651`,
   `exec/bootstrap.ts:73-76`).
 - Forks catch `BudgetExceededError` from their *nudge* loop only (`fork/fork.ts:569-572`); a breach in
@@ -378,7 +392,7 @@ Notes:
 
 | failure | behaviour |
 |---|---|
-| **typecheck error** | abort stream, `typecheck_error` trace, error block → retry (`turn-loop.ts:490-495`) |
+| **typecheck error** | abort stream, `typecheck_error` trace, error block → retry (`turn-loop.ts:542-547`) |
 | **eval error** | abort stream, `eval_error` trace, error block → retry (`:497-502`) |
 | **yield error** (non-budget) | surfaced as a normal retryable turn error, **not** a silent `undefined` (`:679-692`) |
 | **`process.exit(...)`** | intentional termination — returns `'done'` without retrying (`:600-603`) |
@@ -389,7 +403,7 @@ Notes:
 
 **The error block.** `buildErrorBlock(failingStatement, message, attempt, maxRetries, accumulatedContext)`
 (`eval/error-rewind.ts:45-76`) is appended to history as a `user` message with `blockType:'error'`
-(`turn-loop.ts:611`). Its real shape:
+(`turn-loop.ts:663`). Its real shape:
 
 ```
 ERROR (attempt 2 of 3)
@@ -414,21 +428,21 @@ env-only shim (`:30-32`).
 
 **No rewind of `accumulatedContext`.** Statements that ran earlier in the turn already bound their
 variables in the VM and persist into the retry, so removing them from the typecheck context would make
-`tsc` reject valid references with "Cannot find name" (`turn-loop.ts:604-609`, `error-rewind.ts:36-44`).
+`tsc` reject valid references with "Cannot find name" (`turn-loop.ts:656-661`, `error-rewind.ts:36-44`).
 The failing statement was never appended (it errors before the commit), so nothing partial is left.
 
 **Yield-error scope preservation.** When a yield throws, the failed statement is *not* committed, so a
 retry that references its bound names would fail typecheck. The loop therefore adds those names to
 `yieldErrorNames`, seeds them `undefined` in the VM, and declares them ambient `any`
 (`declare const <n>: any;`) for subsequent typechecks — a re-emitted `const <name> = …` simply shadows
-the declaration (`turn-loop.ts:322-332,668-671`). On the **final** attempt the loop falls through and
+the declaration (`turn-loop.ts:374-384,720-723`). On the **final** attempt the loop falls through and
 binds the `undefined` values so the run can still limp forward (`:679`).
 
 ---
 
 ## 9. Two nudges the loop applies
 
-**Continuation nudge** (`CONTINUATION_NUDGE`, `turn-loop.ts:244-248`, fired at `:781-789`). Only
+**Continuation nudge** (`CONTINUATION_NUDGE`, `turn-loop.ts:296-300`, fired at `:838-846`). Only
 *yields* surface their result to the model; a non-yielding space function (`writeTaskFile`,
 `validateSpace`, `listScaffoldedSpaces`) does not. A model that stops right after binding one is
 stranded mid-program. `lastStmtNonYieldBinding` — "bound a name AND the statement contains a call"
@@ -444,7 +458,7 @@ provider that throws. The session registers two in its constructor (`session.ts:
 `readTodoReminder` — open items from `.lmthing/todos.json` as an "Open todos …" block
 (`session.ts#Session.readTodoReminder`) — and `namingNudge` — a prompt to call `setSessionMeta` if the
 session still isn't named after two conversational turns (`session.ts#Session.namingNudge`). The block
-is appended to **this request only** and never written to history (`turn-loop.ts:346-350`), so it is
+is appended to **this request only** and never written to history (`turn-loop.ts:398-402`), so it is
 re-evaluated fresh each turn and never duplicates. Add a reminder by registering another provider — the
 turn loop needs no changes. Forks and delegates do not set `beforeTurn`.
 
@@ -452,16 +466,16 @@ turn loop needs no changes. Forks and delegates do not set `beforeTurn`.
 
 ## 10. Context, history and usage
 
-- `accumulatedContext` lives **outside** the retry loop (`turn-loop.ts:316`) and grows via
+- `accumulatedContext` lives **outside** the retry loop (`turn-loop.ts:368`) and grows via
   `appendContext` (`:317-320`), which also calls `onContextSnapshot` so the Session can carry the
   typecheck scope into the next turn (the VM still holds the values across `continue()`/`resume()`).
   Only a fresh `start()` resets it (`session.ts:305`).
 - History gets the **parsed statements**, not the raw stream text, so an incomplete trailing fragment is
-  never persisted: `parsedStatements.join('\n')` (`turn-loop.ts:582`, appended at `:593` with
+  never persisted: `parsedStatements.join('\n')` (`turn-loop.ts:634`, appended at `:593` with
   `blockType:'normal'`).
 - **Token usage** is awaited only when the stream ended normally, and is raced against a 10 s timeout —
   the usage promise can stay pending forever when a provider ends a stream without its final chunk, and
-  a fork blocking there once deadlocked a whole DAG (`turn-loop.ts:556-579`). Usage rides the
+  a fork blocking there once deadlocked a whole DAG (`turn-loop.ts:608-631`). Usage rides the
   `llm_response` trace event (`:585-592`).
 
 ---
@@ -470,7 +484,7 @@ turn loop needs no changes. Forks and delegates do not set `beforeTurn`.
 
 All via `tracer.write(...)` (`sandbox/trace.ts`); `NULL_TRACER` disables. Each carries `context`
 (`scope.label ?? traceContext ?? 'session'`) and, when a `scope` is present, `nodeId`
-(`turn-loop.ts:304-307`).
+(`turn-loop.ts:356-359`).
 
 `llm_request` (`:351`) · `statement` (`:476,481`) · `llm_progress` (throttled ≥250 ms, `:487`) ·
 `typecheck_error` (`:493`) · `eval_error` (`:500`) · `yield` (`:644`) · `yield_resolved` (`:647`) ·
@@ -499,16 +513,16 @@ the fork's first `VARIABLES` message (`:74-90`). Detail → [fork-and-tasklists.
 ## 13. Gotchas
 
 - **Variables do not persist between evals by themselves** — each `evalStatement` is an isolated
-  module; the `globalThis['x'] = x` suffix is what makes them visible (`turn-loop.ts:397-403`). The
+  module; the `globalThis['x'] = x` suffix is what makes them visible (`turn-loop.ts:449-455`). The
   `try/catch` form is deliberate: it propagates even `undefined` values.
 - **`extractBindingNames` also propagates `function`/`class` declarations and un-initialized
   `let`s** (`context/variables.ts:122-149`) — without that, typecheck (which sees the accumulated
   context) accepts a later call while eval throws "not defined".
 - **The trailing-buffer flush is intentionally asymmetric** with the streaming loop: it emits no
   statement/progress/error trace events and never touches `stream`/`aborted` (the stream has already
-  ended) — `turn-loop.ts:537-554`.
+  ended) — `turn-loop.ts:589-606`.
 - **The idle watchdog cannot fire while a synchronous host call blocks the event loop** (e.g.
   `execShell`). `fetch` is *not* in that category — it is a real non-blocking yield
   (`yield-router.ts:184-189`).
-- **`pendingYield` records the last pending request** for the presence check (`turn-loop.ts:412`), but
+- **`pendingYield` records the last pending request** for the presence check (`turn-loop.ts:464`), but
   servicing takes the whole queue with `vm.pendingYields.splice(0)` (`:635`).

@@ -65,7 +65,7 @@ distinct sub-topic slugs, explicitly *not* `overview`
 `sdk/org/libs/core/system-spaces/system-architect/tasklists/synthesize_and_run/01-design.md:21-22` —
 and again while it writes the files: the overview paragraph goes into `index.md` via
 `writeKnowledgeIndex`, then one option file per aspect (>= 2) via `writeKnowledgeOption`
-`sdk/org/libs/core/system-spaces/system-architect/tasklists/synthesize_and_run/02-build_field.md:26-30`.
+`sdk/org/libs/core/system-spaces/system-architect/tasklists/synthesize_and_run/02-build_field.md:45-48`.
 
 ## What a real aspect file looks like
 

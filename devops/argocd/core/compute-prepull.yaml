@@ -44,7 +44,7 @@ spec:
           # every compute push (see the update-manifests job). Harmless
           # until then: the nodeSelector above means this pod never actually
           # schedules, so the placeholder digest is never resolved/pulled.
-          image: lmthingacr.azurecr.io/compute@sha256:f7cd9c04ef0ebdea98b305376bda7582e749bcec6aa79b2437913f712c75c934
+          image: lmthingacr.azurecr.io/compute@sha256:dcb997fab74945236e6bd8dae7c5ec735b86156788416dc667a71476a744ef6c
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c", "sleep infinity"]
           resources:

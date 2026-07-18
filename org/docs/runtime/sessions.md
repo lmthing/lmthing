@@ -120,15 +120,19 @@ Two distinct kinds of state carry across `continue()`/`resume()`:
 
 ## 4. History summarization
 
-`maybeSummarizeHistory()` (`session.ts:528`) runs at the top of every
-`continue()`. When `maxHistoryTurns` is set (the CLI's default builder uses `20`,
-`session-manager.ts:437`) AND `history.messages.length > maxHistoryTurns * 2`, it
-collapses old turns into one `[CONTEXT SUMMARY]` message and keeps the last **6**
-verbatim (`summarizeHistory` → `history.summarize(summary, 6)`,
-`session.ts:531-533`; `history.ts:31-42`).
+`maybeSummarizeHistory()` (`session.ts:577`) runs at the top of every
+`continue()` (`session.ts:235`) **and every `resume()`** (`session.ts:506`, right
+after the snapshot's history is restored and the new message appended) — a
+resumed session can carry a heavy persisted history (e.g. a snapshot taken after
+a large app build), and without this call `resume()` would replay it verbatim,
+uncapped, into the very next turn. When `maxHistoryTurns` is set (the CLI's
+default builder uses `20`, `session-manager.ts:437`) AND
+`history.messages.length > maxHistoryTurns * 2`, it collapses old turns into one
+`[CONTEXT SUMMARY]` message and keeps the last **6** verbatim (`summarizeHistory`
+→ `history.summarize(summary, 6)`, `session.ts:580-582`; `history.ts:31-42`).
 
 `summarizeHistory` (`context/summarize.ts:16`) uses an LLM only if a `streamFn`
-is passed; the session calls it **without one** (`session.ts:531`), so it takes
+is passed; the session calls it **without one** (`session.ts:580`), so it takes
 the **deterministic digest** branch (`summarize.ts:44-66`): it preserves the
 original task line, resolved `VARIABLES` values, and first-line errors — no extra
 model call.

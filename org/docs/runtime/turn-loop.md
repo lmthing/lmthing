@@ -172,6 +172,12 @@ are host-authored, not model-generated, so they do **not** run through this; see
   (`disposePendingDeferreds`), drains residual jobs, then swallows QuickJS's
   `list_empty(&rt->gc_obj_list)` assertion (`quickjs.ts:213-247`). Letting it propagate turned an
   already-produced fork result into a spurious rejection.
+- **Out-of-band disposal is detected, not thrown** — `isAlive()` reports whether the context AND
+  runtime are both still alive (`sdk/org/libs/core/src/sandbox/quickjs.ts#VM.isAlive`); a disposed
+  handle makes every op throw the opaque QuickJS "Lifetime not alive", so `evalStatement`,
+  `drivePendingJobs` and `setVar` each early-bail on a dead VM with a structured
+  `VM disposed mid-turn` error instead (`quickjs.ts:106`, `:170`, `:200` — `setVar` keeps the
+  host-side scope update and only skips the VM write). The turn loop's own alive check is in §5.
 - **`setVar` / `getVar`** — `setVar` marshals a host value onto `ctx.global` *and* records it in the
   host-side `scope` (`quickjs.ts:175-180`); `getVar` dumps a global back out (`:182-191`). Both are
   used by the post-yield binding (§5).
@@ -254,6 +260,20 @@ Each batch is resolved **in parallel** with `Promise.all`; every resolved yield 
 There is no one-by-one `await` loop and no `await Promise.resolve()` microtask flush: a batch is
 resolved with a single parallel `Promise.all`, then `vm.drivePendingJobs()` drains the VM's job queue
 (`turn-loop.ts:684-722`).
+
+**VM-alive resume guard.** A long yield — e.g. a multi-minute nested delegate — can outlive its VM:
+an idle-reaper / capacity / memory eviction can dispose the session VM while the yield is in flight,
+and every resume op that follows (`drivePendingJobs`, `bindYieldResults`' `getVar`, `setVar`) would
+then throw the opaque QuickJS "Lifetime not alive". After the drain rounds the loop checks
+`vm.isAlive()` (`sdk/org/libs/core/src/sandbox/quickjs.ts#VM.isAlive`) and, when the VM is gone, ends
+the turn with `turn_end{reason:'vm_disposed'}` and a clean retryable `'error'` instead of an opaque
+crash (`turn-loop.ts:817-829`). This is a DEFENSIVE guard, not a root-cause fix: WHAT disposed the VM
+is recorded separately — every out-of-band disposal (idle reaper / eviction / explicit dispose) emits
+a `session_disposed` trace event carrying `{sessionId, trigger, status}`
+(`sdk/org/libs/cli/src/server/session-manager.ts#traceDispose`; the event shape at
+`sdk/org/libs/core/src/sandbox/trace.ts:93-98`), written BEFORE the persist so it lands in the
+session's persisted `trace.json`, and classed structural so hub compaction never sheds it
+(`sdk/org/libs/cli/src/rpc/trace-hub.ts#STRUCTURAL`).
 
 **Binding is host-side.** In this sync-eval model the QuickJS continuation *after* `await` does not
 re-run the binding, so `bindYieldResults` (`turn-loop.ts:324-351`, exported) maps values onto the
@@ -485,6 +505,24 @@ genuinely empty response (no prose either) still falls through to a real `'done'
 dropped-prose case only; a turn that ran a no-op writer is out of scope (covered by the write_fact /
 resolve_flagged_figure re-read pattern).
 
+**Anti-silent no-visible-output guard** (`NO_OUTPUT_NUDGE`, `turn-loop.ts:344`; verdict closure at
+`turn-loop.ts:450-458`, applied on both settle paths at `:958-971` and `:995-1008`). The dropped-prose
+guard only catches a turn that ran *nothing*; an interactive top-level turn can also do real work
+(`everRanStatement`) and then settle `'done'` having called neither `display()` nor `ask()` — the work
+happened but the user sees a blank reply. Such a turn is re-prompted **once** with `NO_OUTPUT_NUDGE`
+(`turn_end{reason:'no_output_nudge'}`, `attempt` reset to 0); if it settles output-less again the loop
+returns `'error'` (`turn_end{reason:'no_output_error'}`) instead of a silent blank `'done'`. Two deps
+gate it: `TurnLoopDeps.interactive`
+(`sdk/org/libs/core/src/eval/turn-loop.ts#TurnLoopDeps.interactive`) is true only for an interactive
+top-level session turn — the Session threads `SessionOpts.interactive`
+(`sdk/org/libs/core/src/session/types.ts#SessionOpts.interactive`) into all three of
+`start`/`continue`/`resume`, while forks, delegates and headless single-shots leave it unset (they
+legitimately never display) — and `TurnLoopDeps.hadVisibleOutput`
+(`sdk/org/libs/core/src/eval/turn-loop.ts#TurnLoopDeps.hadVisibleOutput`) reports whether THIS turn
+emitted a top-level `display()`, tracked by the Session's per-turn `displayedThisTurn` flag set in its
+`onDisplay` hook (`sdk/org/libs/core/src/session/session.ts#Session.displayedThisTurn`). A resolved
+`ask` yield also counts as visible interaction (`didAsk`, set at `turn-loop.ts:783`).
+
 **Delegate structural termination** (`shouldStop`, `turn-loop.ts:307`, checked at `turn-loop.ts:427`). A
 delegate's main loop sets no `beforeTurn` and, left alone, would re-prompt forever after its action
 tasklist resolves — only a real model voluntarily emits no further statements; a weak or looping model
@@ -534,9 +572,11 @@ All via `tracer.write(...)` (`sandbox/trace.ts`); `NULL_TRACER` disables. Each c
 `llm_request` (`:351`) · `statement` (`:476,481`) · `llm_progress` (throttled ≥250 ms, `:487`) ·
 `typecheck_error` (`:493`) · `eval_error` (`:500`) · `yield` (`:644`) · `yield_resolved` (`:647`) ·
 `variables` (`:708`) · `llm_response` (`:586`) · `turn_end` with `reason` ∈
-`stream_error` (`turn-loop.ts:610`) | `dropped_prose_nudge` (`turn-loop.ts:875`) |
-`dropped_prose_error` (`turn-loop.ts:882`) | `no_statements` (`turn-loop.ts:886`) |
-`continue` (`turn-loop.ts:899`) | `done` (`turn-loop.ts:906`) | `max_retries` (`turn-loop.ts:910`).
+`stream_error` (`turn-loop.ts:667`) | `vm_disposed` (`turn-loop.ts:827`) |
+`dropped_prose_nudge` (`turn-loop.ts:946`) | `dropped_prose_error` (`turn-loop.ts:953`) |
+`no_output_nudge` (`turn-loop.ts:962`, `:999`) | `no_output_error` (`turn-loop.ts:969`, `:1006`) |
+`no_statements` (`turn-loop.ts:973`) | `continue` (`turn-loop.ts:986`) | `done` (`turn-loop.ts:1011`) |
+`max_retries` (`turn-loop.ts:1015`).
 
 ---
 

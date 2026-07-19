@@ -326,7 +326,18 @@ of resident sessions, each a live QuickJS VM with its OWN `WebRenderHost` +
   reopened. A running turn is never evicted. The in-pod memory watchdog reuses this
   to shed idle sessions under pressure.
 - **Idle TTL** — `idleTtlMs` (default 15 min, `session-manager.ts:280`) backs the
-  reaper.
+  reaper: `startReaper` (`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.startReaper`)
+  runs one sweep per minute, `reapIdleOnce`
+  (`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.reapIdleOnce`), which disposes
+  sessions idle past the TTL. A sweep **never reaps a session whose `status` is `'running'`** — the
+  same guard `evictOneIdle` enforces. `lastActivity` is only touched at turn start and settle
+  (`session-manager.ts:1689,1697,1704`), so without the guard a single long in-flight turn (e.g. a
+  multi-minute delegated app build) that outlasts the TTL would be killed mid-work — the
+  "session vanished mid-turn" failure. A genuinely idle session reaps as before. Every disposal
+  (reaper / evict / explicit) is recorded by `traceDispose`
+  (`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.traceDispose`) as a
+  `session_disposed` trace event naming the trigger and the status at kill, emitted BEFORE the
+  persist so it survives in `trace.json`.
 
 `sendMessage(id, content, attachmentIds?)` (`session-manager.ts:1367`) is the
 single entry point: sets the title from the first message, increments

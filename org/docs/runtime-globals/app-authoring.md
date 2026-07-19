@@ -24,6 +24,7 @@ A capability that is not granted is **not injected AND not declared** — a stra
 | `api:write` | `writeProjectApi(route, src)` | `api/<path>/<METHOD>.ts` | [api/](../format/project/api/README.md) |
 | `pages:write` | `writeProjectPage(route, src, opts?)` | `pages/<route>.tsx` | [pages/](../format/project/pages/README.md) |
 | `pages:write` | `writeProjectComponent(name, src)` | `components/<Name>.tsx` | [pages/](../format/project/pages/README.md) |
+| `pages:write` | `buildApp()` — **yields** | — (builds + programmatically checks, does not write) | [app/](../app/README.md) |
 | `hooks:write` | `writeProjectHook(slug, src)` | `hooks/<slug>.ts` | [hooks/](../format/project/hooks/README.md) |
 | `hooks:write` | `writeProjectEvent(name, src)` | `events/<name>.ts` | [events/](../format/project/events/README.md) |
 | `hooks:write` | `writeProjectFunction(name, src)` | `functions/<name>.ts` | [project format](../format/project/README.md) |
@@ -109,7 +110,7 @@ Writes `hooks/<slug>.ts`; `slug` must be a kebab-slug `sdk/org/libs/cli/src/app/
 - Every successful write fires `republish()` — best-effort, fire-and-forget (the writers are synchronous, so they cannot await it; a republish failure never fails the write, because the file is already on disk). It re-derives the webhook manifest, crontab and emitter-scan cache and re-reads the project's hooks into the live db-write dispatch set, **without a pod restart** `sdk/org/libs/cli/src/app/authoring/globals.ts:314-330` · `sdk/org/libs/cli/src/server/session-manager.ts:641-653`.
   - That refresh **wires the dispatch runtime when the project has none yet**, it does not merely reload an existing one `sdk/org/libs/cli/src/server/session-manager.ts:724-732`. The runtime is otherwise created once, at the project db's first boot, and only if the project ALREADY has an event hook or a `db` emitter def `sdk/org/libs/cli/src/server/session-manager.ts:537-564`. A project's db comes into existence when its **first table** is authored — necessarily *before* its first hook exists — so wiring only at boot would leave a hook authored later dead until the pod restarted.
 - `writeProjectTable` additionally fires `onSchemaWrite`, which drops the cached project db so the next access re-boots it — necessary because a project with no `database/*.json` boots **no db at all** and that `null` is cached `sdk/org/libs/cli/src/app/authoring/globals.ts:377-393` · `sdk/org/libs/cli/src/server/session-manager.ts:583-590`.
-- `writeProjectPage` / `writeProjectApi` / `writeProjectComponent` fire `onAppWrite` — whose `kind` is `'page' | 'api' | 'component'` `sdk/org/libs/cli/src/app/authoring/globals.ts:329-332` — which drops the project's typed endpoint contracts and disposes its API runtime. **Page compilation is deliberately NOT done on write** — the caller must `POST /api/projects/:projectId/app/build` afterwards `sdk/org/libs/cli/src/server/session-manager.ts:591-609` (see [../cli-api/rest/projects.md](../cli-api/rest/projects.md)).
+- `writeProjectPage` / `writeProjectApi` / `writeProjectComponent` fire `onAppWrite` — whose `kind` is `'page' | 'api' | 'component'` `sdk/org/libs/cli/src/app/authoring/globals.ts:329-332` — which drops the project's typed endpoint contracts and disposes its API runtime. **Page compilation is deliberately NOT done on write** — a build is run either by the model-facing `buildApp()` global (below) or by `POST /api/projects/:projectId/app/build` `sdk/org/libs/cli/src/server/session-manager.ts:591-609` (see [../cli-api/rest/projects.md](../cli-api/rest/projects.md)).
 
 **The writers parse-check their source before it lands.** `assertSourceParses` runs an esbuild `transformSync` (loader `ts` or `tsx`) and returns `{ ok:false, error: 'source failed to parse (write rejected — fix and retry): …' }`. It exists because models emitted literal `\n` escape sequences instead of newlines, producing one-line hook files that silently broke the automation pipeline `sdk/org/libs/cli/src/app/authoring/globals.ts#assertSourceParses`. The check is **syntax-only** — undefined identifiers are a typecheck concern, not a parse one.
 
@@ -164,6 +165,21 @@ apiCall is not available here: this session has no project api runtime
 ```
 
 In the pod the resolver is attached only when `getApiRuntime` returns a runtime, and that returns `null` for a project with no db `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.getProjectAppGlobals` · `sdk/org/libs/cli/src/server/session-manager.ts:669-674`.
+
+---
+
+## `buildApp() → Promise<{ ok, built, routes, errors }>` — `pages:write`
+
+The **completeness gate**: build the live app AND programmatically check it, returning the STRUCTURED error list — the programmatic ground truth (a compiler exit-status, never a model self-assessment) that a build gate node reads to drive the app to *type-correct-or-fail-loud*. Value-yielding like `apiCall` (the underlying `tsc` + esbuild are heavy and async, so the global just pushes a yield the host resolves) `sdk/org/libs/core/src/globals/build-app.ts#createBuildAppGlobal`. Injected on `pages:write` — the same grant as the page/component writers it verifies — and declared by `BUILD_APP_DTS` on that grant `sdk/org/libs/core/src/typecheck/library-dts.ts#BUILD_APP_DTS`.
+
+The host resolver runs three phases, cheapest-first, and stops at the first that fails so it never bundles code that does not typecheck `sdk/org/libs/cli/src/app/build/check.ts#runProjectAppCheck`:
+
+1. **typecheck** — a real `ts.createProgram` over the project's own `pages/`/`components/`/`api/` sources against a **NO-DOM ambient** (`lib: ['es2020']`, no DOM lib, so `console`/`window` are genuinely undeclared) plus a hand-declared `@app/runtime` module and the project's generated row types (`types/generated.d.ts`) `sdk/org/libs/cli/src/app/build/typecheck.ts#typecheckProjectApp`. This is what makes a wrong field name, a prop a component does not declare, a forbidden import, or an undefined identifier a real error instead of code that ships broken.
+2. **build** — the real esbuild bundle, with a `BuildFailure` captured as structured `{ phase:'build', file, line, message }` errors instead of thrown `sdk/org/libs/cli/src/app/build/pages.ts#buildProjectPagesChecked`.
+
+`ok` ⇔ zero errors across both phases; `built` ⇔ the esbuild bundle actually emitted (all routes). `errors` carries `{ phase: 'lint'|'typecheck'|'build', file, line?, column?, message }` with `file` project-relative. In the pod the resolver is bound to the session's project root `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.getProjectAppGlobals`. Absent outside a project-app, the yield rejects with `buildApp is not available here: this session has no live project app` `sdk/org/libs/core/src/eval/yield-router.ts#routeCommonYield`.
+
+The `system-appbuilder` `build_live_project` tasklist uses this as a GATE-AND-RETRY: after every file is written a compile node calls `buildApp()`, groups the errors by file, and the host fans out ONE per-file fix fork per offending file; two bounded rounds drive the app clean, then `finalize` runs the ONE authoritative `buildApp()` and resolves `ok` only when the build is clean and complete — never excluding or stubbing a page to make the build pass (see [system-spaces](../system-spaces/README.md)).
 
 ---
 

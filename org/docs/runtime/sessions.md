@@ -175,7 +175,7 @@ snapshot dir (best-effort; a failure never disturbs the run):
 | File | Written from | Contents |
 |---|---|---|
 | `snapshot.json` | `saveSnapshot` (`session-manager.ts:1247`) | The `Snapshot` — history + empty scope |
-| `meta.json` | `session-manager.ts:1271` | `PersistedSessionMeta` (§7) — title, slug, cost, counts |
+| `meta.json` | `session-manager.ts:1271` | `PersistedSessionMeta` (§7) — title, slug, cost, counts, live app-build target |
 | `trace.json` | `session-manager.ts:1274` | The session hub's trace events (`entry.hub.snapshot().events`) — replayed to seed the UI on resume |
 
 The **snapshot dir** depends on whether the session is bound to a project space:
@@ -289,8 +289,24 @@ export interface PersistedSessionMeta {
   messageCount: number;
   status: string;
   totalCostUsd?: number;
+  buildTargetProjectId?: string;  // the LIVE app-build target THING retargeted to (durable across a re-establish)
 }
 ```
+
+`buildTargetProjectId` is what makes THING's delegated app build **durable across a session
+re-establish**. THING creates a LIVE project and delegates the build INTO it via the
+`createProject` / `selectProject` globals, which move an in-RAM build-target holder (`{ projectId }`)
+off the session's own project; that holder lives ONLY in the closure `defaultBuildSession` builds
+(read by `resolveBuildTarget` at delegate time), so a re-establish (resume, or eviction-then-reopen)
+used to rebuild a fresh holder pointing at the session's own project — and the delegated build
+silently landed in the wrong/empty project. `persistSession` now writes the holder's `projectId`
+here, but **only when it moved off the session's own project** (`sdk/org/libs/cli/src/server/session-manager.ts#persistSession`);
+a resume re-seeds it back into the rebuilt holder through `defaultBuildSession`'s
+`initialBuildTargetProjectId` seed (`sdk/org/libs/cli/src/server/session-manager.ts#defaultBuildSession`),
+so the retargeted build target SURVIVES. The holder itself is kept in
+`SessionManager`'s `buildTargets` map keyed by session id
+(`sdk/org/libs/cli/src/server/session-manager.ts#buildTargets`), dropped on dispose/eviction after
+the persist that reads it.
 
 ---
 

@@ -431,6 +431,16 @@ variables in the VM and persist into the retry, so removing them from the typech
 `tsc` reject valid references with "Cannot find name" (`turn-loop.ts:656-661`, `error-rewind.ts:36-44`).
 The failing statement was never appended (it errors before the commit), so nothing partial is left.
 
+**Bounded `ALREADY EXECUTED` echo.** The re-embedded `<accumulatedContext>` is capped to a rolling
+last-`ALREADY_EXECUTED_WINDOW_CHARS` (8 000) window, cut on a statement boundary and prefixed with an
+"N earlier statements omitted" marker (`error-rewind.ts#boundAlreadyExecuted`, applied at
+`error-rewind.ts:131`). On a long turn the full context is thousands of statements re-sent on **every**
+retry — a quadratic driver of the runaway-turn history blow-up (the "Invalid string length" V8 overflow).
+This echo is **model-facing only**: the complete set of live bindings is still advertised in full on the
+"Still in scope" line above (derived from the *entire* context), and typecheck still runs against the
+full `accumulatedContext` host-side (`turn-loop.ts:470`), so bounding the echo is a pure prompt-size cap
+with **zero** typecheck-correctness cost.
+
 **Yield-error scope preservation.** When a yield throws, the failed statement is *not* committed, so a
 retry that references its bound names would fail typecheck. The loop therefore adds those names to
 `yieldErrorNames`, seeds them `undefined` in the VM, and declares them ambient `any`
@@ -440,7 +450,7 @@ binds the `undefined` values so the run can still limp forward (`:679`).
 
 ---
 
-## 9. Two nudges the loop applies
+## 9. Nudges and terminal guards the loop applies
 
 **Continuation nudge** (`CONTINUATION_NUDGE`, `turn-loop.ts:296-300`, fired at `:838-846`). Only
 *yields* surface their result to the model; a non-yielding space function (`writeTaskFile`,
@@ -462,6 +472,28 @@ is appended to **this request only** and never written to history (`turn-loop.ts
 re-evaluated fresh each turn and never duplicates. Add a reminder by registering another provider — the
 turn loop needs no changes. Forks and delegates do not set `beforeTurn`.
 
+**Anti-silent dropped-prose guard** (`DROPPED_PROSE_NUDGE`, `turn-loop.ts:317`, applied at
+`turn-loop.ts:871-884`). A turn whose *entire* output was natural-language prose — every "statement"
+dropped by `looksLikeProse` — ran nothing and saved nothing, yet returning a clean `'done'` would
+silently discard it (the "wrote a plan in prose, saved nothing" failure). A turn-level `everRanStatement`
+flag (declared at `turn-loop.ts:408`, set whenever any cycle ran a real statement at `turn-loop.ts:642`)
+tells this apart from a turn that did real work and *then* signed off in prose — the latter is a
+legitimate `'done'`. When `!everRanStatement && assistantContent.trim() !== ''`, the loop re-prompts
+**once** (`turn_end{reason:'dropped_prose_nudge'}`, `attempt` reset to 0); if the very next cycle is prose
+again it returns `'error'` (`turn_end{reason:'dropped_prose_error'}`) — never a silent empty `'done'`. A
+genuinely empty response (no prose either) still falls through to a real `'done'`. Narrowed to the
+dropped-prose case only; a turn that ran a no-op writer is out of scope (covered by the write_fact /
+resolve_flagged_figure re-read pattern).
+
+**Delegate structural termination** (`shouldStop`, `turn-loop.ts:307`, checked at `turn-loop.ts:427`). A
+delegate's main loop sets no `beforeTurn` and, left alone, would re-prompt forever after its action
+tasklist resolves — only a real model voluntarily emits no further statements; a weak or looping model
+re-emits the same call every cycle. `TurnLoopDeps.shouldStop?()` is checked at the **top of the loop**,
+before the next LLM request, and returns `'done'` when true. `runDelegate` passes
+`shouldStop: () => resultCaptured` (`delegate.ts:364`), so once the delegate's result is captured (auto-
+captured from its action tasklist, or explicitly resolved) the next turn short-circuits deterministically —
+the termination guarantee is **structural**, not dependent on the model choosing to stop.
+
 ---
 
 ## 10. Context, history and usage
@@ -473,6 +505,19 @@ turn loop needs no changes. Forks and delegates do not set `beforeTurn`.
 - History gets the **parsed statements**, not the raw stream text, so an incomplete trailing fragment is
   never persisted: `parsedStatements.join('\n')` (`turn-loop.ts:634`, appended at `:593` with
   `blockType:'normal'`).
+- **Mid-turn compaction by size.** `runTurnLoop` calls `deps.maybeCompact?.()` at the **top of every
+  cycle** (`turn-loop.ts:421`) — before the prompt is built, so it covers error-retry, yield-resume and
+  nudge cycles alike. The Session wires it to `maybeCompactHistoryBySize` on all three of `continue`/
+  `start`/`resume` (`session.ts:277,446,607`), which collapses old turns to the same deterministic digest
+  as `maybeSummarizeHistory` once `history.totalChars()` (`history.ts#MessageHistory.totalChars`) crosses
+  `SessionOpts.maxPromptChars` — DEFAULT-ON at `DEFAULT_MAX_PROMPT_CHARS` (400 000 chars ≈ 100 k tokens;
+  `session.ts#Session.maybeCompactHistoryBySize`). This is **independent of `maxHistoryTurns`**: a long
+  *single* turn (many yield-resume cycles) never crosses the turn boundary where `maybeSummarizeHistory`
+  runs, so `maxHistoryTurns` alone let its history grow until the concatenated prompt overflowed V8's max
+  string length (the runaway-turn crash the top-level THING session hit — it never sets `maxHistoryTurns`).
+  Compaction rewrites **only** `history`, and `keepLast` (6) preserves the just-appended `VARIABLES` block;
+  the in-flight yield's binding lives in the VM + `accumulatedContext`, never in `history`, so it survives
+  untouched.
 - **Token usage** is awaited only when the stream ended normally, and is raced against a 10 s timeout —
   the usage promise can stay pending forever when a provider ends a stream without its final chunk, and
   a fork blocking there once deadlocked a whole DAG (`turn-loop.ts:608-631`). Usage rides the
@@ -489,8 +534,9 @@ All via `tracer.write(...)` (`sandbox/trace.ts`); `NULL_TRACER` disables. Each c
 `llm_request` (`:351`) · `statement` (`:476,481`) · `llm_progress` (throttled ≥250 ms, `:487`) ·
 `typecheck_error` (`:493`) · `eval_error` (`:500`) · `yield` (`:644`) · `yield_resolved` (`:647`) ·
 `variables` (`:708`) · `llm_response` (`:586`) · `turn_end` with `reason` ∈
-`stream_error` (`:526`) | `no_statements` (`:771`) | `continue` (`:784`) | `done` (`:791`) |
-`max_retries` (`:795`).
+`stream_error` (`turn-loop.ts:610`) | `dropped_prose_nudge` (`turn-loop.ts:875`) |
+`dropped_prose_error` (`turn-loop.ts:882`) | `no_statements` (`turn-loop.ts:886`) |
+`continue` (`turn-loop.ts:899`) | `done` (`turn-loop.ts:906`) | `max_retries` (`turn-loop.ts:910`).
 
 ---
 

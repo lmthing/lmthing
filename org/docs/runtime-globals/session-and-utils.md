@@ -34,7 +34,7 @@ authoring family (app authoring).
 |---|---|---|---|
 | `setSessionMeta(meta)` | synchronous, fire-and-forget | `CapabilityProfile.setSessionMeta` | top-level session ONLY `sdk/org/libs/core/src/exec/capability.ts#sessionCapabilities,104,115` |
 | `sleep(duration)` | value-yield (`kind:'sleep'`) | none | every VM `sdk/org/libs/core/src/exec/bootstrap.ts:182` |
-| `fetch(url, opts?)` | value-yield (`kind:'fetch'`) | none | every VM `sdk/org/libs/core/src/exec/bootstrap.ts:183` |
+| `fetch(url, opts?)` | value-yield (`kind:'fetch'`) | none (injected everywhere, declared NOWHERE — internal-only for function bodies) | every VM `sdk/org/libs/core/src/exec/bootstrap.ts:206` |
 | `registerSpace(dir)` | value-yield (`kind:'registerSpace'`) | `CapabilityProfile.registerSpace` | session; write-capable forks; **never** delegates `sdk/org/libs/core/src/exec/bootstrap.ts:234` |
 | `console.{log,warn,error}` | synchronous, fire-and-forget | none | every VM `sdk/org/libs/core/src/globals/host-tools.ts:174-178` |
 | `execShell(cmd, opts?)` | synchronous | injected on every VM; **absent from the model DTS** except under `fs:scratch` (where it is the scratch-rooted variant); mutating commands refused unless `allowWrite` | every VM (model-callable only in the engineer's scratch sandbox) `sdk/org/libs/core/src/globals/host-tools.ts:186-191`, `sdk/org/libs/core/src/exec/bootstrap.ts:160-166` |
@@ -229,9 +229,14 @@ waiting, using an injectable clock when one is supplied (test-friendly) and plai
 
 Real, **non-blocking** HTTP as a value yield (`kind:'fetch'`) — it is *not* the old
 `execSync(curl)` primitive, which blocked the single Node thread
-`sdk/org/libs/core/src/globals/fetch.ts:16-36`. Ungated: injected in every VM
-`sdk/org/libs/core/src/exec/bootstrap.ts:183`, declared in `COMMON_DTS`
-`sdk/org/libs/core/src/typecheck/library-dts.ts:96`.
+`sdk/org/libs/core/src/globals/fetch.ts:16-36`. **Injected in every VM but declared on NO
+model surface**: the runtime injection is unconditional (`sdk/org/libs/core/src/exec/bootstrap.ts:206`)
+because the system-global `webSearch`/`webFetch` function BODIES run on it, but its declaration
+lives only in the full internal bundles used to typecheck those bodies
+(`sdk/org/libs/core/src/typecheck/library-dts.ts#NET_FETCH_DTS`) — the per-agent ambient DTS never
+emits it, so model-authored `fetch(...)` fails typecheck (a clean, retryable error) in every
+context, the same internal-only treatment as `readFileRaw`/`writeFileRaw`. This closes the raw-HTTP
+bypass a scaffolded specialist used to research past its instructed `research_and_store` path.
 
 Resolved host-side by `resolveFetchYield` `sdk/org/libs/core/src/eval/fetch-yield.ts#resolveFetchYield`:
 

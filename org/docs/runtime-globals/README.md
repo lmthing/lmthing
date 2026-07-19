@@ -249,7 +249,7 @@ Y = value-yielding (ends the turn). S = synchronous host call. F = fire-and-forg
 | `readDocument(id, opts?)` | Y | Extract text from an uploaded attachment; bytes never enter the sandbox | none (deliberately universal) | [knowledge-and-docs.md](./knowledge-and-docs.md) |
 | `setSessionMeta({title?,slug?})` | F | Name the current conversation; does **not** end the turn | `caps.setSessionMeta` — session only | [session-and-utils.md](./session-and-utils.md) |
 | `sleep(duration)` | Y | Pause (`'500ms'`/`'2min'`/`'3h'`) | none | [session-and-utils.md](./session-and-utils.md) |
-| `fetch(url, opts?)` | Y | Real non-blocking HTTP; `{ok,status,text(),json()}` | none | [session-and-utils.md](./session-and-utils.md) |
+| `fetch(url, opts?)` | injected only (no model declaration) | Real non-blocking HTTP; `{ok,status,text(),json()}`; model-authored calls fail typecheck — function bodies only | none | [session-and-utils.md](./session-and-utils.md) |
 | `apiCall(name, input?)` | Y | Call one of the project's own `api/` endpoints by name | `api:call` (allowlist required) | [data-db.md](./data-db.md) |
 | `callConnection(provider, req)` | Y | Authenticated request to a user-connected service via the gateway egress proxy; the token never enters the sandbox | `connections:use` (providers required) | [events-and-integrations.md](./events-and-integrations.md) |
 | `integrationStatus(spaceId)` | Y | Presence-only config check — `{ready, missingRequired[]}` (names only, never values) | `projectRoot` set (not a capability) | [events-and-integrations.md](./events-and-integrations.md) |

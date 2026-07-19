@@ -50,3 +50,30 @@ NOT a slow full-build repro. Pairs naturally with the endpoint→table check abo
 reference→existence static checks).
 
 **Evidence:** scenarios/06-tanzania/runs/32/step-03.json; data/.lmthing/tanzania-trip-2026/pages/{index,costs,visas}.tsx (grep `costs-summary`); the api/ dir listing (no costs-summary). Pre-bug snapshot: scenarios/06-tanzania/runs/32/snapshots/step-02/.
+
+---
+
+## Render-correctness gap — a page typechecks but crashes at React runtime (06-tanzania run 32 step 10, 2026-07-20)
+
+In-app self-evolution ("add a Cash Expenses page"): build reports `built:true`, pageCount 14→15, a
+real `cash_expenses` table (0 rows) — but the page CRASHES on load: chrome-devtools shows "This page
+failed to render" + React error #31 ("object with keys {type, props}"). THING's reply falsely claims
+success.
+
+**Root cause on disk** (`pages/cash-expenses.tsx`): the page's `Page()` returns PLAIN JS OBJECT
+LITERALS shaped like `{ type: 'div', props: { className, children } }` — the shape of THIS system's
+OWN `display()` descriptor protocol — instead of real JSX (`<div>…</div>`), including passing
+component refs as `type: RunningTotalBanner`. The model confused the chat-display descriptor format
+with JSX authoring during a long, degrading fix-pass loop (63 nodes, ~450k tokens, dozens of
+typecheck/eval errors including repeated `useState`-not-available struggles). It typechecks (the
+return type is loose enough) but is not renderable — and the build gate never catches it because it
+only COMPILES, never RENDERS.
+
+**Same theme as the step-3 gap:** the build/completeness gate proves compile-cleanliness, not
+runtime-correctness. **Proposed shared fix direction:** add a lightweight per-page ACTUAL-RENDER
+smoke check to the gate (render each generated/updated page in a headless React runtime, fail the
+gate on a thrown error / error-boundary trip), and/or a static rule rejecting non-JSX return shapes
+from a `Page()` (a `{type,props}` object literal returned from a page component is never valid). The
+`useState`-not-available struggles also point at a page-sandbox capability gap worth a separate look.
+
+**Evidence:** scenarios/06-tanzania/runs/32/step-10.json (errors[]); data/.lmthing/tanzania-trip-2026/pages/cash-expenses.tsx (object-literal render tree); chrome-devtools console (React #31) on /app/tanzania-trip-2026/cash-expenses. Pre-bug snapshot: scenarios/06-tanzania/runs/32/snapshots/step-09/.

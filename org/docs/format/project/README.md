@@ -78,7 +78,7 @@ Every authoring/data power is a **capability** granted in an agent's `instruct.m
 | Capability | Unlocks (project-app pillar) |
 |---|---|
 | `db:read` | `db.query`, `db.tables` (`sdk/org/libs/core/src/exec/app-globals.ts` `buildScopedDb`:134,141) |
-| `db:write` | `db.insert`, `db.update`, `db.remove` (`app-globals.ts`:149) |
+| `db:write` | `db.insert`, `db.update` (`app-globals.ts`:149; hard delete `remove` is host-only — code nodes / app runtime) |
 | `db:schema` | `db.createTable`/`addColumn`, `writeProjectTable` (`app-globals.ts`:165,224) |
 | `pages:write` | `writeProjectPage`/`writeProjectComponent` (`app-globals.ts`:209,210) |
 | `api:write` | `writeProjectApi` (`app-globals.ts`:211) |

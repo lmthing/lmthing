@@ -29,7 +29,7 @@ The pod supplies the impl as a **stable live forwarder**, not a build-time snaps
 | Capability | Members injected | DTS fragment |
 |---|---|---|
 | `db:read` | `query(table, opts?)`, `tables()` | `DB_READ_MEMBERS` `library-dts.ts:130-131` |
-| `db:write` | `insert(table, values)`, `update(table, {where,set})`, `remove(table, {where})` | `DB_WRITE_MEMBERS` `library-dts.ts:134-136` |
+| `db:write` | `insert(table, values)`, `update(table, {where,set})` | `DB_WRITE_MEMBERS` `library-dts.ts#DB_WRITE_MEMBERS` |
 | `db:schema` | `createTable(schema)`, `addColumn(table, name, column)` | `DB_SCHEMA_MEMBERS` `library-dts.ts:139-140` |
 
 `db:schema` additionally earns the standalone (non-`db`) global `writeProjectTable` — it writes `<projectRoot>/database/<name>.json` into the LIVE project (optional third arg seeds rows) and re-derives its db `sdk/org/libs/core/src/exec/bootstrap.ts#AmbientDtsOpts`. See [app-authoring.md](./app-authoring.md).
@@ -42,7 +42,6 @@ declare const db: {
   tables(): string[];
   insert(table: string, values: Record<string, unknown> | Record<string, unknown>[]): any;
   update(table: string, opts: { where: Record<string, unknown>; set: Record<string, unknown> }): number;
-  remove(table: string, opts: { where: Record<string, unknown> }): number;
   createTable(schema: any): void;
   addColumn(table: string, name: string, column: any): void;
 };
@@ -94,11 +93,12 @@ const recent = db.query('articles', {
 
 ---
 
-## `insert` / `update` / `remove`
+## `insert` / `update` (and where `remove` lives)
 
 - **`insert(table, values)`** takes one row or an array. Columns missing from the input are filled from the schema: `generated: 'uuid'` → a fresh UUID, `generated: 'now'` → an ISO timestamp, otherwise the column's `default` `sdk/org/libs/cli/src/app/store.ts:353-366`. It returns the inserted row(s) via `RETURNING *`, marshalled back to JS values; a batch runs inside one transaction and returns an array, a single row returns a single row `store.ts:368-385`.
 - **`update(table, {where, set})`** returns the number of rows changed. An empty `set` is a no-op returning `0` `store.ts:406-417`. The `where` is the same equality-only map.
-- **`remove(table, {where})`** returns the number of rows deleted. Note that an **omitted or empty `where` produces no `WHERE` clause at all** `store.ts:392` — `db.remove('t', { where: {} })` deletes every row in the table.
+
+**Hard delete is host-only — not on the model `db` surface.** `remove` is deliberately absent from `DB_WRITE_MEMBERS` and from `buildScopedDb` `sdk/org/libs/core/src/exec/app-globals.ts#buildScopedDb`, so no agent (session, fork, or delegate) can call `db.remove` — a stray call is a typecheck error. A destructive delete happens only where it can be guarded: a tasklist **code node** or an app endpoint/hook, both of which hold the FULL `AsyncDbApi` as `ctx.db` (not the capability-scoped surface). This forces every deletion through a guarded path (`retract_fact` / `resolve_flagged_figure` code nodes) instead of an inline agent write. On that host `ctx.db`, `remove(table, {where})` returns the number of rows deleted, and an **omitted or empty `where` produces no `WHERE` clause at all** `store.ts:392` — `ctx.db.remove('t', { where: {} })` deletes every row in the table.
 
 Every committed row mutation fires the db's `onWrite` listener synchronously `sdk/org/libs/cli/src/app/store.ts:536-562`, which is what turns a write into the synthetic `project/db.<table>.<insert|update|remove>` event consumed by event hooks. `insert` carries the inserted rows on that event; `update`/`remove` carry an empty `rows` array (the affected rows are not re-queried) `store.ts:55-58,550-559`. See [events-and-integrations.md](./events-and-integrations.md).
 
@@ -140,7 +140,7 @@ Which methods are table-checked `sdk/org/libs/core/src/exec/app-globals.ts:126-1
 | Method | Table-checked? |
 |---|---|
 | `query` | yes — against the `db:read` grant `app-globals.ts:127-130` |
-| `insert` / `update` / `remove` | yes — against the `db:write` grant `app-globals.ts:135-146` |
+| `insert` / `update` | yes — against the `db:write` grant `app-globals.ts:135-146` (`remove` is not on this surface — host-only) |
 | `addColumn` | yes — against the `db:schema` grant `app-globals.ts:154-157` |
 | `tables()` | **no** — it lists schema, not row data, so there is no per-table narrowing `app-globals.ts:131-132` |
 | `createTable(schema)` | **no** — no `assertTableAllowed` call is made `app-globals.ts:151-153` |

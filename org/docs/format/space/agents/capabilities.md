@@ -9,7 +9,7 @@ There are 13 recognized capability ids, enumerated in `CapabilityId` / `CAPABILI
 | Capability | Unlocks (global) | Config |
 |---|---|---|
 | `db:read` | `db.query`, `db.tables` | optional `{ tables: [...] }` |
-| `db:write` | `db.insert`, `db.update`, `db.remove` | optional `{ tables: [...] }` |
+| `db:write` | `db.insert`, `db.update` (hard delete is host-only — code nodes / app runtime, not the agent surface) | optional `{ tables: [...] }` |
 | `db:schema` | `db.createTable`, `db.addColumn`, `writeProjectTable` | optional `{ tables: [...] }` |
 | `pages:write` | `writeProjectPage`, `writeProjectComponent` | bare |
 | `api:write` | `writeProjectApi` | bare |

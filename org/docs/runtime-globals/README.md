@@ -135,7 +135,7 @@ anything*", `:190`) all throw at space load.
 | Capability | Config | Globals it earns | Doc |
 |---|---|---|---|
 | `db:read` | `{ tables?: [] }` | `db.query`, `db.tables` | [data-db.md](./data-db.md) |
-| `db:write` | `{ tables?: [] }` | `db.insert`, `db.update`, `db.remove` | [data-db.md](./data-db.md) |
+| `db:write` | `{ tables?: [] }` | `db.insert`, `db.update` (hard delete `remove` is host-only — code nodes / app runtime, never the agent surface) | [data-db.md](./data-db.md) |
 | `db:schema` | `{ tables?: [] }` | `db.createTable`, `db.addColumn`, `writeProjectTable` | [data-db.md](./data-db.md) · [app-authoring.md](./app-authoring.md) |
 | `api:call` | `{ allow: [] }` **required** | `apiCall` | [data-db.md](./data-db.md) |
 | `connections:use` | `{ providers: [] }` **required** | `callConnection` | [events-and-integrations.md](./events-and-integrations.md) |
@@ -259,7 +259,7 @@ Y = value-yielding (ends the turn). S = synchronous host call. F = fire-and-forg
 | `installSpace(spaceId)` | Y | Install a store space into the project and live-register it — **consent-marked** | `store:install` | [store-and-consent.md](./store-and-consent.md) |
 | `__requestConsent(fn, args)` | Y | Internal seam behind the `@consent` pragma; injected everywhere, **absent from the DTS** | none | [store-and-consent.md](./store-and-consent.md) |
 | `db.query` / `db.tables` | S | Read the project's SQLite rows / list tables | `db:read` | [data-db.md](./data-db.md) |
-| `db.insert` / `db.update` / `db.remove` | S | Write rows | `db:write` | [data-db.md](./data-db.md) |
+| `db.insert` / `db.update` | S | Write rows (hard delete `db.remove` is host-only — code nodes / app runtime) | `db:write` | [data-db.md](./data-db.md) |
 | `db.createTable` / `db.addColumn` | S | Evolve the live schema | `db:schema` | [data-db.md](./data-db.md) |
 | `createProject` / `selectProject` | S | Create a NEW **live** project (under `<lmthingRoot>/<slug>/`) or bind an existing one as the app-build target | `project:manage` | [app-authoring.md](./app-authoring.md) |
 | `writeProjectPage` / `writeProjectApi` / `writeProjectComponent` / `writeProjectTable` / `writeProjectHook` / `writeProjectEvent` / `writeProjectFunction` | S | Author into the **live project** and republish/rebuild | same grants as above **and** a host impl (project-rooted session); `writeProjectComponent` on `pages:write` | [app-authoring.md](./app-authoring.md) |

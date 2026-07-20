@@ -168,12 +168,22 @@ COPY --from=builder /build/libs/ui/package.json   ./libs/ui/package.json
 # compile into a fast deserialize. The cache key is file path + content + V8
 # version — all identical inside one image — so BAKE it at build time with a
 # throwaway warm-up boot. cwd=/tmp/warm so the throwaway .lmthing materialization
-# doesn't pollute /app (and /data is PVC-shadowed at runtime anyway). Best-effort:
-# a runtime cache miss just recompiles normally, so `|| true` keeps the build green.
+# doesn't pollute /app (and /data is PVC-shadowed at runtime anyway).
+#
+# `timeout` exits 124 when it has to kill a still-running (i.e. healthy) server —
+# that's the expected outcome and must NOT fail the build. Any OTHER nonzero exit
+# means the server crashed on its own before the timeout, which means every pod
+# built from this image would crash-loop in prod — fail the build loud instead of
+# silently shipping a broken image (a bare `|| true` here once did exactly that:
+# see the "Dynamic require of fs" incident, 2026-07-20).
 ENV NODE_COMPILE_CACHE=/app/.node-compile-cache
-RUN mkdir -p /app/.node-compile-cache /tmp/warm && cd /tmp/warm \
- && (timeout 25s node /app/libs/cli/dist/cli/bin.js serve --port 18080 || true) \
- && rm -rf /tmp/warm
+RUN mkdir -p /app/.node-compile-cache /tmp/warm && cd /tmp/warm; \
+    set +e; timeout 25s node /app/libs/cli/dist/cli/bin.js serve --port 18080; code=$?; set -e; \
+    rm -rf /tmp/warm; \
+    if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then \
+      echo "FATAL: compute image warm-up boot crashed (exit $code) — refusing to ship a broken image" >&2; \
+      exit 1; \
+    fi
 
 # Runtime root.
 # The server runs with its cwd set to /data so `lmthingRoot` resolves to

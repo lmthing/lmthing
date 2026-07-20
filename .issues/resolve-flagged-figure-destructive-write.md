@@ -98,6 +98,54 @@ NOT a smarter diagnostician. Be precise about scope, because two things it does 
 **Residual it does NOT solve (explicit):** a wrong culprit whose removal *coincidentally* lands the
 figure on the asserted target — e.g. two rows of equal value, the real duplicate vs a legit twin. That
 is irreducible ambiguity and belongs to the ask path (diagnose `confidence: low`), not the interlock.
+**The confirm-before-write step below is what covers this residual** (the human sees the exact proposed
+delete and can veto it) — the interlock alone cannot.
+
+### Confirm before destructive writes — the fix is PROPOSED, not auto-applied (directive 2026-07-20)
+
+Revises the auto-apply default. When diagnose finds a culprit and a destructive action (a `remove`, or
+an overwrite that loses a stored value), the tasklist must NOT apply it silently — it INFORMS the user
+what it found and the exact action it proposes, and writes only after the user confirms. This overrides
+the current "when the correct value is CERTAIN, apply and re-read — do NOT stop to ask permission" stance
+(`instruct.md:528-529`) for the destructive path.
+
+Flow — uses the EXISTING return-question + re-invoke machinery (a tasklist node CANNOT call `ask()`
+itself; `ask`/`fork`/`tasklist` are not in a fork's capability profile, per CLAUDE.md):
+
+1. `01-diagnose` (model) finds culprit + action + `figureSpec`/`assertedTarget`.
+2. **Code pre-filter** (the mode-(a)/(b) verify below): if the action would NOT change the figure toward
+   the asserted target — run-32: removing the EUR row leaves the USD sum unchanged — the tasklist returns
+   "already correct, nothing to change" and proposes NOTHING. This is what keeps a WRONG proposal off the
+   user's screen entirely.
+3. Otherwise the tasklist RETURNS `{ applied:false, proposedAction:<summary>, question:"I found <cause>;
+   I plan to <action> — OK to proceed?" }`. THING relays the question. Nothing is written yet.
+4. On the user's YES, THING RE-INVOKES `resolve_flagged_figure` with the approved decision as STRUCTURED
+   input (`decision: { table, targetIds, fixAction, ... }`), NOT a fresh free-text complaint. Diagnose is
+   skipped / runs verify-only; the `03-fix` code node executes the pre-decided, code-verified mutation.
+
+Step 4's structured carry IS this issue's fix-direction point 1 ("accept a caller-provided decision —
+verify-and-report only, do NOT re-diagnose"). The original run-32 bug was diagnose RE-LITIGATING an
+already-decided complaint on re-invoke; carrying the decision structurally removes that vector. **The
+confirm loop and the re-invocation-safety fix are one mechanism.**
+
+The code interlock does NOT disappear — it takes two jobs: **(a) pre-proposal filter** (never propose a
+destructive no-op) and **(b) execution guard** (re-verify at apply time; state may have moved between
+propose and confirm). Division of labour: human confirmation catches the semantic residual code cannot
+(the equal-value culprit); code catches the mechanical no-op the human should not be bothered with.
+
+**Consequences to land in the SAME change (behavior change ⇒ doc/scenario change):**
+- `instruct.md:528-529` prose ("do NOT stop to ask permission for a repair you can state precisely") must
+  be amended for the destructive path → "state the repair precisely, then ASK before applying it."
+- Scenario `06-tanzania` step 9 `expect` currently asserts "it investigates the actual rows and FIXES the
+  number in the DB." Under confirm-first this is a two-turn exchange (propose+ask, then apply on "yes");
+  the step (and a confirming `say`) must be updated so the judge scores the new contract. The scenario is
+  the source-of-truth for the expected UX — changing behavior REQUIRES changing the step.
+
+**Open scope (pending user decision before build):** confirm-first applies to — (a) EVERY fix in this
+tasklist; (b) only destructive `remove`s (auto-apply a reversible corrective `update`); or (c) a HYBRID —
+auto-apply only when the code VERIFIES the action hits the asserted target EXACTLY, ask in every other
+case (preserves the happy-path auto-fix AND still catches the equal-value residual). The directive as
+stated = (a)/(b); (c) preserves the most product value. Not yet decided.
 
 ### Two verification modes — mirror diagnose's own confidence contract
 

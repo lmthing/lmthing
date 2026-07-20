@@ -140,7 +140,7 @@ Once answered or cancelled the form goes `inert` (pointer-events off, dimmed) an
 
 ### The other block renderers (`DisplayBlock` / `AskBlock` / `VariablesBlock`)
 
-The package also exports a **second, simpler family** of renderers `sdk/org/libs/ui/src/chat/index.ts:5-8`. They are used by the embeddable `AgentChatPanel` `sdk/org/libs/ui/src/chat/components/AgentChatPanel.tsx:237-243` (the Studio THING dock and project-app `<Chat>` pages) and by the CLI's `--web` DevTools app `sdk/org/libs/cli/src/web/app.tsx:100-112` — **not** by the `/chat` `ChatShell`, which renders via `Message` + `renderDescriptor` instead.
+The package also exports a **second, simpler family** of renderers `sdk/org/libs/ui/src/chat/index.ts:5-8`. They are used by `ReplChatView` `sdk/org/libs/ui/src/chat/components/ReplChatView.tsx:79-92` — the connected-session view shared by the embeddable `AgentChatPanel` (the Studio THING dock) and project-app `<Chat>` pages `sdk/org/libs/cli/src/app/runtime/chat.tsx:121-133` — and by the CLI's `--web` DevTools app `sdk/org/libs/cli/src/web/app.tsx:100-112` — **not** by the `/chat` `ChatShell`, which renders via `Message` + `renderDescriptor` instead.
 
 - `DisplayBlock` — a smaller descriptor switch (h1–h3, p, span, code, card, alert, badge, button, markdown; everything else → `<span>`) `sdk/org/libs/ui/src/chat/components/DisplayBlock.tsx#renderNode,104-106`.
 - `AskBlock` — consent card first, then a `textinput`/`select`/`checkbox` form built from the descriptor's children, submitting a single value when there is one field and an object otherwise; also offers Cancel `sdk/org/libs/ui/src/chat/components/AskBlock.tsx#AskBlock,89-138`.

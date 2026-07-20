@@ -127,6 +127,16 @@ The orchestrator loops until `done + skipped` covers all tasks (`sdk/org/libs/co
 
 Each fork is spawned via `forkWithMeta` seeded with the (filtered) tasklist input plus its upstream outputs keyed by dependency id (`getUpstreamOutputs`), carrying `role`/`functions`/`canDelegateTo`/`prelude`/`tasklistDescription` from the task node (`sdk/org/libs/core/src/tasklist/orchestrator.ts:120-129`, `:232-248`).
 
+### `onFail` — resuming an earlier step
+
+A task may declare `onFail: { goto, when?, carry?, maxAttempts? }`. After it completes, `when` (default `"<id>.ok == false"`) is evaluated against `allOutputs`; when it holds and the attempt budget (default 2) is not spent, every task on a dependency path from `goto` through this one is removed from `done`/`skipped` and its stored output discarded, so the next `findReadyTasks` wave re-runs exactly that stretch (`sdk/org/libs/core/src/tasklist/orchestrator.ts:191-221`, `resumeSet` `sdk/org/libs/core/src/tasklist/dag.ts#resumeSet`). Tasks off that path stay `done` and are not redone.
+
+This is **scheduling state only** — `dependsOn` is never mutated, so the graph stays acyclic and `validateDag`'s cycle check is untouched. `validateDag` does require `goto` to be a transitive dependency of the declaring node, and rejects a self-reference (`sdk/org/libs/core/src/tasklist/dag.ts:37-56`).
+
+The resumed tasks cannot read the checker's output through `getUpstreamOutputs` — they are *upstream* of it, and depending on it would be a cycle — so the `carry` field (or the whole output when `carry` is omitted) is merged into their **seed** as `feedback`, with an `attempt` counter (`sdk/org/libs/core/src/tasklist/orchestrator.ts:138-143`). This is what makes a resume differ from a blind retry. Exhausting `maxAttempts` does **not** throw: the run proceeds to its goal task, which reports the residual failure through the envelope.
+
+Because a `condition` path cannot index arrays (`sdk/org/libs/core/src/tasklist/condition-dsl.ts:25-36`), a checking node must resolve a scalar (`ok`, or a count) for `when` to test.
+
 ### `dependsOn` & upstream outputs
 
 A task's resolved output is stored in `allOutputs[id]` (`sdk/org/libs/core/src/tasklist/orchestrator.ts:288-290`) and passed to dependents as `upstreamOutputs` — each dependency's output is injected as a named variable matching its task id. Its ambient DTS derives from the upstream node's declared top-level output schema, so `array` becomes `any[]` (and callbacks get an inferred parameter) while undeclared fields stay `any`; a `forEach` dependency — whose collected value is an **array** of its output shape — is wrapped `Array<…>`, so the collector's `.map`/`.reduce`/`.find` callback is typed too and does not abort the fork with an implicit-any (`sdk/org/libs/core/src/tasklist/orchestrator.ts:L131-L135`, `sdk/org/libs/core/src/fork/fork.ts#taskOutputDts`). Upstream values stay **raw** schema data; degradation metadata never leaks into them (`sdk/org/libs/core/src/tasklist/orchestrator.ts:60-66`).

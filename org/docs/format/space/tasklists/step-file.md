@@ -24,7 +24,8 @@ The node `id` comes from an explicit `id:` frontmatter key, else from the filena
 | `forEach` | `"<upstreamTask>.<field>"` (or bare `"<upstreamTask>"`) — host-driven fan-out `sdk/org/libs/core/src/spaces/tasklist-load.ts:145-147` |
 | `canDelegateTo` | Per-task delegation allowlist (`"space/agent"` or `"space/agent#action"`) `sdk/org/libs/core/src/spaces/tasklist-load.ts:148-150` |
 | `capabilities` | Per-node app-capability NARROWING — a bare-id subset of the owning agent's grants (least privilege per step; never widens) `sdk/org/libs/core/src/spaces/tasklist-load.ts:151-165` |
-| `prelude` | Host-executed TS statements run in the fork VM before the model's first turn `sdk/org/libs/core/src/spaces/tasklist-load.ts:166-177` |
+| `prelude` | Host-executed TS statements run in the fork VM before the model's first turn `sdk/org/libs/core/src/spaces/tasklist-load.ts:191-201` |
+| `onFail` | Resume an earlier step when this node's check fails, carrying the reason `sdk/org/libs/core/src/spaces/tasklist-load.ts:203-236` |
 
 ### `dependsOn` and the DAG
 
@@ -59,6 +60,33 @@ If an `optional` task's fork rejects, the orchestrator marks it skipped instead 
 ### `condition`
 
 `condition` is a DSL expression evaluated against accumulated outputs by `findReadyTasks`; when it is false (or throws) the task is not selected and is later skipped `sdk/org/libs/core/src/tasklist/dag.ts:111-121`.
+
+### `onFail` — resume an earlier step, carrying the reason
+
+`onFail` turns a failed check into a retry of the work that caused it. After the node completes, `when` is evaluated against all accumulated outputs; when it holds, every task on a dependency path from `goto` through this node is un-done and runs again `sdk/org/libs/core/src/tasklist/orchestrator.ts:191-221` · `resumeSet` `sdk/org/libs/core/src/tasklist/dag.ts#resumeSet`.
+
+```yaml
+onFail:
+  goto: design_data                        # resume from here (inclusive)
+  when: "validate_contract.ok == false"    # default: "<id>.ok == false"
+  carry: errors                            # default: the whole output
+  maxAttempts: 2                           # default: 2
+```
+
+| Field | Meaning |
+|---|---|
+| `goto` | Task id to resume from. Must be a **transitive dependency** of this node, and may not be the node itself — both rejected at load `sdk/org/libs/core/src/tasklist/dag.ts:37-56` |
+| `when` | Condition DSL evaluated after this node completes; defaults to `"<id>.ok == false"` |
+| `carry` | Field of this node's output holding the reason; omit to carry the whole output |
+| `maxAttempts` | Resume budget, default 2 `sdk/org/libs/core/src/tasklist/orchestrator.ts:17-20` |
+
+Three properties matter when authoring one:
+
+- **`dependsOn` stays acyclic.** Resuming is scheduler-level re-execution — the graph is never mutated — so `validateDag`'s cycle check is unaffected. Re-opened tasks simply leave the `done` set and `findReadyTasks` offers them again on the next wave `sdk/org/libs/core/src/tasklist/dag.ts#findReadyTasks`.
+- **`carry` is the point.** A resumed step cannot read the checker's output through `dependsOn` (depending on a downstream node would be a cycle), so the carried value is injected into its **seed** as `feedback`, alongside an `attempt` counter `sdk/org/libs/core/src/tasklist/orchestrator.ts:138-143`. Without it the retry re-runs blind and repeats the same mistake — write the resumed step's prompt to read `feedback`.
+- **Exhausting the budget does not throw.** The pipeline continues to its goal task, which reports the residual failure honestly. A silent extra pass is worse than a loud partial result.
+
+Because the condition DSL cannot index arrays (`getAtPath` returns `undefined` for one `sdk/org/libs/core/src/tasklist/condition-dsl.ts:25-36`), a check must resolve a **scalar** — `ok: boolean`, or a count — and `when` must compare that. `errors.length > 0` is not expressible.
 
 ### `canDelegateTo`
 

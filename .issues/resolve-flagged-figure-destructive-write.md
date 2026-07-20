@@ -51,3 +51,28 @@ same repro shape as `retract-fact-row-grain` and is a good next repro target.
 state.appTables.costs 15 vs step-08's 16) + step-09.full.json; sessions.log:56860-57010; DB proof
 `sqlite3 …/tanzania-trip-2026/.data/app.db "SELECT * FROM costs"` (no flights row, 15 total).
 Pre-bug snapshot: scenarios/06-tanzania/runs/32/snapshots/step-08/.
+
+---
+
+## Repro committed + prose-guard attempt FAILED (2026-07-20): needs L3 code enforcement
+
+Reliable repro committed: **`sdk/org/scenarios/repros/resolve-already-correct/`** (seed from 06 run 32
+step-08; trigger insistently claims the already-correct total is wrong and names the EUR flights row as
+a plausible-but-wrong culprit; asserts `db costs count == 16` + the EUR row id still exists). Sharpened
+to a reliable **RED 4/8**.
+
+A two-layer PROSE fix was tried (reverted): `01-diagnose.md` gained an explicit "already correct →
+fixAction:'none'" outcome, and `02-fix.md` gained a "deterministic" guard — before any `db.remove`,
+recompute the figure with/without the target rows and abort if excluding them doesn't change it. Static
+gates all passed (typecheck, spaces 205/205, scenarios, anti-overfit clean), but the repro came back
+**RED 6/8 — WORSE/no-better than the 4/8 baseline.** Root cause of the failure: the "deterministic"
+guard is still PROSE the cheap fix-node model must choose to execute, and it skips the recompute-check
+stochastically, deleting the row anyway. **Reverted** (not green; 6/8 ≥ 4/8 is not a safe partial).
+
+**Conclusion — needs L3 CODE enforcement, not prose.** The reliable fix is a host-side guard on the
+fix node's destructive write: e.g. `resolve_flagged_figure`'s `db.remove` path (or the `db.remove`
+capability when invoked from this tasklist) verifies IN CODE that the target row actually participates
+in the flagged figure before deleting, and refuses otherwise — so the guarantee doesn't depend on the
+model executing prose. Same class as `thing-no-new-specialist-space-mid-conversation.md` (stochastic
+THING execution that prose can't reliably fix). The `resolve-already-correct` repro is the ready oracle
+for that L3 fix.

@@ -181,6 +181,14 @@ The host resolver runs three phases, cheapest-first, and stops at the first that
 
 The `system-appbuilder` `build_live_project` tasklist uses this as a GATE-AND-RETRY: after every file is written a compile node calls `buildApp()`, groups the errors by file, and the host fans out ONE per-file fix fork per offending file; two bounded rounds drive the app clean, then `finalize` runs the ONE authoritative `buildApp()` and resolves `ok` only when the build is clean and complete — never excluding or stubbing a page to make the build pass (see [system-spaces](../system-spaces/README.md)).
 
+`buildApp()`'s two phases prove *compile*-cleanliness, not *runtime*-correctness, and the tasklist layers three mechanical, regex-based scans on top of every `buildApp()` call to cover the gap — each one an exit-status ground-truth check the compiler cannot make because the surface it is checking is a bare `string`, not a checked union:
+
+1. **Endpoint→table** — an api handler's `db.query/insert/update/remove('<table>')` literal is checked against the tables actually on disk (`database/*.json`); a miss builds clean and 500s on every call, because the db surface is dynamically typed `sdk/org/libs/core/system-spaces/system-appbuilder/tasklists/build_live_project/12-compile_pass1.md:L25-L30`.
+2. **Page→endpoint** — every `useApi`/`useApiMutation`/`apiCall('<name>')` literal in `pages/`+`components/` is checked against the endpoint `name`s actually exported by `api/`; a miss compiles clean (`useApi`'s `name` parameter is a bare `string` in the ambient DTS `sdk/org/libs/cli/src/app/build/typecheck.ts:181-190`) but the hook silently short-circuits to an error state with **no HTTP request ever firing** `sdk/org/libs/core/system-spaces/system-appbuilder/tasklists/build_live_project/12-compile_pass1.md:L32-L38`.
+3. **Render-correctness** — a page/component function that RETURNS a plain `{ type, props }` object literal — this system's OWN chat/tasklist `display()`-descriptor shape — instead of JSX typechecks (the return type is loose enough) but throws React error #31 ("object with keys {type, props}") at runtime `sdk/org/libs/core/system-spaces/system-appbuilder/tasklists/build_live_project/12-compile_pass1.md:L39-L44`.
+
+All three scans fold into the SAME `phase: 'gate'` error list the endpoint→table check already used, so a file with any of these faults is routed to the same per-file fix fork; they run in all three gate nodes (`12-compile_pass1.md`, `14-compile_pass2.md`, `16-finalize.md:L34-L44`) and the matching repair guidance lives in the fix nodes (`13-fix_pass1.md`, `15-fix_pass2.md`).
+
 ---
 
 ## Who holds these capabilities

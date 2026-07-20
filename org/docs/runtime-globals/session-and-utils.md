@@ -39,7 +39,8 @@ authoring family (app authoring).
 | `console.{log,warn,error}` | synchronous, fire-and-forget | none | every VM `sdk/org/libs/core/src/globals/host-tools.ts:174-178` |
 | `execShell(cmd, opts?)` | synchronous | injected on every VM; **absent from the model DTS** except under `fs:scratch` (where it is the scratch-rooted variant); mutating commands refused unless `allowWrite` | every VM (model-callable only in the engineer's scratch sandbox) `sdk/org/libs/core/src/globals/host-tools.ts:186-191`, `sdk/org/libs/core/src/exec/bootstrap.ts:160-166` |
 | `createScratch()` | synchronous | `CapabilityProfile.scratchFs` (the `fs:scratch` grant) | engineer scratch sandbox ONLY `sdk/org/libs/core/src/exec/bootstrap.ts:154-160`, `sdk/org/libs/core/src/globals/scratch.ts:50-56` |
-| `process.env` / `process.exit` | synchronous | none | every VM `sdk/org/libs/core/src/globals/host-tools.ts:194-205` |
+| `process.exit(code?)` | synchronous (throws, caught as intentional termination) | none — **declared on every model surface**, unconditionally alongside `COMMON_DTS` in `buildAmbientDts` | every VM `sdk/org/libs/core/src/globals/host-tools.ts:194-205` |
+| `process.env` | synchronous | none (injected everywhere; **declared on NO model surface** — internal-only, for system-function bodies like `webSearch` reading `TAVILY_API_KEY`) | every VM `sdk/org/libs/core/src/globals/host-tools.ts:194-205` |
 | `readFileRaw(path, opts?)` | synchronous | **internal-only** — injected but absent from every model DTS | every VM (host/space-function use only) `sdk/org/libs/core/src/globals/host-tools.ts:213-214` |
 | `writeFileRaw(path, content)` | synchronous | **internal-only** — never on the model DTS; `allowWrite` still gates the write (else a no-op error) | every VM (host/space-function use only) `sdk/org/libs/core/src/globals/host-tools.ts:224-229` |
 | `progress()` | synchronous | only when `ChildVMOpts.progress` is supplied | session + fork, **not** delegate `sdk/org/libs/core/src/globals/host-tools.ts:218-221` |
@@ -313,7 +314,20 @@ supplied `sdk/org/libs/core/src/globals/host-tools.ts:194-205`:
 | `LMTHING_PROJECT_ID` | basename of the project root |
 
 `process.exit(code?)` does not exit the pod — it **throws** `process.exit(<code>)`
-`sdk/org/libs/core/src/globals/host-tools.ts:205`.
+`sdk/org/libs/core/src/globals/host-tools.ts:205`. Unlike `process.env`, `process.exit` **is
+declared on every model surface**: `buildAmbientDts` appends the env-free
+`PROCESS_EXIT_DTS` (`declare const process: { exit(code?: number): never }`) unconditionally,
+the same tier as `COMMON_DTS` `sdk/org/libs/core/src/typecheck/library-dts.ts#PROCESS_EXIT_DTS`,
+`sdk/org/libs/core/src/exec/bootstrap.ts:392-400` — matching the fact that the runtime injects
+`process.exit` in every VM regardless of role. A model-authored `process.exit(1)` therefore
+typechecks and throws at runtime, and `turn-loop.ts` treats the thrown `process.exit(` message as
+**intentional termination**, ending the run cleanly instead of retrying — see
+[typecheck.md](../runtime/typecheck.md#the-retry-on-type-error-path). `process.env` gets the
+opposite treatment: it stays declared on **no** model surface (`PROCESS_ENV_DTS`
+`sdk/org/libs/core/src/typecheck/library-dts.ts#PROCESS_ENV_DTS`, present only in the internal
+`LIBRARY_DTS`/`LIBRARY_DTS_NO_ASK` bundles used to typecheck system-function bodies like
+`webSearch`) — a model-authored `process.env.X` fails typecheck in every context, closing the
+secrets-leak path a scaffolded specialist once used to hand-roll a keyed provider request.
 
 ### `execShell(cmd, opts?)` → `{ ok, stdout, stderr, exitCode }` — internal / scratch-only on the model DTS
 

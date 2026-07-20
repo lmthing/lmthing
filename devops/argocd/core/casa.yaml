@@ -17,7 +17,7 @@ spec:
         - name: acr-pull-secret
       containers:
         - name: casa
-          image: lmthingacr.azurecr.io/casa:03a485f
+          image: lmthingacr.azurecr.io/casa:48169d8
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

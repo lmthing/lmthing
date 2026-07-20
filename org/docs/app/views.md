@@ -59,6 +59,15 @@ const { data, error, isLoading, refetch } = useApi<T>(name, input = {}, { enable
 
 Nothing caches across components: two `useApi('feedList')` mounts issue two fetches. There is no external query library — the whole layer is ~170 lines `sdk/org/libs/cli/src/app/runtime/hooks.tsx:1-17`.
 
+### `name` is typechecked against the project's own endpoints
+
+The typecheck program does not declare `useApi(name: string, …)`. It generates the `@app/runtime` data-hook signatures from the project's OWN `api/` routes, so `name` is a **string-literal union** of real endpoint names and a `[id]` route gets its own overload with `input` **required** `sdk/org/libs/cli/src/app/build/apicall-dts.ts#buildClientApiDts` · `sdk/org/libs/cli/src/app/build/typecheck.ts:329-347`. Two failures that used to reach production are now build errors:
+
+- **A name no endpoint exports.** `apiCall` throws `unknown endpoint` *before* issuing any request `sdk/org/libs/cli/src/app/runtime/client.ts:147-152`, so the page silently renders its error branch with nothing in the network panel — invisible to esbuild and to an HTTP probe alike.
+- **A `[id]` route called without its param.** The client stringifies the missing value into the path `sdk/org/libs/cli/src/app/runtime/client.ts#fillPath`, producing `/api/trips/undefined`, which matches on segment count and passes the endpoint's ajv input validation — a plausible 200 carrying the wrong row.
+
+The `<T>` type parameter is deliberately **kept and unconstrained**: pages author `useApi<Alert[]>('listAlerts')`, and binding the return type to the endpoint's declared `Output` would reject those call sites wholesale. Only the *name* is narrowed; response-shape agreement is enforced against the endpoint contract when the file is written, not here. A project with no `api/` directory yet keeps the generic `name: string` signatures so pages authored before their endpoints still compile.
+
 ## `useApiMutation` — the mutation hook
 
 ```tsx

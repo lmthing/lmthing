@@ -102,6 +102,7 @@ Registration order, as built in `sdk/org/libs/cli/src/server/serve.ts:L134-L326`
 | POST | `/api/inbound/:path` | External webhook ingress (verify → preflight → dedupe → emit/run) | `createInboundHandler` `routes/webhooks.ts:L111-L200` | [webhooks](./webhooks.md) |
 | GET | `/api/projects/:projectId/app/build` | Build status → `{built, stale, assetManifest}` | `handleBuildStatus` `routes/app-admin.ts:L414-L433` | [apps](./apps.md) |
 | POST | `/api/projects/:projectId/app/build` | Force a page rebuild | `handleRebuild` `routes/app-admin.ts:L435` | [apps](./apps.md) |
+| POST | `/api/projects/:projectId/app/check` | **Authoritative** verdict — typecheck THEN bundle → `{ok, built, routes, errors}` | `handleAppCheck` `routes/app-admin.ts#handleAppCheck` | [apps](./apps.md) |
 | GET | `/api/projects/:projectId/app/data/:table` | Data browser — paged rows | `handleListRows` `routes/app-admin.ts:L327-L363` | [apps](./apps.md) |
 | PATCH | `/api/projects/:projectId/app/data/:table/:id` | Update one row | `handleUpdateRow` `routes/app-admin.ts:L365-L412` | [apps](./apps.md) |
 | GET | `/api/projects/:projectId/app/files/*` | Path-scoped app-file read | `handleGetAppFile` `routes/app-admin.ts:L248-L283` | [apps](./apps.md) |

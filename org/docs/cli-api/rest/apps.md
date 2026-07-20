@@ -139,6 +139,12 @@ Returns `{ project, hasApp, tables, pages, endpoints, hooks, build }` (plus `end
 
 This is the explicit rebuild an agent's live page/api authoring must follow with: `onAppWrite` invalidates the contracts + api runtime caches but deliberately does **not** compile pages `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.liveProjectDb`.
 
+### `POST /api/projects/:projectId/app/check`
+
+The **authoritative** build verdict → `{ ok, built, routes, errors }` from `runProjectAppCheck` — the project-app **typecheck** followed by the esbuild bundle `sdk/org/libs/cli/src/server/routes/app-admin.ts#handleAppCheck`. Same call as the agent's `buildApp()` global `sdk/org/libs/cli/src/server/session-manager.ts:L798` and the `verify` code node, so all three agree.
+
+> **`build` and `check` legitimately disagree, and the difference matters.** `POST .../app/build` runs `buildProjectPages` — esbuild only, no typecheck `sdk/org/libs/cli/src/app/build/pages.ts` — so it answers `built: true` for an app that does not type-check. That tolerance is deliberate and stays: all 5 shipped store apps carry type errors and serve correctly. But until `check` was exposed, anything asking the pod "did it build?" over REST could only get the esbuild-only answer — the 06-tanzania scenario reported `built: true, error: null` for an app the pod's own check rejected with 4 typecheck errors. **Use `check`, not `build`, to decide whether a generated app is sound.**
+
 ---
 
 ## 4. App API dispatcher — `* /app/:projectId/api/*`

@@ -308,6 +308,17 @@ so the retargeted build target SURVIVES. The holder itself is kept in
 (`sdk/org/libs/cli/src/server/session-manager.ts#buildTargets`), dropped on dispose/eviction after
 the persist that reads it.
 
+When a build is retargeted, `resolveBuildTarget` returns the target project's `projectRoot`,
+`projectSpacesDir`, `appGlobals` AND its `codeNodeCtxFactory`
+(`sdk/org/libs/cli/src/server/session-manager.ts:L467-L478`). Both the agent-node writers and the
+code-node factory must rebind to the target: a code node in the delegated tasklist (the appbuilder's
+`emit_types`) calls `writeProjectFile`/`writeProject*` through that factory, and if it stayed bound
+to THING's own `user` project it would write `types/contract.d.ts` into `user` while every generated
+`import '../types/contract'` resolves against the target project — module-not-found on every file
+(06-tanzania run 35). `delegateProjectContext` carries the factory alongside `appGlobals`, and the
+delegate yield-router paths use `pctx.codeNodeCtxFactory`, not the session's own
+(`sdk/org/libs/core/src/session/session.ts#Session.delegateProjectContext`).
+
 ---
 
 ## 8. The live session pool (`SessionManager`)

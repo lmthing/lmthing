@@ -76,3 +76,144 @@ in the flagged figure before deleting, and refuses otherwise — so the guarante
 model executing prose. Same class as `thing-no-new-specialist-space-mid-conversation.md` (stochastic
 THING execution that prose can't reliably fix). The `resolve-already-correct` repro is the ready oracle
 for that L3 fix.
+
+---
+
+## L3 DESIGN (2026-07-20): host-enforced destructive-write interlock
+
+### What it is — and what it is NOT
+
+Move the destructive-write GUARD out of model prose into HOST code. It is an **interlock on the delete**,
+NOT a smarter diagnostician. Be precise about scope, because two things it does not do are load-bearing:
+
+- It does **not** decide what is wrong. Diagnosing the culprit from a free-text complaint stays
+  `01-diagnose` (a model) — genuinely a language/judgment task, unchanged.
+- It does **not** make diagnosis correct. If diagnose names a plausible-but-wrong row, the interlock
+  cannot know the domain intent; its only lever is "does removing this verifiably achieve the effect
+  diagnose CLAIMED?"
+- It **guarantees** the one thing prose cannot: **no hard delete proceeds unless the host can VERIFY,
+  from the live rows, that it achieves diagnose's own stated justification.** Unverifiable ⇒ refuse +
+  surface the existing `question` (ask path). Fail-safe: never destroy on doubt.
+
+**Residual it does NOT solve (explicit):** a wrong culprit whose removal *coincidentally* lands the
+figure on the asserted target — e.g. two rows of equal value, the real duplicate vs a legit twin. That
+is irreducible ambiguity and belongs to the ask path (diagnose `confidence: low`), not the interlock.
+
+### Two verification modes — mirror diagnose's own confidence contract
+
+`01-diagnose` already returns `high` only under one of two justifications (01-diagnose.md:38-49). The
+interlock enforces each IN CODE:
+
+- **(a) target-selected** (user stated the figure should be X; one candidate reproduces it): recompute
+  the figure WITHOUT `targetIds`; delete only if `before != after` **and** `after == assertedTarget`
+  (within tolerance). This kills the run-32 case — already-correct total, removing the EUR row leaves the
+  USD sum unchanged (`before == after`) ⇒ refuse.
+- **(b) structural duplicate** (provable: same row/charge counted twice, no stated target): delete only
+  if each `targetId` has a genuine identical PEER row that diagnose points at (`duplicateOf`), verified
+  equal on the figure column ⇒ removing a proven duplicate is always safe.
+- **neither code-verifiable ⇒ refuse**, return `{applied:false}`, relay `question` (ask the user).
+
+### Non-overfit rule (this is a user-thing space — NO domain literals)
+
+The figure's identity flows in as DATA from diagnose; the code carries no `sum`/`amount`/`costs`/`USD`
+literal.
+
+- diagnose emits a generic recompute descriptor `figureSpec: { op, column, filter } | null`, where
+  `op ∈ {sum,count,avg,min,max}` — a generic aggregate grammar, driven entirely by data.
+- Figures NOT expressible as a single-table aggregate (a cross-table roll-up, an app-endpoint
+  derivation): `figureSpec: null` ⇒ the code cannot recompute ⇒ **fail-safe refuse ⇒ ask**. No data
+  loss. The scenario's intended happy path (a single-table double-count inside `costs`) IS expressible,
+  so it still auto-fixes; only exotic figures downgrade to ask — strictly safer than today's stochastic
+  auto-delete.
+- STRONGER genericity — recompute via the app's OWN derivation (the endpoint step 8 reads) instead of
+  re-deriving the aggregate — is possible but needs **trial-delete + rollback**, and `AsyncDbApi` has no
+  transaction (store.ts): rollback = capture the rows first, delete, re-insert on failure (restoring ids
+  + relations exactly). Real cost; DEFER unless the aggregate grammar proves too narrow in practice.
+
+### Implementation seam (verified 2026-07-20)
+
+Convert `02-fix.md` (a `role:general` model fork) → `02-fix.ts`, the **first shipped `kind:'code'` node**
+in any system space.
+
+- **Node module contract** (`sdk/org/libs/cli/src/app/worker-load.ts:156-183`):
+  `export async function run(ctx, inputs)` — no default export. `ctx.db` is the project's async db proxy
+  (query/tables/insert/update/remove — `DB_METHODS`, mirrors `AsyncDbApi`), serviced main-process-side;
+  `inputs` carries the upstream `diagnose` output. Worker-isolated, timeout-bounded.
+- **Metadata** is AST-extracted from a top-level `const node = { id:'fix', kind:'code',
+  dependsOn:['diagnose'], condition:"diagnose.confidence == 'high'", output:{...} }` — the loader NEVER
+  imports/executes the module (`sdk/org/libs/core/src/spaces/tasklist-load.ts:16,75,100`).
+- **Host execution is already wired for THING's own tasklists**:
+  `SessionManager.buildCodeNodeCtxFactory` (session-manager.ts:541) → `createCodeNodeCtxFactory`
+  (tasklist-runner.ts:91), threaded at session-manager.ts:526-528 (in-session) and :2146-2159
+  (headless). `getDb()` yields the live project async db. **No new plumbing.**
+- **`01-diagnose` output gains** `figureSpec {op,column,filter}|null`, `assertedTarget string|null`,
+  `duplicateOf array|null`. Its confidence rule (01-diagnose.md:36-54) already COMPUTES the
+  justification; it must now EMIT the machine-checkable evidence for it.
+- **db layer unchanged**: `db.remove` → hard SQL DELETE (`sdk/org/libs/cli/src/app/store.ts:454`); the
+  interlock lives ABOVE db, in the node (it needs the figure + target context db does not have). The
+  scoped `remove` chokepoint (`app-globals.ts:156`) is the wrong layer — it sees only `(table, opts)`.
+
+### `run(ctx, inputs)` logic (pseudocode)
+
+```
+const d = inputs.diagnose;   // {fixAction, table, targetIds, assertedTarget, figureSpec, duplicateOf, targetValue}
+if (d.fixAction === 'none') return { applied:false, changed:0, detail:'already correct' };
+
+if (d.fixAction === 'remove') {
+  const rows = await ctx.db.query(d.table, d.figureSpec?.filter ?? {});
+  if (d.assertedTarget != null && d.figureSpec) {            // mode (a): target-selected
+    const before = agg(d.figureSpec.op, rows, d.figureSpec.column);
+    const kept   = rows.filter(r => !d.targetIds.includes(String(r.id)));
+    const after  = agg(d.figureSpec.op, kept, d.figureSpec.column);
+    if (before === after)                    return { applied:false, detail:'target rows are not part of the figure — refused' };
+    if (!approxEq(after, d.assertedTarget))  return { applied:false, detail:`removing gives ${after}, not the asserted ${d.assertedTarget} — refused` };
+  } else if (d.duplicateOf?.length) {                        // mode (b): structural duplicate
+    for (const [i,id] of d.targetIds.entries())
+      if (!isDuplicatePeer(rows, id, d.duplicateOf[i], d.figureSpec?.column))
+        return { applied:false, detail:'not a verifiable duplicate — refused' };
+  } else return { applied:false, detail:'no code-verifiable justification for a delete — refused (ask the user)' };
+
+  for (const id of d.targetIds) await ctx.db.remove(d.table, { where: { id } });
+  return { applied:true, changed:d.targetIds.length, before, after, detail:`removed ${d.targetIds.length} row(s) from ${d.table}` };
+}
+
+if (d.fixAction === 'update') { /* same verify: recompute with the field set to targetValue; apply only if after == assertedTarget */ }
+```
+
+`agg` / `approxEq` / `isDuplicatePeer` are generic local helpers (no domain literals).
+
+### Generalizes to the destructive-write class
+
+The same interlock — *"a destructive delete must code-verify it achieves its asserted effect, or it does
+not happen"* — folds in the siblings this issue already names: `retract_fact` row-grain and
+`derived-balance-delete-vs-resolve`. Soft-delete / exclude-from-total (point 3 above) is the complementary
+hardening for obligation/identity rows where even a verified delete loses history.
+
+### Oracle + verification plan
+
+- `resolve-already-correct` (committed, RED 4/8) proves mode-(a) fail-safe: already-correct total; delete
+  changes nothing ⇒ refuse. GREEN when the code node refuses. Primary gate.
+- ADD two repros:
+  - **mode-(a) success**: seed a genuine single-table double-count; assert the DUPLICATE row is removed
+    and the total lands on target.
+  - **equal-value hazard**: seed a real overage where a legit row equals the overage; assert NO delete
+    (routes to ask), guarding the residual case above.
+- Gates: three repros GREEN + 06 step-9 happy path still fixes a real double-count + anti-overfit scan
+  clean (no domain literal in `02-fix.ts`) + typecheck / spaces DAG / scenarios green.
+
+### Risks / must-check before shipping
+
+- **First shipped code node in a system space** — the loader (`tasklist-load.ts`) and worker-load path
+  exist but no system tasklist uses `kind:'code'` yet. Verify end-to-end from a BUILT image (not just
+  vitest-from-src): the `.ts` code node must transpile + execute in the worker, and its
+  `worker-load-entry` tsup entry must be present (CLAUDE.md "adding a worker-run seam ⇒ add its tsup
+  entry").
+- **`inputs` shape** — confirm the orchestrator passes `{diagnose}` (dependency outputs keyed by id) plus
+  the seed `complaint` to `run(ctx, inputs)`; adjust the destructuring to the real shape.
+- **`condition` on a code node** — `02-fix` keeps `condition:"diagnose.confidence=='high'"`; confirm the
+  orchestrator evaluates a code node's `condition` identically to an agent node's.
+
+### Fix-ladder placement
+
+L3 (host code) — L1/L2 prose is proven insufficient (the reverted two-layer guard came back RED 6/8,
+worse than the 4/8 baseline). This is the lowest rung that reliably holds.

@@ -43,3 +43,25 @@ path (e.g. the automator/write path returns "no owning space for this subject" a
 it), or a code hook that fires specialist-creation when incremental rows land under no registered
 space. This is the same "prose can't reliably fix stochastic THING execution → needs code enforcement"
 class as `resolve-flagged-figure-destructive-write.md`.
+
+---
+
+## L2-structural attempt (2026-07-21, live 07-life-admin run 26 reconfirmed the symptom): improves to RED 1/4 — residual is L3
+
+The L2 fix landed (sdk/org `863df88`): a dedicated **`user-thing/tasklists/add_area`** tasklist — the
+incremental sibling of `organize_material` — `01-assess` (always runs; names the topic, decides
+`isNewArea` via `loadKnowledge('organizing','split')` against `registeredSpaces` + `db.tables()`) →
+`02-add_specialist` (`condition: assess.isNewArea == true` → `system-architect#synthesize_and_run`) →
+`03-build_app` (automator) → `04-report`. The instruct LIVE-project path now routes a
+genuinely-new-area add through `tasklist('add_area', …)` rather than a bare automator delegate. Space
+dedup is now deterministic (architect `matchExistingSpace`, same commit), so a created specialist is
+idempotent for a repeated topic.
+
+**Repro moved RED 4/4 → RED 1/4** (`scenarios/repros/new-topic-specialist/`; runs 1,3,4 GREEN, run 2
+RED with `spaces.count=3`). Once THING enters `add_area`, the specialist is created reliably — but
+THING's **top-level choice to enter `add_area` vs a bare automator delegate is still stochastic**, so
+one run in four skips the whole route. This is exactly the L3 gap named above: a tasklist THING must
+*choose* to call is skippable. **Remaining L3 (not yet done):** a host-level code hook that fires
+specialist-creation when incremental rows land under no registered space — runtime/pod code, outside
+the user-thing prompt lane. Do NOT delete this issue; the L2 is committed but the symptom can still
+recur ~1/4 until the L3 hook lands.

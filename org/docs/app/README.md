@@ -118,7 +118,7 @@ Hence one endpoint, two addresses — the browser addresses it by route, the age
 | `useApi(name, input?)` · `useApiMutation(name, {invalidates})` · `apiCall(name, input?)` | typed data access by endpoint **name** |
 | `HttpError` | the shared error type |
 | `useParams` · `Link` · `navigate` | the tiny file-based client router |
-| `Chat` | a page-droppable `<Chat agent="space/agent" />`, or `agent="thing"` for the project’s own authoring agent |
+| `Chat` | a page-droppable, self-floating `<Chat agent="space/agent" />`, or `agent="thing"` for the project’s own authoring agent — needs no wrapping dock |
 | `mountApp` · `AppRoot` · `matchRoutes` · `resolveAppBase` · `buildRequest` | used by the **generated** entry, not by page authors |
 
 The name→route bridge is `window.__APP_ENDPOINTS__`: the build projects the endpoint contracts down to a `name → { method, routePath }` manifest (`sdk/org/libs/cli/src/app/build/pages.ts#endpointManifest`) and bakes it into the generated entry's `mountApp({ manifest, … })` call (`:L335-L336`), `mountApp` assigns it to the global (`sdk/org/libs/cli/src/app/runtime/router.tsx#mountApp`), and `apiCall` reads it (`sdk/org/libs/cli/src/app/runtime/client.ts:L1-L22,L58-L63`). Detail → [views.md](./views.md).

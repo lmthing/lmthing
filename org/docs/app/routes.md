@@ -111,7 +111,7 @@ API URLs are built the same way: `apiCall(name, input)` looks the name up in the
 
 Builds are serialized process-wide and deferred under memory pressure (each build peaks ~100 MB) `sdk/org/libs/cli/src/app/build/pages.ts:96-118`, `sdk/org/libs/cli/src/app/build/pages.ts:279-285`.
 
-`BUILDER_VERSION` (currently `'6'`) participates in the source hash, so a change to the builder or the bundled `@app/runtime` invalidates every cached bundle — the project-file hash alone would not `sdk/org/libs/cli/src/app/build/pages.ts#BUILDER_VERSION`, `sdk/org/libs/cli/src/app/build/pages.ts#sourceHash`.
+`BUILDER_VERSION` (currently `'7'`) participates in the source hash, so a change to the builder or the bundled `@app/runtime` invalidates every cached bundle — the project-file hash alone would not `sdk/org/libs/cli/src/app/build/pages.ts#BUILDER_VERSION`, `sdk/org/libs/cli/src/app/build/pages.ts#sourceHash`.
 
 The server caches the built bundle per project for its lifetime (`pageBuildCache`, populated lazily by `getOutDirForProject`; a build failure caches `null` and the route 404s) `sdk/org/libs/cli/src/server/serve.ts:248-305`. Installing an app or a store space **drops** that cache entry, so freshly-hashed assets are served instead of a stale manifest `sdk/org/libs/cli/src/server/serve.ts:258-287` — see [`../cli-api/rest/apps.md`](../cli-api/rest/apps.md).
 

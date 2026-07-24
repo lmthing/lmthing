@@ -213,36 +213,66 @@ modes (`tokens.json` `$meta`, `spectrum.description`).
   must NOT redeclare shared tokens — it only bridges the legacy `--lm-*` aliases … onto shared
   tokens so they inherit light/dark automatically" (`styles.css:20-26`). `lm-*` is sanctioned;
   don't churn it.
-- **Component styling pattern** — BEM component CSS is canonical: a stylesheet under
-  `src/{elements,components}/<name>/index.css` that opens with `@reference "…/theme.css"` and
-  builds each class from `@apply` + token utilities (`sdk/org/libs/css/src/elements/forms/button/index.css:1-12`);
-  the React component imports that stylesheet and composes the classes
-  (`sdk/org/libs/ui/src/elements/forms/button/index.tsx:1`). The catalog generator assumes this
-  shape — it parses `.block` / `.block__element` / `.block--modifier` out of every stylesheet
-  under `src/{elements,components}` (`sdk/org/libs/css/scripts/generate-components-catalog.mjs:3-8`).
+- **Component styling pattern — being replaced, see below.** BEM component CSS is a stylesheet
+  under `src/{elements,components}/<name>/index.css` that opens with `@reference "…/theme.css"` and
+  builds each class from `@apply` + token utilities
+  (`sdk/org/libs/css/src/components/setup-guide/index.css:1-14`); the React component imports that
+  stylesheet and composes the classes. The catalog generator assumes this shape — it parses
+  `.block` / `.block__element` / `.block--modifier` out of every stylesheet under
+  `src/{elements,components}` (`sdk/org/libs/css/scripts/generate-components-catalog.mjs:3-8`).
   Inline Tailwind utilities are only for trivial one-off layout. Full detail →
   [components.md](./components.md).
+- **The element layer no longer uses it.** The idiomatic-Tamagui migration replaces BEM `@apply`
+  CSS with Tamagui `$`-token style PROPS on the `Prim.*` primitives — `<Button variant="primary">`
+  renders a real `<button>` whose styling is props, not a `btn btn--primary` className
+  (`sdk/org/libs/ui/src/elements/forms/button/index.tsx#Button`). **Write new component styling as
+  props, not as a new BEM stylesheet.** The stylesheets that remain are the documented residual —
+  rules that cannot yet be props (Tailwind `animate-*`/`transition-*`, which need an animation
+  driver; `@media` blocks; descendant combinators; classes applied to third-party components such
+  as TanStack Router's `<Link>`, which accepts only `className`). Status, the swap procedure and
+  what is left → [`tamagui-idiomatic-migration.md`](../../../sdk/org/docs/tamagui-idiomatic-migration.md).
 
 ## Example: a token-only component stylesheet
 
-Real excerpt — `sdk/org/libs/css/src/elements/content/badge/index.css` is catalogued in
-`COMPONENTS.md` as using tokens `border, brand-1, muted, muted-foreground, primary,
-primary-foreground, secondary, secondary-foreground` and no raw colors:
+Real excerpt — `sdk/org/libs/css/src/components/setup-guide/index.css` is catalogued in
+`COMPONENTS.md` as using tokens `border, muted, muted-foreground` and no raw colors:
 
 ```css
-@reference "../../../theme.css";
+@reference "../../theme.css";
 
-.badge {
-  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
-         border border-border bg-secondary text-secondary-foreground;
-}
-.badge--primary {
-  @apply bg-primary text-primary-foreground border-transparent;
-}
-.badge--success {
-  @apply bg-brand-1/20 text-brand-1 border-brand-1/30;
+.lm-setup-guide {
+  @apply border-border bg-muted;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 0.5rem;
+  overflow: hidden;
 }
 ```
 
 Every color is a token utility, so the file passes `lint:tokens` and re-themes automatically
 in dark mode.
+
+## Example: the same rule as Tamagui props (what the element layer does now)
+
+The equivalent for a migrated element — the same tokens, carried as style props on a primitive
+that renders the real host tag, with no stylesheet at all
+(`sdk/org/libs/ui/src/elements/content/badge/index.tsx#BADGE_BASE`):
+
+```tsx
+export const BADGE_BASE = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  borderRadius: '$radius-full',
+  paddingHorizontal: '$2',
+  fontSize: '$xs',
+  borderWidth: 1,
+  borderColor: '$border',
+  backgroundColor: '$secondary',
+  color: '$secondary-foreground',
+} as const
+```
+
+`lint:tokens` covers `.tsx` too, so a raw color is caught here exactly as it is in a stylesheet.
+One caveat worth knowing: a `$` FONT token (`fontSize`/`fontWeight`/`lineHeight`/`letterSpacing`)
+only resolves when the component has a font family, so the primitives default one in
+(`sdk/org/libs/ui/src/elements/primitives/_tamagui.tsx#withFontScale`).

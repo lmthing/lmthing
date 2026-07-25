@@ -42,7 +42,7 @@ closest. Pick the token whose **semantic role** matches the usage — a page sur
 `background`, a card is `card`, a CTA is `primary`, an error is `destructive`, a knowledge
 stream is `knowledge`, an agent stream is `agent`. Every token carries a `description` stating
 its role in `sdk/org/libs/css/src/tokens/tokens.json:30-88` (mirrored into the generated
-`tokens.manifest.json` — `generate-theme.mjs:119-127`); that description is the mapping table.
+`tokens.manifest.json` — `generate-theme.mjs:148-156`); that description is the mapping table.
 A genuinely non-brand palette (terminal ANSI, syntax highlighting) stays raw and is marked
 `ds-lint-file-ok` (`sdk/org/libs/css/scripts/lint-design-tokens.mjs:96`, documented at
 `lint-design-tokens.mjs:17-20`).
@@ -151,18 +151,19 @@ Never hand-edit the generated outputs.
 `generate-theme.mjs` (`scripts/generate-theme.mjs`) reads `tokens.json` and writes two
 outputs (never hand-edit either — `generate-theme.mjs:6-8`; each emitted block is fenced with
 an `/* Auto-generated … — edit src/tokens/tokens.json, not this file */` banner,
-`generate-theme.mjs:78`):
+`generate-theme.mjs:107`):
 
-- **`src/theme.css`** — the Tailwind v4 theme: an `@theme` block for the non-color scales
+- **`src/theme.css`** — the token stylesheet (plain CSS since the Tamagui migration's phase 4;
+  it was a Tailwind v4 theme): a `:root` block for the non-color scales
   (radius, fonts), an `@theme inline` block exposing each color as a `--color-<name>` utility
-  (so `bg-primary`/`text-agent` work), a `:root` block with the light values, and a
-  `[data-theme="dark"]` block with only the dark overrides (`generate-theme.mjs:65-103`).
-  The dark selector comes from `tokens.json` `$meta.darkSelector` (`generate-theme.mjs:73`).
+  (which SPIKE A1 resolves every Tamagui `$color` against), a `:root` block with the light values, and a
+  `[data-theme="dark"]` block with only the dark overrides (`generate-theme.mjs:66-130`).
+  The dark selector comes from `tokens.json` `$meta.darkSelector` (`generate-theme.mjs:74`).
 - **`tokens.manifest.json`** — the flat, machine-readable index (name, `cssVar`, `utility`,
-  group, light, dark, description) for humans and LLMs (`generate-theme.mjs:105-129`).
+  group, light, dark, description) for humans and LLMs (`generate-theme.mjs:134-158`).
 
 The generator also **interpolates the spectrum**: `--spectrum-1..50`, a 50-stop linear-RGB
-ramp between the five brand anchors `brand-1..5` (`generate-theme.mjs:22-63`,
+ramp between the five brand anchors `brand-1..5` (`generate-theme.mjs:23-64`,
 `tokens.json` `spectrum`). Detail on the token set → [tokens.md](./tokens.md).
 
 Hand-written, not generated, and sitting alongside them at the `src` root:
@@ -187,7 +188,7 @@ utilities inside `@apply` (`generate-components-catalog.mjs:37-67`). Detail →
 
 One theme, two modes — `tokens.json` declares exactly `"themes": ["light", "dark"]` and one
 `darkSelector: "[data-theme=\"dark\"]"` (`sdk/org/libs/css/src/tokens/tokens.json:5-6`), and the
-generator emits both modes into the single `theme.css` (`generate-theme.mjs:90-100`). Every app
+generator emits both modes into the single `theme.css` (`generate-theme.mjs:119-129`). Every app
 imports `@lmthing/css/theme`
 (`sdk/org/libs/css/package.json:7`); no app redefines tokens. Mode is a `data-theme`
 attribute on `<html>`, driven by `@lmthing/ui/theme` (`sdk/org/libs/ui/src/theme/theme.ts`):

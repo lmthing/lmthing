@@ -2,7 +2,7 @@
 
 The shared frontend layer for **every** lmthing surface — the unified studio/chat/computer app (`sdk/org/apps/web`) and the product SPAs. Two packages, cleanly split:
 
-- **`@lmthing/css`** — the design system: one token source of truth, the generated Tailwind v4 theme, per-component BEM stylesheets, and the build/lint scripts. No JS/JSX. `sdk/org/libs/css/package.json:2`.
+- **`@lmthing/css`** — the design system: one token source of truth, the generated plain-CSS theme, per-component BEM stylesheets, and the build/lint scripts. No JS/JSX. `sdk/org/libs/css/package.json:2`.
 - **`@lmthing/ui`** — React: unstyled-logic primitives ("elements"), cross-surface components, hooks, theme control, and the three surface bundles (chat/studio/computer). Each visual element imports its paired stylesheet from `@lmthing/css`. `sdk/org/libs/ui/package.json:2`.
 
 The **rules** for using this system (never a raw color, stone-not-grey, brand-leads, the full-spectrum rotation) live in the design-system docs — see [../design-system/README.md](../design-system/README.md). This file documents **what the two packages expose and how the pipeline is wired**.
@@ -15,8 +15,9 @@ Pure CSS + Node build scripts. No runtime code. Entry points (`sdk/org/libs/css/
 
 | Export | Resolves to | Purpose |
 |---|---|---|
-| `@lmthing/css/theme` | `src/theme.css` | The generated Tailwind v4 theme — imported **once** per app. |
-| `@lmthing/css/animations` | `src/animations.css` | The keyframe layer — plain CSS, **no Tailwind**. Imported once per app, from the app entry. |
+| `@lmthing/css/theme` | `src/theme.css` | The generated token stylesheet (plain CSS) — imported **once** per app; pulls in `preflight.css`. |
+| `@lmthing/css/animations` | `src/animations.css` | The keyframe layer — plain CSS. Imported once per app, from the app entry. |
+| `@lmthing/css/preflight` | `src/preflight.css` | The base resets the primitives assume (`box-sizing`, `border: 0 solid`, …). Tailwind's own preflight, checked in with its variables resolved; imported by `theme.css` into `layer(base)`. |
 | `@lmthing/css/tokens.json` | `src/tokens/tokens.json` | The single source of truth (raw token authoring). |
 | `@lmthing/css/tokens.manifest.json` | `tokens.manifest.json` | Generated flat token index (name, cssVar, utility, light, dark, description). |
 | `@lmthing/css/elements/*` | `src/elements/*` | Per-primitive BEM stylesheet. |
@@ -24,7 +25,7 @@ Pure CSS + Node build scripts. No runtime code. Entry points (`sdk/org/libs/css/
 
 > Note: the `exports` map (`sdk/org/libs/css/package.json:14-15`) points `./elements/*` → `./src/elements/*` and `./components/*` → `./src/components/*`.
 
-The sole peer dep is `tailwindcss ^4` (`sdk/org/libs/css/package.json:40-42`) — the theme is a Tailwind v4 `@theme` stylesheet. (`tw-animate-css` was a second one until the Tamagui migration's closing plan removed it: `theme.css` imported it and nothing used it, and it was not free — it declares its keyframes and custom properties at the top level, so Tailwind emitted them regardless.) A `bin` entry ships the token linter as `lmthing-lint-tokens` (`sdk/org/libs/css/package.json:17-19`).
+**`@lmthing/css` has no peer dependencies at all any more.** It required `tailwindcss ^4` until phase 4 of the Tamagui migration; every stylesheet it ships is now plain CSS, so it needs nothing to compile. (`tw-animate-css` had already gone earlier in the same plan: `theme.css` imported it and nothing used it, and it was not free — it declares its keyframes and custom properties at the top level, so Tailwind emitted them regardless.) A `bin` entry ships the token linter as `lmthing-lint-tokens` (`sdk/org/libs/css/package.json:17-19`).
 
 ### The token source: `tokens.json`
 
@@ -41,16 +42,16 @@ Key anchors: the five brand letters `brand-1..5` = `#f5c815 #f9a94a #f38358 #ed9
 
 `scripts/generate-theme.mjs` reads `tokens.json` and emits **two generated files — never hand-edit either** (`sdk/org/libs/css/scripts/generate-theme.mjs:6-8`):
 
-1. **`src/theme.css`** — a Tailwind v4 theme with four generated sections (`generate-theme.mjs:74-101`):
-   - `@custom-variant dark (&:is([data-theme="dark"] *))` — the dark variant wired to the `$meta.darkSelector` (`generate-theme.mjs:73,76`).
-   - `@theme { … }` — the `--radius-*` / `--font-*` scales (`generate-theme.mjs:66,79-81`).
-   - `@theme inline { --color-<name>: var(--<name>); }` — exposes every color token as a **Tailwind color utility** (`bg-primary`, `text-agent`, `border-border`, …) (`generate-theme.mjs:67,85-87`).
-   - `:root { --<name>: <light>; }` and `[data-theme="dark"] { --<name>: <dark>; }` — the light values, then only the tokens whose `dark !== light` as overrides (`generate-theme.mjs:68-71,91-99`).
-2. **`tokens.manifest.json`** — a flat, machine-readable index of scales + colors with `cssVar`, `utility`, light/dark, description (`generate-theme.mjs:105-129`).
+1. **`src/theme.css`** — plain CSS: a cascade-layer declaration, the preflight import, and four generated sections (`generate-theme.mjs#css`, emitted at `:132`):
+   - `@layer base, components, utilities;` + `@import "./preflight.css" layer(base);` — the layer is load-bearing, see [../design-system/tokens.md](../design-system/tokens.md).
+   - `:root { … }` — the `--radius-*` / `--font-*` scales (`generate-theme.mjs:67`).
+   - `:root { --color-<name>: var(--<name>); }` — one alias per color token (`generate-theme.mjs:68`). SPIKE A1 resolves every Tamagui `$color` against these, so they are not optional.
+   - `:root { --<name>: <light>; }` and `[data-theme="dark"] { --<name>: <dark>; }` — the light values, then only the tokens whose `dark !== light` as overrides (`generate-theme.mjs:69-72`).
+2. **`tokens.manifest.json`** — a flat, machine-readable index of scales + colors with `cssVar`, `utility`, light/dark, description (`generate-theme.mjs:134-158`).
 
-**Spectrum interpolation** (`buildSpectrum`, `generate-theme.mjs:32-47`): the 50-stop ramp places the five brand anchors at indices 1, 14, 27, 40, 53 (spacing 13) and does a linear RGB lerp between consecutive anchors, rounded to hex. The result is appended to the color list as `spectrum-1..50` (same in light and dark, `generate-theme.mjs:54-63`) so `--spectrum-N` / `--color-spectrum-N` utilities exist.
+**Spectrum interpolation** (`buildSpectrum`, `generate-theme.mjs:32-47`): the 50-stop ramp places the five brand anchors at indices 1, 14, 27, 40, 53 (spacing 13) and does a linear RGB lerp between consecutive anchors, rounded to hex. The result is appended to the color list as `spectrum-1..50` (same in light and dark, `generate-theme.mjs:54-63`) so both `--spectrum-N` and its `--color-spectrum-N` alias exist.
 
-Run it with `pnpm --filter @lmthing/css generate` — which runs `generate-theme.mjs` **then** `generate-components-catalog.mjs`; it also runs on `prebuild` (`sdk/org/libs/css/package.json:30-31`).
+Run it with `pnpm --filter @lmthing/css generate` — which runs `generate-theme.mjs` **then** `generate-components-catalog.mjs`; it also runs on `prebuild` (`sdk/org/libs/css/package.json:32-33`).
 
 ### The catalog generator: `generate-components-catalog.mjs`
 
@@ -186,7 +187,7 @@ These surfaces are documented per-product under [../chat/](../chat/README.md), [
 
 An app imports the two shared stylesheets **once** and then imports elements/components, whose modules pull in their own CSS. The unified web app does exactly this (`sdk/org/apps/web/src/index.css:1-7`):
 
-1. `@import "@lmthing/css/theme.css"` — brings in Tailwind v4 + all token utilities + light/dark `:root`.
+1. `@import "@lmthing/css/theme.css"` — the token custom properties, the `--color-*` aliases and light/dark `:root`, plus `preflight.css` into `layer(base)`.
 2. `@import "@lmthing/css/animations.css"` — the keyframe layer (`lm-*`, plus hand-written `animate-spin`/`animate-pulse`). Plain CSS, no Tailwind.
 3. `import { Button } from '@lmthing/ui/elements/forms/button'` — the module side-imports `@lmthing/css/elements/forms/button/index.css`.
 4. `applyTheme('dark')` from `@lmthing/ui/theme` flips `data-theme` on `<html>`.

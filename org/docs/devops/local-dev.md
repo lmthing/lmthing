@@ -151,7 +151,7 @@ Relevant gateway env (from `cloud/gateway/.env.local.example`): `DATABASE_URL=po
 
 ## Stack summary
 
-All frontend apps share React 19 + Vite (vite-plus) + TanStack Router + Tailwind v4, wired by `createViteConfig` (`sdk/org/libs/utils/src/vite.mjs#createViteConfig`): it collapses React to one copy (`dedupe`), aliases the workspace `@lmthing/{ui,css,state,auth,core}` libs to source, injects a shared-favicon plugin, stubs the `@ai-sdk/*` provider packages for the browser, and sets `server.allowedHosts: ['.test']`. The unified SPA depends on `@lmthing/{auth,css,state,ui}` as `workspace:*` (`sdk/org/apps/web/package.json:15-19`).
+All frontend apps share React 19 + Vite (vite-plus) + TanStack Router, wired by `createViteConfig` (`sdk/org/libs/utils/src/vite.mjs#createViteConfig`): it collapses React to one copy (`dedupe`), aliases the workspace `@lmthing/{ui,css,state,auth,core}` libs to source, injects a shared-favicon plugin, stubs the `@ai-sdk/*` provider packages for the browser, and sets `server.allowedHosts: ['.test']`. The unified SPA depends on `@lmthing/{auth,css,state,ui}` as `workspace:*` (`sdk/org/apps/web/package.json:15-19`).
 
 ## See also
 

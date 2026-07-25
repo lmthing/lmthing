@@ -1,6 +1,6 @@
 # The Token System
 
-The lmthing design system has **one source of truth**: `sdk/org/libs/css/src/tokens/tokens.json`. A generator turns it into a Tailwind v4 stylesheet (`theme.css`) and a flat machine-readable index (`tokens.manifest.json`). Every web surface — the `sdk/org` studio/chat/computer app and the product SPAs (`com`, `social`, `team`, `store`, `space`, `blog`, `casa`) — imports the generated `theme.css` and styles exclusively against these tokens. **Never write a raw color; never hand-edit `theme.css`.**
+The lmthing design system has **one source of truth**: `sdk/org/libs/css/src/tokens/tokens.json`. A generator turns it into a plain-CSS stylesheet (`theme.css`) and a flat machine-readable index (`tokens.manifest.json`). Every web surface — the `sdk/org` studio/chat/computer app and the product SPAs (`com`, `social`, `team`, `store`, `space`, `blog`, `casa`) — imports the generated `theme.css` and styles exclusively against these tokens. **Never write a raw color; never hand-edit `theme.css`.**
 
 See [./README.md](./README.md) for the design-system overview and [./components.md](./components.md) for the BEM component layer that consumes these tokens.
 
@@ -9,7 +9,7 @@ See [./README.md](./README.md) for the design-system overview and [./components.
 ## Pipeline: `tokens.json` → generator → `theme.css` + manifest
 
 ```
-src/tokens/tokens.json   ── node scripts/generate-theme.mjs ──▶  src/theme.css          (Tailwind v4: @theme + @theme inline + :root + [data-theme="dark"])
+src/tokens/tokens.json   ── node scripts/generate-theme.mjs ──▶  src/theme.css          (plain CSS: :root scales + --color-* aliases + :root light + [data-theme="dark"])
    (edit here)                                               └▶  tokens.manifest.json   (flat: name, cssVar, utility, light, dark, description)
 ```
 
@@ -19,25 +19,33 @@ src/tokens/tokens.json   ── node scripts/generate-theme.mjs ──▶  src/t
 
 ### What the generator emits into `theme.css`
 
-`generate-theme.mjs` assembles the file from four token sections plus one `@import` and a dark `@custom-variant` (`sdk/org/libs/css/scripts/generate-theme.mjs#css`):
+`generate-theme.mjs` assembles the file from four token sections plus a cascade-layer declaration and
+the preflight import (`sdk/org/libs/css/scripts/generate-theme.mjs#css`):
 
-1. `@import "tailwindcss";` (`theme.css:1`; the sole `peerDependency` in `package.json`). A second `@import "tw-animate-css";` was emitted here until the Tamagui closing plan removed it — unused, and not free, since its keyframes and custom properties were emitted whether or not a utility referenced them. **Removing an import from `theme.css` means removing it from this generator**, not from the generated file, which is overwritten on the next `generate`.
-2. `@custom-variant dark (&:is([data-theme="dark"] *));` — derived from `$meta.darkSelector` (`generate-theme.mjs:73,76`). This makes Tailwind's `dark:` variant key off the `data-theme` attribute rather than the OS preference.
-3. `@theme { … }` — the non-color scales (`--radius-*`, `--font-*`), emitted verbatim from `tokens.theme` (`generate-theme.mjs:66,79-81`; output `theme.css:6-16`).
-4. `@theme inline { … }` — one `--color-<name>: var(--<name>);` per color, which is what registers each color as a **Tailwind utility** (e.g. `bg-primary`, `text-agent`) (`generate-theme.mjs:67,85-87`; output `theme.css:20-120`).
-5. `:root { … }` — the **light** values, one `--<name>: <light>;` per color (`generate-theme.mjs:68,91-93`; output `theme.css:123-223`).
-6. `[data-theme="dark"] { … }` — **only** the colors whose `dark` value differs from `light` (`generate-theme.mjs:69-71,97-99`; output `theme.css:226-265`). Colors identical across modes (brand, spectrum, primary, ring) are simply not overridden.
+1. `@layer base, components, utilities;` then `@import "./preflight.css" layer(base);` (`theme.css:29,31`). **The `layer(base)` is load-bearing.** Tailwind used to put its preflight in a `base` layer, which loses to unlayered rules; importing it plainly would make it *stronger* than `apps/web/src/index.css`'s own `@layer base`, so preflight's `border: 0 solid` would beat `* { border-color: var(--border) }` and reset every border to `currentcolor`.
+2. `:root { … }` — the non-color scales (`--radius-*`, `--font-*`), emitted verbatim from `tokens.theme` (`generate-theme.mjs:107`; output `theme.css:33-45`).
+3. `:root { --color-<name>: var(--<name>); }` — one alias per color (`generate-theme.mjs:113`; output `theme.css:47-148`). **Not decoration:** SPIKE A1 resolves every Tamagui `$color` token to `var(--color-<name>)`, so if these stop being emitted every color in the app resolves to nothing. This was an `@theme inline` block until phase 4 of the Tamagui migration, where the aliases were a side effect of registering Tailwind color utilities; they are now stated directly.
+4. `:root { … }` — the **light** values, one `--<name>: <light>;` per color (`generate-theme.mjs:119`; output `theme.css:150-251`).
+5. `[data-theme="dark"] { … }` — **only** the colors whose `dark` value differs from `light` (`generate-theme.mjs:125`; output `theme.css:253-293`). Colors identical across modes (brand, spectrum, primary, ring) are simply not overridden.
 
-Every generated block is bracketed by `/* Auto-generated … by generate-theme.mjs */` … `/* End Auto-generated … */` comments so the "do not hand-edit" boundary is visible in the file itself (`theme.css:5-17,19-120,122-223,225-265`).
+> **`theme.css` is no longer a Tailwind file.** It carried `@import "tailwindcss"` and expressed its
+> tokens as `@theme` / `@theme inline` blocks until phase 4 of the Tamagui migration; those compiled to
+> plain `:root` rules, which is what they are now. Tailwind survives in the repo in exactly two places,
+> both deliberate: the seven product SPAs (not migrated), and `libs/cli`, which compiles Tailwind for
+> agent-authored project app pages.
+
+
+
+Every generated block is bracketed by `/* Auto-generated … by generate-theme.mjs */` … `/* End Auto-generated … */` comments so the "do not hand-edit" boundary is visible in the file itself (`theme.css:33-45,47-148,150-251,253-293`).
 
 ### What the generator emits into `tokens.manifest.json`
 
-A flat, LLM-/human-readable index with two arrays (`generate-theme.mjs:106-129`):
+A flat, LLM-/human-readable index with two arrays (`generate-theme.mjs:134-158`):
 
-- `scales` — each `tokens.theme` entry as `{ name, cssVar, group, value }`, `group` being `font` (name starts with `font`) or `radius` (`generate-theme.mjs:113-118`).
-- `colors` — each color (authored + spectrum) as `{ name, cssVar, utility, group, light, dark, description }`; `cssVar` is `--<name>`, `utility` is `--color-<name>` (`generate-theme.mjs:119-127`).
+- `scales` — each `tokens.theme` entry as `{ name, cssVar, group, value }`, `group` being `font` (name starts with `font`) or `radius` (`generate-theme.mjs:142-147`).
+- `colors` — each color (authored + spectrum) as `{ name, cssVar, utility, group, light, dark, description }`; `cssVar` is `--<name>`, `utility` is `--color-<name>` (`generate-theme.mjs:148-156`).
 
-`$meta.note` records the contract: "Every token is a CSS custom property; colors are also exposed as Tailwind utilities via `--color-*` (e.g. `bg-primary`, `text-agent`)." (`generate-theme.mjs:111`).
+`$meta.note` records the contract: "Every token is a CSS custom property; colors are also exposed as Tailwind utilities via `--color-*` (e.g. `bg-primary`, `text-agent`)." (`generate-theme.mjs:140`). The `--color-*` half is still exactly right and now matters more than the note implies — the aliases are what SPIKE A1 resolves Tamagui's `$color` tokens against, and what `libs/cli` rebuilds into a Tailwind theme for project app pages. The `bg-primary`/`text-agent` UTILITIES, though, only exist where Tailwind still runs: the seven product SPAs and project app pages, not `sdk/org/apps/web`.
 
 ---
 
@@ -55,7 +63,7 @@ Colors are authored as an ordered array in `tokens.json` `colors`, each `{ name,
 | `status` | `success`, `warning` (+ `-foreground`) | Running/positive (green) and caution/booting (amber) (`tokens.json:68-71`) |
 | `state` | `border`, `input`, `ring`, `hover`, `active`, `focus`, `disabled`, `disabled-foreground` | Borders, focus ring, and interaction overlays (`tokens.json:59-61,73-77`) |
 | `sidebar` | `sidebar-background`, `sidebar-foreground`, `sidebar-primary`, `sidebar-accent`, `sidebar-border`, `sidebar-ring`, `sidebar` (+ `-foreground`s) | Shell-chrome palette; coral active item (`tokens.json:79-87`) |
-| `spectrum` | `spectrum-1`…`spectrum-50` | **Generated**, not authored — see below (`generate-theme.mjs:54-63`) |
+| `spectrum` | `spectrum-1`…`spectrum-50` | **Generated**, not authored — see below (`generate-theme.mjs:55-64`) |
 
 Non-color scales live under `tokens.theme` (`tokens.json:10-20`):
 
@@ -64,13 +72,13 @@ Non-color scales live under `tokens.theme` (`tokens.json:10-20`):
 
 ### The spectrum ramp (generated)
 
-The `spectrum` object in `tokens.json` is a *spec*, not a color list: `{ from: brand-1, to: brand-5, steps: 50, group: spectrum }` (`tokens.json:22-28`). `buildSpectrum` interpolates it (`generate-theme.mjs:32-47`):
+The `spectrum` object in `tokens.json` is a *spec*, not a color list: `{ from: brand-1, to: brand-5, steps: 50, group: spectrum }` (`tokens.json:22-28`). `buildSpectrum` interpolates it (`generate-theme.mjs:33-48`):
 
-- Anchors `brand-1..5` sit at ramp indices 1, 14, 27, 40, 53 (`spacing = 13`) (`generate-theme.mjs:33-35`).
-- For each step `i` (1..50) it does a **linear RGB lerp** between the two bracketing anchors, rounding to a hex (`generate-theme.mjs:37-45`, using `hexToRgb`/`rgbToHex` `generate-theme.mjs:25-30`).
-- Each `spectrum-<i>` gets the `spectrum` group and the same value for `light` and `dark` (`generate-theme.mjs:56-62`), so the rainbow is unchanged across modes.
+- Anchors `brand-1..5` sit at ramp indices 1, 14, 27, 40, 53 (`spacing = 13`) (`generate-theme.mjs:34-36`).
+- For each step `i` (1..50) it does a **linear RGB lerp** between the two bracketing anchors, rounding to a hex (`generate-theme.mjs:38-46`, using `hexToRgb`/`rgbToHex` `generate-theme.mjs:26-31`).
+- Each `spectrum-<i>` gets the `spectrum` group and the same value for `light` and `dark` (`generate-theme.mjs:57-63`), so the rainbow is unchanged across modes.
 
-Because anchors are placed at index 53 but only 50 steps are emitted, `spectrum-50` stops just short of pure `brand-5` (`#db9bbf` vs `#d59ec8`) (`theme.css:222`, `tokens.json:35`).
+Because anchors are placed at index 53 but only 50 steps are emitted, `spectrum-50` stops just short of pure `brand-5` (`#db9bbf` vs `#d59ec8`) (`theme.css:249`, `tokens.json:35`).
 
 **Rotation helpers** (`sdk/org/libs/ui/src/lib/spectrum.ts`) spread the ramp across repeated UI (avatars, sidebar sections, tabs) so code never hand-picks a color:
 
@@ -85,7 +93,7 @@ Because anchors are placed at index 53 but only 50 steps are emitted, `spectrum-
 **One theme, two modes.** Both modes are defined in the single generated `theme.css`: `:root` holds light, `[data-theme="dark"]` holds the dark overrides (`theme.css:124,227`). There is no second stylesheet and no app-level token redefinition.
 
 - **Mode selector.** Dark mode is the presence of `data-theme="dark"` on `<html>`. `applyTheme(theme)` sets that attribute and persists the choice to `localStorage` under key `lm-theme` (`sdk/org/libs/ui/src/theme/theme.ts#STORAGE_KEY,19-27`). `initTheme(fallback='light')` reads the stored value and applies it on boot (`theme.ts:29-38`); `currentTheme()` reads the attribute (`theme.ts:14-17`); `useTheme()` is a React hook returning `[theme, setTheme, toggle]` (`theme.ts:51-61`). These are re-exported from `@lmthing/ui/theme` (`sdk/org/libs/ui/src/theme/index.ts:1`).
-- **Which tokens change in dark.** Only colors with a distinct `dark` value are emitted into the dark block (`generate-theme.mjs:69-71`). Surfaces, text, functional/status colors, state overlays, and sidebar chrome all flip (`theme.css:226-265`). Notably **unchanged** across modes (absent from the dark block): all `brand-*`, all `spectrum-*`, and the coral anchors `primary`, `primary-foreground`, `ring`, `sidebar-primary`, `sidebar-primary-foreground`, `sidebar-ring` — the CTA/ring stays coral in both modes.
+- **Which tokens change in dark.** Only colors with a distinct `dark` value are emitted into the dark block (`generate-theme.mjs:70-72`). Surfaces, text, functional/status colors, state overlays, and sidebar chrome all flip (`theme.css:253-293`). Notably **unchanged** across modes (absent from the dark block): all `brand-*`, all `spectrum-*`, and the coral anchors `primary`, `primary-foreground`, `ring`, `sidebar-primary`, `sidebar-primary-foreground`, `sidebar-ring` — the CTA/ring stays coral in both modes.
 - **Runtime token override.** A space may inject a custom token block at runtime via `applyThemeTokens(tokens)`, which sets `--lm-*` (and mirrored `--color-lm-*`) properties on `<html>` from a space's optional `theme.json` (`theme.ts:41-49`).
 
 ### `dark:` Tailwind variant
@@ -120,5 +128,5 @@ Adherence is a **hard CI gate**: `pnpm lint:tokens` at repo root and the `@lmthi
 
 - **Use a color:** the CSS var `var(--foreground)` or its Tailwind utility `bg-primary` / `text-agent` / `border-border` (utilities exist because of the `@theme inline` `--color-*` block, `theme.css:20-120`).
 - **Change a color:** edit `sdk/org/libs/css/src/tokens/tokens.json`, run `pnpm --filter @lmthing/css generate`, commit the regenerated `theme.css` + `tokens.manifest.json`. Never touch `theme.css` by hand.
-- **Add a spectrum stop count / re-anchor:** edit `tokens.json` `spectrum` (`steps`, `from`, `to`) and regenerate; note the anchor spacing constant (`13`) in `buildSpectrum` assumes 5 anchors at 1/14/27/40/53 (`generate-theme.mjs:33-35`).
+- **Add a spectrum stop count / re-anchor:** edit `tokens.json` `spectrum` (`steps`, `from`, `to`) and regenerate; note the anchor spacing constant (`13`) in `buildSpectrum` assumes 5 anchors at 1/14/27/40/53 (`generate-theme.mjs:34-36`).
 - **Full palette table with dark values:** the authored entries in `sdk/org/libs/css/src/tokens/tokens.json:30-88` (each with a `description` naming its semantic role), or the generated flat index `sdk/org/libs/css/tokens.manifest.json` — which adds the interpolated `spectrum-1..50` and each token's `cssVar` + `utility` (`generate-theme.mjs:119-127`).

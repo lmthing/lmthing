@@ -225,13 +225,15 @@ modes (`tokens.json` `$meta`, `spectrum.description`).
   must NOT redeclare shared tokens — it only bridges the legacy `--lm-*` aliases … onto shared
   tokens so they inherit light/dark automatically" (`styles.css:20-26`). `lm-*` is sanctioned;
   don't churn it.
-- **Component styling pattern** — BEM component CSS is canonical: a stylesheet under
-  `src/{elements,components}/<name>/index.css` that opens with `@reference "…/theme.css"` and
-  builds each class from `@apply` + token utilities (`sdk/org/libs/css/src/elements/forms/button/index.css:1-12`);
-  the React component imports that stylesheet and composes the classes
-  (`sdk/org/libs/ui/src/elements/forms/button/index.tsx:1`). The catalog generator assumes this
-  shape — it parses `.block` / `.block__element` / `.block--modifier` out of every stylesheet
-  under `src/{elements,components}` (`sdk/org/libs/css/scripts/generate-components-catalog.mjs:3-8`).
+- **Component styling pattern** — styling is Tamagui `$`-token PROPS on the element, not a class.
+  The button carries its variant table as prop bags
+  (`sdk/org/libs/ui/src/elements/forms/button/index.tsx:1`) and `libs/css/src/elements/` no longer
+  exists. BEM component CSS survives only for the 12 composite stylesheets under
+  `libs/css/src/components/`, and those are now PLAIN CSS on tokens — phase 4 expanded every
+  `@apply` and deleted the `@reference` header along with Tailwind itself
+  (`sdk/org/libs/css/src/components/workflow/step-card/index.css:1-7`). The catalog generator still
+  parses `.block` / `.block__element` / `.block--modifier` out of the stylesheets that remain
+  (`sdk/org/libs/css/scripts/generate-components-catalog.mjs:3-8`).
   Inline Tailwind utilities are only for trivial one-off layout. Full detail →
   [components.md](./components.md).
 

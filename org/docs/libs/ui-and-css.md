@@ -71,25 +71,37 @@ Exposed as the `lmthing-lint-tokens` bin (`sdk/org/libs/css/package.json:17-19`)
 
 ### The stylesheet convention
 
-Element/component stylesheets are BEM and built on `@apply` with token utilities. Each opens with `@reference "…/theme.css"` so Tailwind resolves the utilities, then defines classes. Example — the button (`sdk/org/libs/css/src/elements/forms/button/index.css:1`):
+**There is no `@apply` and no Tailwind.** Phase 4 of the Tamagui migration expanded all 87 `@apply`
+directives to plain CSS, resolved every `--tw-*` variable to a literal, and deleted both
+`@import "tailwindcss"` entries. What survives is hand-written BEM using design tokens directly —
+no `@reference`, no utility layer, no build-time Tailwind step. Example — the step card
+(`sdk/org/libs/css/src/components/workflow/step-card/index.css:1-7`):
 
 ```css
-@reference "../../../theme.css";
-
-.btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium
-         transition-colors focus-visible:outline-none focus-visible:ring-2
-         focus-visible:ring-ring focus-visible:ring-offset-2
-         disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2;
+.step-card {
+  position: relative;
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
 }
-.btn--primary { @apply bg-primary text-primary-foreground hover:bg-primary/90; }
-.btn--destructive { @apply bg-destructive text-white hover:bg-destructive/90; }
 ```
+
+The element-level stylesheets are gone entirely: every primitive and element now carries its styling
+as Tamagui `$`-token PROPS rather than a class, so `src/elements/` no longer exists under
+`libs/css/src`. Only 12 component stylesheets remain (`find sdk/org/libs/css/src -name '*.css'`),
+plus `theme.css` (vars only), `preflight.css` (Tailwind's 38 base rules, inlined with their variables
+resolved) and `animations.css` (keyframes). A standing test asserts none of it comes back
+(`sdk/org/libs/css/src/tailwind-free.test.ts:1`).
 
 ### CSS file tree
 
-- **`src/elements/`** — primitive stylesheets, mirrored by the UI elements: `branding/`, `content/` (avatar, badge, card, list-item, panel, separator, terminal), `forms/` (button, input, select, textarea), `layouts/` (page, split-pane, stack), `nav/` (app-links, app-sidebar, breadcrumb, settings-dialog, sidebar, tab-bar, top-bar), `overlays/` (dialog, dropdown, sheet), `typography/` (caption, code, heading, label).
-- **`src/components/`** — composite/surface stylesheets: `agent/{builder,runtime}`, `auth`, `chat/chat-panel`, `component-editor`, `functions`, `knowledge`, `markdown`, `presentation`, `setup-guide`, `shell` (+ `shell/studio-shell`), `space`, `studio`, `thing/{thing-chat,thing-message,thing-panel}`, `workflow/{save-workflow-modal,step-card,step-config-panel,step-schema-editor,workflow-card,workflow-editor,workflow-list}` (`find css/src/components -name index.css`).
+- **`src/elements/`** — **deleted.** The primitive/element stylesheets it held are gone; those
+  elements carry `$`-token props instead of classes.
+- **`src/components/`** — the 12 surviving composite stylesheets: `agent/builder`, `computer/ide-file-tree`,
+  `markdown`, `presentation`, `setup-guide`, `shell`, `space`, and
+  `workflow/{step-card,step-schema-editor,workflow-card,workflow-list}`
+  (`find sdk/org/libs/css/src/components -name '*.css'`).
+- **top level** — `theme.css` (generated, vars only), `preflight.css`, `animations.css`.
 
 ---
 
@@ -111,9 +123,29 @@ Element/component stylesheets are BEM and built on `@apply` with token utilities
 
 Deps: `@lmthing/auth`, `@lmthing/core`, `@lmthing/css`, `marked`, `modern-screenshot`, `zustand` (`sdk/org/libs/ui/package.json:37-43`). React, all Radix primitives, `clsx`, `tailwind-merge`, `class-variance-authority`, `lucide-react`, `@xterm/*`, `@monaco-editor/react`, `react-resizable-panels` are **peer** deps (`sdk/org/libs/ui/package.json:50-68`).
 
-> **React ≥ 19 is required, not merely supported.** `@tamagui/core`, `@tamagui/web` and `@tamagui/animations-css` all declare `peerDependencies: { react: ">=19" }`, so the peer range here is `>=19` rather than `^18 || ^19`. This matters beyond version hygiene: `libs/ui` used to pin React 18 in its **devDependencies** while `apps/web`, `@lmthing/state` and `@lmthing/auth` were on 19, which put two copies of `@types/react` in the tree. That single pin is why `libs/ui` typechecked with `tsc --noCheck` and why its `app-sidebar`/`settings-dialog` suites could not render (a second React copy → "Invalid hook call"). Aligning it removed 133 `TS2786` errors from the `apps/web` typecheck. **`@lmthing/cli` deliberately stays on React 18** — it renders with `ink@5`, which is React 18 only; the two majors never meet in one bundle because `cli` is a Node CLI and `ui` is bundled by `apps/web`.
+> **React ≥ 19 is required, not merely supported.** `@tamagui/core`, `@tamagui/web` and `@tamagui/animations-css` all declare `peerDependencies: { react: ">=19" }`, so the peer range here is `>=19` rather than `^18 || ^19`. This matters beyond version hygiene: `libs/ui` used to pin React 18 in its **devDependencies** while `apps/web`, `@lmthing/state` and `@lmthing/auth` were on 19, which put two copies of `@types/react` in the tree. That single pin is why `libs/ui` typechecked with `tsc --noCheck` and why its `app-sidebar`/`settings-dialog` suites could not render (a second React copy → "Invalid hook call"). Aligning it removed 133 `TS2786` errors from the `apps/web` typecheck, and was the precondition for **`libs/ui` now running a real `tsc --noEmit`** (`sdk/org/libs/ui/package.json:L27`) — see the note below. **`@lmthing/cli` deliberately stays on React 18** — it renders with `ink@5`, which is React 18 only; the two majors never meet in one bundle because `cli` is a Node CLI and `ui` is bundled by `apps/web`.
 
-The primitive **style-prop types** are exported too — `LayoutStyleProps`, `BoxStyleProps`, `TextStyleProps`, `MarginStyleProps` from `@lmthing/ui/elements/primitives` — so a composite that spreads rest props onto a primitive can declare that in its own props interface instead of narrowing to `ComponentProps<'div'>` and casting.
+> **`libs/ui` runs a real `tsc --noEmit`** (`sdk/org/libs/ui/package.json:L27`). It
+> previously ran `tsc --noEmit --noCheck` under the name `typecheck:syntax` — which, not being called
+> `typecheck`, also meant turbo's workspace task skipped the package entirely. Two rules earned along
+> the way:
+>
+> - **Probe a style prop before trusting it.** A prop Tamagui HONOURS that is undeclared is a missing
+>   type; a prop it DROPS is a broken callsite, and the fixes are opposite. `wordBreak` emits no
+>   atomic class at all, so it must go in `style`; `userSelect`, `backgroundImage`,
+>   `WebkitBoxOrient`/`WebkitLineClamp`, the four per-corner radii, `focusWithinStyle`, `group` and
+>   the `shadowColor`/`shadowOffset`/`shadowRadius` quartet all emit real atomics and are now declared
+>   (`sdk/org/libs/ui/src/elements/primitives/_tamagui.tsx#BoxStyleProps`). `as` works on `Box`, which
+>   maps it to a per-tag component, and is IGNORED on `Row`/`Col`, which are layout-only.
+> - **Never fix an `import.meta.env` error with `"types": ["vite/client"]`.** Setting `types`
+>   RESTRICTS which `@types` packages enter the program; doing this here silently suppressed ~111 real
+>   errors while the count appeared to fall to 1. Verify any typecheck improvement with a
+>   deliberately-wrong probe that MUST fail. The real cause was `@lmthing/auth` shipping SOURCE
+>   (`main: "./src/index.ts"`), so it is typechecked inside every consumer's program, where its own
+>   `src/vite-env.d.ts` is never loaded; it now reads env through one local accessor
+>   (`sdk/org/libs/auth/src/AuthProvider.tsx:L19-L22`).
+
+The primitive **style-prop types** are exported too — `LayoutStyleProps`, `BoxStyleProps`, `TextStyleProps`, `MarginStyleProps`, `ControlStyleProps`, `PseudoStyleProps` from `@lmthing/ui/elements/primitives` (`sdk/org/libs/ui/src/elements/primitives/index.ts:5`) — so a composite that spreads rest props onto a primitive can declare that in its own props interface instead of narrowing to `ComponentProps<'div'>` and casting.
 
 ### Elements (primitives)
 
@@ -136,7 +168,13 @@ The `Button` (`src/elements/forms/button/index.tsx:11-46`) is representative: va
 
 `src/components/` currently holds one cross-surface component group, re-exported from the root entry (`src/index.ts:2`):
 
-- **`components/auth`** — `GithubLogin`, `GithubDeploymentStatus`, `GithubStars` (`src/components/auth/index.ts:1-3`), plus `login-screen` and `pin-gate` internals.
+- **`components/auth`** — `GithubDeploymentStatus`, `GithubStars` (`sdk/org/libs/ui/src/components/auth/index.ts:1-2`), plus `login-screen` and `pin-gate` internals.
+
+> `GithubLogin` was **deleted**. It imported `useGithub` from `@/lib/github/GithubContext`, a module
+> that exists nowhere in either repo, so the component could not run — and because it was re-exported
+> from `src/index.ts`, the `@lmthing/ui` ROOT entry did not resolve either. That entry is the import
+> surface the component-editor templates and `@lmthing/core`'s typecheck overlay both point authors
+> at, so this was a live breakage, not dormant dead code. Turning on a real `tsc` is what surfaced it.
 
 ### Hooks
 

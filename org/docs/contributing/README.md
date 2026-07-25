@@ -71,7 +71,7 @@ These are enforced automatically — check them before you push.
   and every product SPA `*/src`; the same command runs in CI as the *Lint design tokens* step
   (`.github/workflows/design-tokens.yml:L39-L44`). To change a color, edit
   `sdk/org/libs/css/src/tokens/tokens.json` then regenerate
-  (`pnpm --filter @lmthing/css generate` → `sdk/org/libs/css/package.json:L27`); never hand-edit
+  (`pnpm --filter @lmthing/css generate` → `sdk/org/libs/css/package.json:L31`); never hand-edit
   `theme.css`. Full rules → [`../design-system/README.md`](../design-system/README.md).
 - **Images build.** The pod/app/SPA images build in CI on changes under `sdk/org` and the
   root workspace (`.github/workflows/build-images.yml:L13-L16`); some images build from the

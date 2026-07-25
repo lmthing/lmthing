@@ -42,7 +42,7 @@ closest. Pick the token whose **semantic role** matches the usage — a page sur
 `background`, a card is `card`, a CTA is `primary`, an error is `destructive`, a knowledge
 stream is `knowledge`, an agent stream is `agent`. Every token carries a `description` stating
 its role in `sdk/org/libs/css/src/tokens/tokens.json:30-88` (mirrored into the generated
-`tokens.manifest.json` — `generate-theme.mjs:120-128`); that description is the mapping table.
+`tokens.manifest.json` — `generate-theme.mjs:119-127`); that description is the mapping table.
 A genuinely non-brand palette (terminal ANSI, syntax highlighting) stays raw and is marked
 `ds-lint-file-ok` (`sdk/org/libs/css/scripts/lint-design-tokens.mjs:96`, documented at
 `lint-design-tokens.mjs:17-20`).
@@ -96,7 +96,7 @@ applied at `:94`) — these hold raw values by design:
   `pnpm lint:tokens` locally but is **not** gated by CI.
 
 > Note: `@lmthing/css`'s own `pnpm --filter @lmthing/css lint`/`lint:tokens`
-> (`sdk/org/libs/css/package.json:28-29`) only scans that package's `src`; the repo-wide
+> (`sdk/org/libs/css/package.json:32-33`) only scans that package's `src`; the repo-wide
 > coverage comes from the root `lint:tokens` above, which is what CI runs.
 
 ### What is NOT scanned (report honestly)
@@ -143,7 +143,7 @@ Never hand-edit the generated outputs.
 1. Edit `src/tokens/tokens.json` (each color has `name`, `group`, `light`, `dark`,
    `description`).
 2. Regenerate: `pnpm --filter @lmthing/css generate` — the `generate` script runs both
-   generators (`sdk/org/libs/css/package.json:26`), and `prebuild` re-runs them before any
+   generators (`sdk/org/libs/css/package.json:30`), and `prebuild` re-runs them before any
    build (`package.json:27`).
 3. Commit the regenerated `src/theme.css`, `tokens.manifest.json`, and `COMPONENTS.md`
    alongside the `tokens.json` change.
@@ -151,23 +151,34 @@ Never hand-edit the generated outputs.
 `generate-theme.mjs` (`scripts/generate-theme.mjs`) reads `tokens.json` and writes two
 outputs (never hand-edit either — `generate-theme.mjs:6-8`; each emitted block is fenced with
 an `/* Auto-generated … — edit src/tokens/tokens.json, not this file */` banner,
-`generate-theme.mjs:79`):
+`generate-theme.mjs:78`):
 
 - **`src/theme.css`** — the Tailwind v4 theme: an `@theme` block for the non-color scales
   (radius, fonts), an `@theme inline` block exposing each color as a `--color-<name>` utility
   (so `bg-primary`/`text-agent` work), a `:root` block with the light values, and a
-  `[data-theme="dark"]` block with only the dark overrides (`generate-theme.mjs:65-104`).
+  `[data-theme="dark"]` block with only the dark overrides (`generate-theme.mjs:65-103`).
   The dark selector comes from `tokens.json` `$meta.darkSelector` (`generate-theme.mjs:73`).
 - **`tokens.manifest.json`** — the flat, machine-readable index (name, `cssVar`, `utility`,
-  group, light, dark, description) for humans and LLMs (`generate-theme.mjs:106-130`).
+  group, light, dark, description) for humans and LLMs (`generate-theme.mjs:105-129`).
 
 The generator also **interpolates the spectrum**: `--spectrum-1..50`, a 50-stop linear-RGB
 ramp between the five brand anchors `brand-1..5` (`generate-theme.mjs:22-63`,
 `tokens.json` `spectrum`). Detail on the token set → [tokens.md](./tokens.md).
 
+Hand-written, not generated, and sitting alongside them at the `src` root:
+
+- **`src/animations.css`** — the keyframe layer: the `lm-*` keyframes and classes,
+  `.streaming-cursor`, the `prefers-reduced-motion` block, and hand-written equivalents of
+  Tailwind's `animate-spin`/`animate-pulse`. Deliberately **plain CSS** — no `@import "tailwindcss"`,
+  `@apply`, `@theme` or `@reference` — because keyframes are neither Tailwind's job nor the Tamagui
+  animation driver's (the driver handles *transitions*, via the `transition` prop), so this file has
+  to survive the Tailwind deletion untouched. Apps import it once from their entry, next to
+  `theme.css`. Pinned by `sdk/org/libs/css/src/animations.test.ts`.
+
 `generate-components-catalog.mjs` regenerates `COMPONENTS.md`: it walks `src/elements` and
 `src/components` for every `.css` file except `theme.css`
-(`scripts/generate-components-catalog.mjs:18-26`, `:70`) and, per stylesheet, lists the BEM
+(`scripts/generate-components-catalog.mjs:18-26`, `:70`) — so the two `src`-root stylesheets,
+`theme.css` and `animations.css`, are both outside the catalog — and, per stylesheet, lists the BEM
 classes grouped by block plus the tokens it references — both `var(--token)` uses and token
 utilities inside `@apply` (`generate-components-catalog.mjs:37-67`). Detail →
 [components.md](./components.md).
@@ -176,7 +187,7 @@ utilities inside `@apply` (`generate-components-catalog.mjs:37-67`). Detail →
 
 One theme, two modes — `tokens.json` declares exactly `"themes": ["light", "dark"]` and one
 `darkSelector: "[data-theme=\"dark\"]"` (`sdk/org/libs/css/src/tokens/tokens.json:5-6`), and the
-generator emits both modes into the single `theme.css` (`generate-theme.mjs:91-101`). Every app
+generator emits both modes into the single `theme.css` (`generate-theme.mjs:90-100`). Every app
 imports `@lmthing/css/theme`
 (`sdk/org/libs/css/package.json:7`); no app redefines tokens. Mode is a `data-theme`
 attribute on `<html>`, driven by `@lmthing/ui/theme` (`sdk/org/libs/ui/src/theme/theme.ts`):

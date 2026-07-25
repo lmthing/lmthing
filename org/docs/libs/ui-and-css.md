@@ -11,19 +11,20 @@ The **rules** for using this system (never a raw color, stone-not-grey, brand-le
 
 ## `@lmthing/css` — the design system package
 
-Pure CSS + Node build scripts. No runtime code. Entry points (`sdk/org/libs/css/package.json:6-12`):
+Pure CSS + Node build scripts. No runtime code. Entry points (`sdk/org/libs/css/package.json:6-16`):
 
 | Export | Resolves to | Purpose |
 |---|---|---|
 | `@lmthing/css/theme` | `src/theme.css` | The generated Tailwind v4 theme — imported **once** per app. |
+| `@lmthing/css/animations` | `src/animations.css` | The keyframe layer — plain CSS, **no Tailwind**. Imported once per app, from the app entry. |
 | `@lmthing/css/tokens.json` | `src/tokens/tokens.json` | The single source of truth (raw token authoring). |
 | `@lmthing/css/tokens.manifest.json` | `tokens.manifest.json` | Generated flat token index (name, cssVar, utility, light, dark, description). |
 | `@lmthing/css/elements/*` | `src/elements/*` | Per-primitive BEM stylesheet. |
 | `@lmthing/css/components/*` | `src/components/*` | Per-composite-component stylesheet. |
 
-> Note: the `exports` map (`sdk/org/libs/css/package.json:10-11`) points `./elements/*` → `./src/elements/*` and `./components/*` → `./src/components/*`.
+> Note: the `exports` map (`sdk/org/libs/css/package.json:14-15`) points `./elements/*` → `./src/elements/*` and `./components/*` → `./src/components/*`.
 
-Peer deps are `tailwindcss ^4` and `tw-animate-css` (`sdk/org/libs/css/package.json:36-38`) — the theme is a Tailwind v4 `@theme` stylesheet. A `bin` entry ships the token linter as `lmthing-lint-tokens` (`sdk/org/libs/css/package.json:13-15`).
+The sole peer dep is `tailwindcss ^4` (`sdk/org/libs/css/package.json:40-42`) — the theme is a Tailwind v4 `@theme` stylesheet. (`tw-animate-css` was a second one until the Tamagui migration's closing plan removed it: `theme.css` imported it and nothing used it, and it was not free — it declares its keyframes and custom properties at the top level, so Tailwind emitted them regardless.) A `bin` entry ships the token linter as `lmthing-lint-tokens` (`sdk/org/libs/css/package.json:17-19`).
 
 ### The token source: `tokens.json`
 
@@ -40,16 +41,16 @@ Key anchors: the five brand letters `brand-1..5` = `#f5c815 #f9a94a #f38358 #ed9
 
 `scripts/generate-theme.mjs` reads `tokens.json` and emits **two generated files — never hand-edit either** (`sdk/org/libs/css/scripts/generate-theme.mjs:6-8`):
 
-1. **`src/theme.css`** — a Tailwind v4 theme with four generated sections (`generate-theme.mjs:74-102`):
-   - `@custom-variant dark (&:is([data-theme="dark"] *))` — the dark variant wired to the `$meta.darkSelector` (`generate-theme.mjs:73,77`).
-   - `@theme { … }` — the `--radius-*` / `--font-*` scales (`generate-theme.mjs:66,80-82`).
-   - `@theme inline { --color-<name>: var(--<name>); }` — exposes every color token as a **Tailwind color utility** (`bg-primary`, `text-agent`, `border-border`, …) (`generate-theme.mjs:67,86-88`).
-   - `:root { --<name>: <light>; }` and `[data-theme="dark"] { --<name>: <dark>; }` — the light values, then only the tokens whose `dark !== light` as overrides (`generate-theme.mjs:68-71,92-100`).
-2. **`tokens.manifest.json`** — a flat, machine-readable index of scales + colors with `cssVar`, `utility`, light/dark, description (`generate-theme.mjs:106-130`).
+1. **`src/theme.css`** — a Tailwind v4 theme with four generated sections (`generate-theme.mjs:74-101`):
+   - `@custom-variant dark (&:is([data-theme="dark"] *))` — the dark variant wired to the `$meta.darkSelector` (`generate-theme.mjs:73,76`).
+   - `@theme { … }` — the `--radius-*` / `--font-*` scales (`generate-theme.mjs:66,79-81`).
+   - `@theme inline { --color-<name>: var(--<name>); }` — exposes every color token as a **Tailwind color utility** (`bg-primary`, `text-agent`, `border-border`, …) (`generate-theme.mjs:67,85-87`).
+   - `:root { --<name>: <light>; }` and `[data-theme="dark"] { --<name>: <dark>; }` — the light values, then only the tokens whose `dark !== light` as overrides (`generate-theme.mjs:68-71,91-99`).
+2. **`tokens.manifest.json`** — a flat, machine-readable index of scales + colors with `cssVar`, `utility`, light/dark, description (`generate-theme.mjs:105-129`).
 
 **Spectrum interpolation** (`buildSpectrum`, `generate-theme.mjs:32-47`): the 50-stop ramp places the five brand anchors at indices 1, 14, 27, 40, 53 (spacing 13) and does a linear RGB lerp between consecutive anchors, rounded to hex. The result is appended to the color list as `spectrum-1..50` (same in light and dark, `generate-theme.mjs:54-63`) so `--spectrum-N` / `--color-spectrum-N` utilities exist.
 
-Run it with `pnpm --filter @lmthing/css generate` — which runs `generate-theme.mjs` **then** `generate-components-catalog.mjs`; it also runs on `prebuild` (`sdk/org/libs/css/package.json:26-27`).
+Run it with `pnpm --filter @lmthing/css generate` — which runs `generate-theme.mjs` **then** `generate-components-catalog.mjs`; it also runs on `prebuild` (`sdk/org/libs/css/package.json:30-31`).
 
 ### The catalog generator: `generate-components-catalog.mjs`
 
@@ -65,7 +66,7 @@ Run it with `pnpm --filter @lmthing/css generate` — which runs `generate-theme
 
 Allowed (not flagged): token-based `rgb/hsl(var(--…))`, and **achromatic** overlays/scrims/shadows (grey/black/white) with alpha < 1 (`funcAllowed`, `lint-design-tokens.mjs:44-57`). Escape hatches: `ds-lint-ok` on a line skips that line (`:99`); `ds-lint-file-ok` anywhere skips the whole file (`:96`) — for terminal ANSI palettes, syntax themes (`lint-design-tokens.mjs:17-20`). The token-definition files themselves (`theme.css`, `tokens.json`, `tokens.manifest.json`, anything under `scripts/`) are always exempt (`ALLOW_FILE`, `lint-design-tokens.mjs:30-34`).
 
-Exposed as the `lmthing-lint-tokens` bin (`sdk/org/libs/css/package.json:13-15`) and run at the repo root via `pnpm lint:tokens` over eleven `src` roots (`package.json:14`) and in CI over ten of them (`.github/workflows/design-tokens.yml:39-43`). What is and is not gated → [../design-system/README.md](../design-system/README.md).
+Exposed as the `lmthing-lint-tokens` bin (`sdk/org/libs/css/package.json:17-19`) and run at the repo root via `pnpm lint:tokens` over eleven `src` roots (`package.json:14`) and in CI over ten of them (`.github/workflows/design-tokens.yml:39-43`). What is and is not gated → [../design-system/README.md](../design-system/README.md).
 
 ### The stylesheet convention
 
@@ -99,7 +100,7 @@ Element/component stylesheets are BEM and built on `@apply` with token utilities
 |---|---|---|
 | `@lmthing/ui` (`.`) | `src/index.ts` | Only re-exports `components/auth` (`src/index.ts:2`). |
 | `@lmthing/ui/chat` | `src/chat/index.ts` | The chat surface public API. |
-| `@lmthing/ui/chat/css` | `src/chat/app/styles.css` | Chat surface stylesheet. |
+| `@lmthing/ui/chat/css` | `src/chat/app/styles.css` | Chat surface stylesheet — base/reset styles, scrollbars, the focus ring, the `--lm-*` token bridge and the safe-area classes. Also the repo's **second `@import "tailwindcss"` entry**; its keyframes and `.lm-prose` moved out to `@lmthing/css`. |
 | `@lmthing/ui/studio` | `src/studio/index.ts` | The studio surface public API. |
 | `@lmthing/ui/computer` | `src/computer/index.ts` | The computer surface public API. |
 | `@lmthing/ui/components/*` | `src/components/*/index.ts` | Cross-surface components (only `auth` today). |
@@ -179,11 +180,19 @@ These surfaces are documented per-product under [../chat/](../chat/README.md), [
 
 ## How an app wires it together
 
-An app imports the theme **once** and then imports elements/components, whose modules pull in their own CSS. The unified web app does exactly this: `sdk/org/apps/web/src/index.css:1` is just `@import "@lmthing/css/theme.css";`.
+An app imports the two shared stylesheets **once** and then imports elements/components, whose modules pull in their own CSS. The unified web app does exactly this (`sdk/org/apps/web/src/index.css:1-7`):
 
 1. `@import "@lmthing/css/theme.css"` — brings in Tailwind v4 + all token utilities + light/dark `:root`.
-2. `import { Button } from '@lmthing/ui/elements/forms/button'` — the module side-imports `@lmthing/css/elements/forms/button/index.css`.
-3. `applyTheme('dark')` from `@lmthing/ui/theme` flips `data-theme` on `<html>`.
+2. `@import "@lmthing/css/animations.css"` — the keyframe layer (`lm-*`, plus hand-written `animate-spin`/`animate-pulse`). Plain CSS, no Tailwind.
+3. `import { Button } from '@lmthing/ui/elements/forms/button'` — the module side-imports `@lmthing/css/elements/forms/button/index.css`.
+4. `applyTheme('dark')` from `@lmthing/ui/theme` flips `data-theme` on `<html>`.
+
+**Why the keyframes are a separate import on the APP entry, not a route.** They used to live in
+`sdk/org/libs/ui/src/chat/app/styles.css`, which is a second `@import "tailwindcss"` entry loaded by
+the `/chat` route — so they were owned by a file scheduled for deletion, and declared in a route
+module, which is only globally correct while the bundler emits a single CSS file. Component-scoped
+stylesheets (`@lmthing/css/components/*`) are side-effect-imported by the component that needs them;
+the keyframe layer has no single owning component, so it belongs on the entry.
 
 ---
 

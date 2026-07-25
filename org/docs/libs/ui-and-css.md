@@ -125,6 +125,23 @@ Deps: `@lmthing/auth`, `@lmthing/core`, `@lmthing/css`, `marked`, `modern-screen
 
 > **React ≥ 19 is required, not merely supported.** `@tamagui/core`, `@tamagui/web` and `@tamagui/animations-css` all declare `peerDependencies: { react: ">=19" }`, so the peer range here is `>=19` rather than `^18 || ^19`. This matters beyond version hygiene: `libs/ui` used to pin React 18 in its **devDependencies** while `apps/web`, `@lmthing/state` and `@lmthing/auth` were on 19, which put two copies of `@types/react` in the tree. That single pin is why `libs/ui` typechecked with `tsc --noCheck` and why its `app-sidebar`/`settings-dialog` suites could not render (a second React copy → "Invalid hook call"). Aligning it removed 133 `TS2786` errors from the `apps/web` typecheck, and was the precondition for **`libs/ui` now running a real `tsc --noEmit`** (`sdk/org/libs/ui/package.json:L27`) — see the note below. **`@lmthing/cli` deliberately stays on React 18** — it renders with `ink@5`, which is React 18 only; the two majors never meet in one bundle because `cli` is a Node CLI and `ui` is bundled by `apps/web`.
 
+> **Styling goes on PROPS, not `style`.** Every element component spreads its props onto a Tamagui
+> primitive, which splits style props out — so a static style belongs on a prop, where it joins the
+> atomic stylesheet and dedupes. A standing gate holds this
+> (`sdk/org/libs/ui/scripts/no-inline-style-on-tamagui.test.mjs:1`). Exactly two things justify an
+> inline `style` on a Tamagui-backed target, and the gate's allowlist names which applies:
+>
+> 1. **Tamagui drops the property.** `listStyleType`, `wordBreak` and `accentColor` emit no atomic
+>    class at all — `style` is the only mechanism. (`wordBreak` is NOT `wordWrap`, which does work.)
+> 2. **The value is unbounded-dynamic.** Tamagui mints one atomic CSS rule per distinct value, so
+>    cursor coordinates, a drag-resized width or a live percentage would grow the stylesheet without
+>    limit. A bounded ternary (`opacity={busy ? 0.5 : 1}`) is not this case and belongs on a prop.
+>
+> If you are reaching for `style` because a prop does not typecheck, check the element's props
+> interface first — several typed themselves as bare `React.ComponentProps<'div'>` while forwarding
+> to a primitive that accepted style props all along, and that mismatch is what produced most of the
+> inline styles the migration had to undo.
+
 > **`libs/ui` runs a real `tsc --noEmit`** (`sdk/org/libs/ui/package.json:L27`). It
 > previously ran `tsc --noEmit --noCheck` under the name `typecheck:syntax` — which, not being called
 > `typecheck`, also meant turbo's workspace task skipped the package entirely. Two rules earned along

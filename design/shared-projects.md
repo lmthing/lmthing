@@ -1,49 +1,71 @@
-# Shared workspaces — multi-user access to a project or a space
+# Teams — shared projects, spaces and a team chat surface
 
-**Status: research / design proposal. None of the "what must be built" sections exist today.**
+**Status: design proposal. None of "What must be built" exists today.**
 
-This document answers: *what is needed so a user can share a **project** — or a **single space** —
-with other lmthing users, who then use it with their own accounts, some read-only (use the spaces and
-the app, but change nothing), some with write access?*
+This document answers: *what is needed so several lmthing users can work on the same projects and
+spaces, some read-only and some with write access, inside a team that also gives them a Slack-like
+place to talk and to call THING?*
 
-The working model that emerged is a **team**: a named group with its own storage, which each member
-mounts into their own pod read-only or read-write, using **their own** env keys and their own LLM
-budget. Part 5 evaluates that model; Part 6 lists what blocks it.
-
-Part 1 is grounded in the current code (every claim cited). Parts 2–9 are design.
+Part 2 is grounded in the current code (every claim cited). Parts 3–7 are design.
 
 > Convention: `org/docs/` is the source of truth for what **is**. This file is deliberately outside
 > it because it describes what **isn't** yet. When any of this ships, the facts move into
-> `org/docs/` per [`org/docs/SYNC.md`](../org/docs/SYNC.md) and the matching section here is deleted.
+> `org/docs/` per [`org/docs/SYNC.md`](../org/docs/SYNC.md) and the corresponding section here is
+> deleted.
 
 ---
 
-## Part 1 — Where we are today
+## Part 1 — The model
 
-### 1.1 There is no sharing model anywhere in the system
+A **team** is a first-class principal, parallel to a user:
 
-- No membership, ACL, role, invite, team or share table exists in the gateway's Postgres schema. Its
-  own tables are `profiles`, `sso_codes`, `backup_config`, `user_cron_jobs`, `webhook_bindings`,
-  `controller_ticks` (`cloud/gateway/src/lib/db.ts#ensureSchema`; `cloud/migrations/001..009`).
-- No gateway route grants or checks access to another user's resources
-  (`cloud/gateway/src/index.ts:28-38`; `org/docs/cloud/routes.md`).
-- `lmthing.team` — where this would naturally live — is an empty route scaffold: "There is no room
-  backend, no shared VFS and no membership model" (`team/README.md`).
-- The pod's project API has no owner, ACL or visibility field. `ProjectMeta` is
-  `{ id, name, createdAt }` (`sdk/org/libs/cli/src/server/projects.ts#ProjectMeta`).
+- It owns a **pod** of its own (namespace `team-<id>`, its own PVC) — not a share of anyone's.
+- It has a **tier** and its own **env**: its own LiteLLM key, its own budget windows, its own
+  integration credentials. A team's spend is the team's, never a member's.
+- It owns **multiple projects and spaces**, living at the normal `<root>/<projectId>/` layout on the
+  team pod's volume.
+- It serves a **Slack-like chat application** — itself an lmthing project-app — where members talk to
+  each other and invoke THING.
+- Members join with a **role**: `viewer` (use the spaces and the app, change nothing) or `editor`.
 
-Greenfield, not a half-built feature.
+Three planes, all on the team pod:
 
-### 1.2 Identity **is** the tenancy boundary
+| Plane | What it is | Where it runs |
+|---|---|---|
+| **Conversation** | the chat app — channels, messages, membership UI | a project-app on the team pod (`database/ api/ pages/ hooks/`) |
+| **Content** | the team's projects and spaces | the team pod's PVC, standard layout |
+| **Execution** | agent turns, hooks, cron, the THING bridge | the team pod runtime, on the team's LiteLLM key |
 
-lmthing is not a multi-tenant application over a shared database. It is **one single-tenant runtime
-per user**, and the user's identity is literally the routing key to that runtime. Four layers assume
-"the caller is the owner".
+**Decisions already taken** (they close the biggest open questions from earlier drafts):
 
-**Layer 1 — Edge routing derives the destination pod from the JWT subject.** Envoy validates the
-gateway-issued HS256 JWT and projects `sub` into an `x-user-id` header
-(`devops/argocd/envoy/chat-policies.yaml:118-139`, and the identical `studio-`/`computer-`/`app-`
-policies); a Lua filter builds the upstream from it:
+1. **Team pod**, not a shared volume mounted into member pods.
+2. **Team tier + team env** — the team is its own billing and credential principal.
+
+---
+
+## Part 2 — Where we are today
+
+### 2.1 No sharing model exists anywhere
+
+- The gateway's own Postgres tables are `profiles`, `sso_codes`, `backup_config`, `user_cron_jobs`,
+  `webhook_bindings`, `controller_ticks` (`cloud/gateway/src/lib/db.ts#ensureSchema`). No team,
+  membership, role or ACL table.
+- No gateway route grants or checks access to another principal's resources; the mounts are auth /
+  keys / billing / stripe-webhook / compute / backup / inbound / status / issues
+  (`cloud/gateway/src/index.ts:28-38`).
+- `lmthing.team` is a route scaffold: "There is no room backend, no shared VFS and no membership
+  model" (`team/README.md`).
+- `ProjectMeta` is `{ id, name, createdAt }` (`sdk/org/libs/cli/src/server/projects.ts#ProjectMeta`)
+  — a project records no owner and no visibility.
+
+### 2.2 Identity is currently the tenancy boundary
+
+Four layers all assume "the caller is the pod's owner". A team pod breaks that assumption on
+purpose, so each has to change.
+
+**Routing derives the destination pod from the JWT subject.** Envoy validates the gateway-issued
+HS256 JWT and maps `sub` to `x-user-id` (`devops/argocd/envoy/chat-policies.yaml:118-139`); a Lua
+filter builds the upstream from it:
 
 ```lua
 local user_id = request_handle:headers():get("x-user-id")
@@ -51,397 +73,381 @@ local upstream = "lmthing.user-" .. user_id .. ".svc.cluster.local:8080"
 ```
 (`devops/argocd/envoy/chat-policies.yaml:26-44`)
 
-No authorization step — no `ext_authz`, no policy lookup. **Who you are** and **which pod you reach**
-are the same value. There is no way to express "route me to Alice's pod".
+There is no authorization step — no `ext_authz`, no policy lookup. **Who you are** and **which pod
+answers** are the same value.
 
-**Layer 2 — The pod has no authentication at all.** "The pod server has no authentication of its own.
-There is no token check and no auth middleware" (`org/docs/cli-api/rest/README.md`, grounded at
-`sdk/org/libs/cli/src/server/serve.ts:L343-L370`). Reaching the port *is* full authority:
+**The pod has no authentication of its own.** "There is no token check and no auth middleware"
+(`org/docs/cli-api/rest/README.md`, grounded at `sdk/org/libs/cli/src/server/serve.ts:L343-L370`).
+Reaching the port is full authority:
 
-| Surface | What it grants | Citation |
+| Surface | Grants | Citation |
 |---|---|---|
-| `WS /api/terminals/:termId` | An interactive **shell**, cwd = the runtime root | `sdk/org/libs/cli/src/server/ws/terminal.ts#handleTerminalWsUpgrade` |
-| `GET/PUT /api/fs/*` | Read/write **any file** under the runtime root | `sdk/org/libs/cli/src/server/routes/fs.ts` |
-| `GET/PUT /api/env` | Read and replace the pod `.env` — **every secret** | `sdk/org/libs/cli/src/server/routes/env.ts#handleEnvPut` |
-| `GET /api/projects` | **Every** project on the pod | `sdk/org/libs/cli/src/server/projects.ts#listProjects` |
-| `PUT .../spaces/:id/files` | **Wipe-and-rewrite** a whole space directory | `sdk/org/libs/cli/src/server/routes/projects.ts#handlePutProjectSpaceFiles` |
-| `POST /api/restart` | Kill the process | `sdk/org/libs/cli/src/server/serve.ts:143-147` |
+| `WS /api/terminals/:termId` | an interactive **shell** at the runtime root | `ws/terminal.ts#handleTerminalWsUpgrade` |
+| `GET/PUT /api/fs/*` | read/write any file under the root | `routes/fs.ts` |
+| `GET/PUT /api/env` | read and replace `.env` — **every secret** | `routes/env.ts#handleEnvPut` |
+| `GET /api/projects` | every project, unfiltered | `projects.ts#listProjects` |
+| `DELETE /api/projects/:id` | delete any project but `user`/`system` | `routes/projects.ts#handleDeleteProject` |
+| `PUT .../spaces/:id/files` | wipe-and-rewrite a space dir | `routes/projects.ts#handlePutProjectSpaceFiles` |
+| `POST /api/restart` | kill the process | `serve.ts:143-147` |
 
-Any design that lets a second person's *traffic* reach a pod must first give the pod an auth layer.
-A design that instead moves *files* into the guest's own pod avoids this entirely — see Part 3.
+This is safe today only because the pod's network position guarantees one caller. **A team pod is
+multi-user by definition, so pod auth is a prerequisite, not a follow-up.**
 
-**Layer 3 — One pod, one LiteLLM key, one payer.** The gateway fetches the owner's LiteLLM virtual
-key and injects it into the pod's `user-env` secret at create time
-(`cloud/gateway/src/lib/compute.ts:583-600`, via `getLiteLLMKey` at `:312` and `litellmEnvDefaults`
-at `:343`). There is no per-request key. Pod size comes from the owner's tier
-(`cloud/gateway/src/lib/tiers.ts`); concurrent sessions are capped pod-wide by `MAX_SESSIONS`,
-default 24 (`sdk/org/libs/cli/src/server/session-manager.ts:296`).
+**One pod, one LiteLLM key.** The gateway fetches the principal's virtual key and injects it into
+the pod's `user-env` secret at create time (`cloud/gateway/src/lib/compute.ts:583-600`, via
+`getLiteLLMKey` `:312` and `litellmEnvDefaults` `:343`). There is no per-request key selection. A
+team tier is what makes this correct rather than a leak.
 
-**Layer 4 — The project-app runtime has no request identity.** Dispatch is
-`runtime.handle(method, path, input)` — no principal, no headers, no session
-(`sdk/org/libs/cli/src/server/routes/app-api.ts:53`). The Envoy comment says it outright: "A
-project-app is SINGLE-USER and has no auth of its own — the only auth here is the PLATFORM picking
-which pod" (`devops/argocd/envoy/app-policies.yaml:1-9`).
+**The project-app runtime has no request identity.** Dispatch is
+`handle(method, path, input)` — no principal (`sdk/org/libs/cli/src/app/api/runtime.ts:103`,
+called at `sdk/org/libs/cli/src/server/routes/app-api.ts:53`).
 
-### 1.3 A project is a directory, not an addressable object
+### 2.3 What the pod already gives a team for free
 
-`<root>/<projectId>/` on the owner's 1 Gi PVC — `project.json`, `instructions.md`, `documents/`,
-`spaces/`, `sessions/`, plus the app pillars `database/ api/ pages/ hooks/ components/ events/`
-(`org/docs/cli-api/rest/projects.md`, `org/docs/format/project/README.md`). Its database is
-`<project>/.data/app.db` (`sdk/org/libs/cli/src/app/store.ts`).
+- **Project + space discovery** — `listProjects` is "every subdirectory of `<root>` with a readable
+  `project.json`" (`projects.ts#listProjects`). A team pod's projects need no new discovery model.
+- **The whole app platform** — `database/*.json` → SQLite at `<project>/.data/app.db`
+  (`app/store.ts`), file-routed worker-isolated Node handlers in `api/`, esbuild-bundled React
+  `pages/`, and `hooks/` (`org/docs/format/project/README.md`). The chat app is an ordinary app.
+- **Capabilities** — 14 grant ids gating every write global, driving both injection *and* the
+  typecheck DTS, so an ungranted call fails typecheck rather than throwing
+  (`sdk/org/libs/core/src/spaces/capabilities.ts#CAPABILITY_IDS`,
+  `sdk/org/libs/core/src/exec/bootstrap.ts:L99`).
+- **Audience-scoped JWTs** — `signComputeToken`/`signBackupToken`/`signInboundToken`, `aud`-pinned,
+  subject authoritative (`cloud/gateway/src/lib/tokens.ts:56-194`). The shape a membership token
+  needs.
+- **Tiers are one object literal** — everything else resolves by name or price id, so adding tiers
+  needs "no route code changes" (`org/docs/contributing/add-a-tier.md`;
+  `cloud/gateway/src/lib/tiers.ts#Tier`).
 
-Two consequences that matter later:
+### 2.4 The THING bridge already exists, as the integration-space pattern
 
-- **Agent sessions live inside the project** — `<root>/<projectId>/sessions/` and
-  `<root>/<projectId>/spaces/<spaceId>/sessions/`
-  (`sdk/org/libs/cli/src/server/projects.ts#sessionsDir`, `#spaceSessionsDir`). Shared storage means
-  shared transcripts unless partitioned.
-- **Project discovery is purely structural** — `listProjects` returns every subdirectory of `<root>`
-  with a readable `project.json` (`sdk/org/libs/cli/src/server/projects.ts#listProjects`). Anything
-  mounted into that shape simply *appears* as a project, with no code change.
+A team channel calling THING is structurally identical to the shipped Slack integration:
 
-### 1.4 A space is portable, but it is not a unit of isolation at runtime
+- **Inbound** — `events/messages.ts` is a `WebhookEmitterDef` that normalizes the platform envelope
+  into `message.received` carrying `{ text, from, chatId, threadKey }`
+  (`store/spaces/integration-slack/events/messages.ts`).
+- **Thread continuity** — `getOrCreateThreadSession` maps `<path>::<threadKey>` to a stable session
+  id so repeated messages continue **one persisted multi-turn session**
+  (`sdk/org/libs/cli/src/server/webhook-threads.ts`), driving `runHeadlessThreaded`
+  (`sdk/org/libs/cli/src/server/session-manager.ts:1993`).
+- **Outbound** — the agent replies through an ordinary space function over `callConnection`
+  (`store/spaces/integration-slack/functions/slackPostMessage.ts`).
 
-A space is a self-contained bundle — `agents/ functions/ components/ tasklists/ knowledge/ events/`
-— loaded by `loadSpace(dir)` (`sdk/org/libs/core/src/spaces/load.ts#loadSpace`), resolved from two
-roots only: `<root>/system/spaces/` and `<root>/<projectId>/spaces/`
-(`org/docs/format/space/README.md`). It is already the system's distribution unit: the store ships
-spaces, and `POST /api/store/spaces/install` materializes one into
-`<root>/<projectId>/spaces/<spaceId>/` behind a pristine-vs-diverged hash guard
-(`sdk/org/libs/cli/src/server/routes/store-spaces.ts#installStoreSpace`).
+Thirteen integration spaces ship on this pattern. **The team bridge should be a first-party event
+source, not a new invocation path** — then THING behaves identically whether the room is
+lmthing.team or Slack.
 
-But a space does **not** isolate at runtime. Four couplings:
+### 2.5 Two gaps that block the chat app specifically
 
-- **A session is always project-scoped.** `spaceDir` is `join(root, projectId)` — the whole project
-  loaded as a space (`sdk/org/libs/cli/src/server/session-manager.ts:1199`, `:1266`). `spaceRef`
-  only picks the agent and where sessions persist. Running "just a space's agent" still loads the
-  project context and every system space.
-- **Capabilities target the host project's database.** `capabilities:` grants `db:read`/`db:write`
-  narrowed to table *names* (`sdk/org/libs/core/src/spaces/capabilities.ts#parseCapabilities`),
-  resolved against whichever project the space sits in. The space itself says nothing about what
-  data it will touch.
-- **Delegation and deps reach outward** — `canDelegateTo` (`load.ts:477-481`) and `dependentSpaces`
-  (`load.ts:617-650`) can reach other agents and spaces in the host project.
-- **Integration credentials are not in the space.** Settings are read from **pod env**;
-  `missingRequired` is computed against `process.env`
-  (`sdk/org/libs/cli/src/server/routes/store-spaces.ts:479-491`). A shared integration space carries
-  no connection — the recipient must supply their own.
+- **Project-apps cannot do realtime.** The upgrade handler matches only `/api/terminals/:id` and
+  hands everything else to the agent WS, which destroys unknown pathnames
+  (`sdk/org/libs/cli/src/server/serve.ts:405-416`). The API contract is a buffered
+  `ApiResponse { status, body }` (`app/api/runtime.ts:61-63`) — no streaming, no SSE. **A chat app
+  on today's app platform can only poll.**
+- **App handlers inherit the pod environment.** Workers launch as
+  `new NodeWorker(source, { eval: true, workerData: job })` with no `env` option
+  (`app/api/runtime.ts:296`), so handler code sees `process.env` — on a team pod, the team's
+  credentials. Fine for team-authored code; it means an `editor` is trusted with team secrets.
 
-So a space travels well as *code*, and badly as *a scope*.
+### 2.6 Rejected: one shared volume mounted into member pods
 
-### 1.5 The storage layer — what it can and cannot express
+Recorded because it was explored and is a dead end on this cluster. The chain:
 
-This decides the whole feature.
+A PVC is namespaced and a pod may only reference a claim in its own namespace, so a "team volume"
+means one PVC per member namespace bound to one PV → that requires **ReadWriteMany**. But
+`user-data` is `accessModes: ["ReadWriteOnce"]` with no `storageClassName`
+(`cloud/gateway/src/lib/compute.ts:164-179`), binding the cluster default — which in production is
+`local-path` (`rancher.io/local-path`), applied out-of-band and provisioned by nothing in this repo
+(`org/docs/devops/infrastructure.md`, Storage). local-path is a node-local hostPath provisioner: it
+cannot do RWX, and its PV lives on exactly one node. Moving to an RWX class backed by NFS or Azure
+Files then breaks the database, because the project db runs `PRAGMA journal_mode = WAL`
+(`sdk/org/libs/cli/src/app/store.ts:298-300`) and WAL does not work over network filesystems.
 
-- **Every user pod gets one PVC, `user-data`, `accessModes: ["ReadWriteOnce"]`, 1 Gi, no
-  `storageClassName`** (`cloud/gateway/src/lib/compute.ts:164-179`), mounted at `/data`
-  (`compute.ts:243`) from `persistentVolumeClaim: { claimName: "user-data" }` (`compute.ts:262-267`).
-- **The default StorageClass is `local-path`** (`rancher.io/local-path`) — and nothing in this repo
-  provisions it. `org/docs/devops/infrastructure.md` (Storage) flags this as an open infra bug: the
-  class was applied by hand, carries no Helm release or ArgoCD ownership, and a cluster rebuilt from
-  this repo would have no default class at all. local-path is a **node-local hostPath provisioner**:
-  it cannot do `ReadWriteMany`, and its PV is a directory on exactly one node.
-- **Production is single-node today** — `node1`, a control-plane node that also runs workloads
-  (`org/docs/devops/infrastructure.md:3,61-65`), with an optional dedicated `lmthing-user-pool-1`
-  worker pool behind `enable_user_pool` (`devops/terraform/variables.tf:82-97`). So *today*, every
-  user pod is co-scheduled by accident of topology.
-- **PVCs are namespaced.** A pod may only reference a PVC in its own namespace, and user pods live
-  in `user-<id>` namespaces (`compute.ts#createUserPod`). Kubernetes has no cross-namespace volume
-  mount.
-- **The project database is SQLite in WAL mode** — `PRAGMA journal_mode = WAL`
-  (`sdk/org/libs/cli/src/app/store.ts:298-300`). SQLite documents that WAL requires a shared-memory
-  `-shm` file and does not work over network filesystems.
-- **The project tree must be writable to be served.** The page build emits into
-  `<projectRoot>/.data/pages-dist/`, `.data/pages-build/` and `.data/pages-cache.json`
-  (`sdk/org/libs/cli/src/app/build/pages.ts:73-75,138`); `emitter-state.json`
-  (`sdk/org/libs/cli/src/server/emitter-state.ts:46`) and `hooks-state.json`
-  (`sdk/org/libs/cli/src/server/routes/hooks.ts:538`) live under the same `.data/`.
-- **Pod-template patches roll the pod.** `compute.ts` deliberately puts the last-active annotation on
-  Deployment metadata, "never the pod template (a template patch would trigger a rolling restart)"
-  (`compute.ts:246-249`). Adding or removing a volume mount *is* a template patch.
+Three further problems it carried: a read-only mount cannot serve an app at all (the page build
+writes `<projectRoot>/.data/pages-dist/`, `.data/pages-build/`, `.data/pages-cache.json` —
+`app/build/pages.ts:73-75,138` — alongside the db and `emitter-state.json`); mounting is a pod-template
+patch and therefore a rolling restart, which `compute.ts` deliberately avoids elsewhere
+(`compute.ts:246-249`); and each member's pod would publish the same cron manifest, so automation
+fires once per member (`cloud/gateway/src/routes/compute.ts:89-134`, stored per user).
 
-### 1.6 Automation is registered per user, not per project
-
-Each pod publishes its full cron schedule to the gateway, which stores it **per userId**, keyed
-`projectId/slug` (`replaceCronManifest(userId, …)`, `cloud/gateway/src/routes/compute.ts:89-134`);
-an always-on tick wakes the pod at each due `next_run_at`. Inbound webhook bindings work the same way
-(`POST /api/compute/webhook-manifest`, `compute.ts:142-177`). Nothing deduplicates across users.
-
-### 1.7 Existing primitives worth reusing
-
-| Primitive | Why it's relevant |
-|---|---|
-| **Audience-scoped JWTs** — `signComputeToken`/`signBackupToken`/`signInboundToken`, `aud`-pinned, subject authoritative (`cloud/gateway/src/lib/tokens.ts:56-194`) | The shape a team/grant credential needs. |
-| **GitHub backup** — the whole workspace pushed to a repo via a gateway-minted, repo-scoped App token (`cloud/gateway/src/routes/backup.ts`) | A working replication channel; the basis of the git-backed team (Part 3C). |
-| **Store install** — catalog fetch + per-file download + pristine-vs-diverged hash guard (`sdk/org/libs/cli/src/server/routes/store-spaces.ts#downloadStoreSpace`, `#installStoreSpace`); base URL overridable via `LM_STORE_URL` (`store-spaces.ts:40-44`) | A private team registry could speak the same catalog shape and reuse the existing install engine. Note the download `fetch` carries no credentials today. |
-| **Capabilities** — 14 grant ids gating every write global, driving both injection and the typecheck DTS (`sdk/org/libs/core/src/spaces/capabilities.ts#CAPABILITY_IDS`) | The only place read-only can be enforced for *agent execution* (Part 7.4). |
-| **`x-user-id` already reaches the pod** — Envoy adds it; the Lua never removes it; no pod code reads it (no hits in `sdk/org/libs/{cli,core}` or `apps/web`) | A pre-existing seam for delivering caller identity, if ever needed. |
+**A team pod deletes every one of these.** One pod, one writer, one namespace, one PVC, normal
+storage class, WAL intact, no mount churn, one executor.
 
 ---
 
-## Part 2 — The two units are not the same problem
+## Part 3 — What the team pod costs
 
-| | **Project** | **Space** |
-|---|---|---|
-| What it is | Data + a served application | Code + persona |
-| Has a database | Yes (`.data/app.db`) | No |
-| Already portable | No | **Yes** — the store distributes spaces |
-| Meaningful shared read-only | Only live (a copy of data is stale) | A copy is usually fine |
-| Hard part | Concurrent data, per-user identity in the app | Runtime coupling to the host project (§1.4) |
-
-**A shared space is mostly a distribution problem. A shared project is a concurrency problem.**
-Trying to serve both with one mechanism is what makes this feature look harder than it is.
+The team pod trades a problem that is *physically blocked* for one that is *merely work*: it
+relocates multi-user access rather than removing it. The shared-volume model had one elegant
+property — read-only enforced by the kernel at the mount — and the team pod gives that up, because
+there is one mount and the chat app must write. So read-only must be enforced in software, and the
+pod must authenticate.
 
 ---
 
-## Part 3 — Topology options
+## Part 4 — What must be built
 
-### A. Route the traffic — guests reach the owner's pod
+Ordered by dependency. **4.5 is the security core; nothing may ship before it.**
 
-- ✅ True live state; one copy of the data.
-- ❌ Requires an authorization plane at the edge **and** an auth layer inside the pod (§1.2).
-- ❌ Owner pays all guest LLM spend and hosts all guest load on their tier's pod.
+### 4.1 The team model in the gateway
 
-### B. Move the files — a team volume, mounted by each member's pod
-
-- ✅ Each member runs in their **own** pod with their **own** LiteLLM key and their own CPU/memory.
-  Billing and capacity stop being a problem.
-- ✅ No routing change at all — Envoy's `sub` → `user-<id>` Lua is untouched.
-- ✅ Read-only is **kernel-enforced** by `readOnly: true` on the volumeMount, which survives the pod
-  having no auth and handing out a shell.
-- ✅ Discovery is nearly free — mount at `<root>/<projectId>/` and it appears as a project (§1.3).
-- ❌ Blocked by the storage chain in Part 6.
-
-### C. Replicate the files — a git-backed team volume
-
-Each member's pod clones and syncs, reusing the backup machinery (`cloud/gateway/src/routes/backup.ts`).
-
-- ✅ No namespace problem, no RWX requirement, no WAL problem.
-- ✅ Real conflict handling, history and revert; read-only is simply "no push token".
-- ❌ Eventually consistent — wrong for two people editing simultaneously.
-- ❌ Each member gets their own database — fine for spaces, wrong for a shared app.
-
-### D. Copy / fork
-
-Reuses the store install path. Not sharing; useful as *publishing*.
-
-**Recommendation: C for spaces, B for projects with a live app.** They are different enough that one
-mechanism serving both is a false economy.
-
----
-
-## Part 4 — The team model
-
-A **team** is a named group with its own storage. Each member mounts it into their own pod, read-only
-or read-write, and uses their own env keys and their own LLM budget.
-
-This is the right *unit* regardless of which transport (B or C) backs it:
-
-- **It is a real trust boundary.** "Members trust each other's code" is a defensible policy — it is
-  how a shared git repo plus CI already works. It converts the code-execution risk below from a hole
-  into a stated assumption.
-- **Mounts are bounded and stable.** A user belongs to a few teams, not N shares, so mount count
-  stops growing with sharing activity and the pod-restart churn from template patches (§1.5) mostly
-  disappears.
-- **Read vs write per member is the right granularity**, and it maps onto a kernel-enforced mount
-  flag rather than an HTTP role gate.
-- **Per-user env keys are correct** — no shared credential pool, no ambiguity about whose Slack
-  account an integration is using.
-
-### 4.1 What per-user env keys do *not* fix
-
-Per-user keys solve credential *pooling*, not code *trust*, and the distinction matters.
-
-The team volume carries `api/`, `hooks/`, `events/` and tasklist code nodes — all executable. API
-handlers launch as `new NodeWorker(source, { eval: true, workerData: job })` with **no `env`
-option** (`sdk/org/libs/cli/src/app/api/runtime.ts:296`), so they inherit `process.env`; hooks run
-in-process. When Bob mounts the team volume, Bob's pod executes team code **with Bob's own keys** —
-which is exactly what "env keys come from the user account" specifies. The keys are not shared; the
-*exposure* is. **Any member who can write to the team volume can read every other member's
-environment on their next mount.**
-
-Acceptable inside a mutual-trust team. Not acceptable for a read-only member, who would implicitly
-be trusting every writer with their credentials — the inverse of what "read-only" implies. Mitigations
-worth designing in: scrub or allow-list the worker env for team-mounted code, and state the trust
-relationship in the invite flow.
-
----
-
-## Part 5 — Blockers for the mounted team (Option B)
-
-The chain, in order — each step forced by the previous one:
-
-1. **A "team PVC" cannot be one PVC.** PVCs are namespaced and pods may only reference a claim in
-   their own namespace (§1.5); members live in separate `user-<id>` namespaces. It must be **one PVC
-   per member namespace, statically bound to the same underlying PV**.
-2. **That requires `ReadWriteMany`.** The current class is `local-path` — node-local hostPath, RWO
-   only (§1.5). It physically cannot back a multi-namespace shared volume.
-3. **RWX means network storage (NFS / Azure Files / CephFS / Longhorn), which breaks the database.**
-   The project db runs `journal_mode = WAL`, and WAL does not work over network filesystems (§1.5).
-   The inversion worth naming: **local-path is the only storage that makes shared SQLite safe, and
-   it is also the only one that cannot span nodes.** Multi-node or a shared database — not both.
-4. **Even where it works, multi-writer SQLite is a lock, not a concurrency model** — one writer at a
-   time, `SQLITE_BUSY` under contention.
-5. **Read-only members cannot read the database or open the app.** A WAL reader must write the
-   `-wal`/`-shm` sidecars, so a read-only mount fails; and the tree must be writable to be *served*
-   at all (`.data/pages-dist`, `pages-build`, `pages-cache.json`, `emitter-state.json`,
-   `hooks-state.json` — §1.5). This defeats the primary use case.
-6. **Automation runs once per member.** Five members mounting a project with one cron hook produce
-   five per-user manifests, five wake-ups and five executions (§1.6). A team needs a **designated
-   executor**; nothing in the current model can express that.
-7. **Concurrent editors have no coordination.** The bulk space-file `PUT` is documented as
-   non-atomic — "the target dir is `rm -rf`'d and rewritten… a crash mid-write leaves a partial
-   tree" (`org/docs/cli-api/rest/projects.md`). Lost updates and torn reads.
-8. **Scheduling coupling.** While on local-path, every member's pod must be co-scheduled on the PV's
-   node. True by accident today (single-node), false the moment a second node or the user pool exists
-   — at which point team membership becomes a pod-scheduling constraint.
-
-Items 5 and 6 are solvable and on the critical path for **every** version of this feature:
-
-- **Relocate per-user derived state out of the shared tree** — build output, caches, emitter and hook
-  state move under the member's own PVC, keyed by project. A well-scoped layout refactor.
-- **Take the shared db out of WAL, or serve reads through the executor pod's API.**
-- **Designate one member's pod as the automation executor**; hooks inert on every other mount.
-
----
-
-## Part 6 — What must be built
-
-### 6.1 Team model in the gateway
-
-New tables, following the `ensureSchema()` + `cloud/migrations/NNN_*.sql` pattern:
+New tables, following the `ensureSchema()` + `cloud/migrations/NNN_*.sql` pattern
+(`cloud/gateway/src/lib/db.ts#ensureSchema`):
 
 ```sql
 CREATE TABLE teams (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name        text NOT NULL,
-  owner_id    text NOT NULL,
-  executor_id text,                    -- member whose pod runs cron/hooks (§5.6)
-  created_at  timestamptz NOT NULL DEFAULT now()
+  id           text PRIMARY KEY,          -- also the pod namespace suffix: team-<id>
+  name         text NOT NULL,
+  tier         text NOT NULL DEFAULT 'team_free',
+  stripe_customer_id text UNIQUE,
+  created_by   text NOT NULL,             -- profiles.id
+  created_at   timestamptz NOT NULL DEFAULT now()
 );
+
 CREATE TABLE team_members (
-  team_id   uuid NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-  user_id   text,                      -- NULL until the invite is accepted
-  email     text,
-  access    text NOT NULL,             -- 'read' | 'write'
-  status    text NOT NULL,             -- 'pending' | 'active' | 'removed'
+  team_id      text NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  user_id      text,                      -- NULL until an invite is accepted
+  invited_email text,
+  role         text NOT NULL,             -- 'owner' | 'editor' | 'viewer'
+  status       text NOT NULL,             -- 'pending' | 'active' | 'removed'
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  accepted_at  timestamptz,
   PRIMARY KEY (team_id, user_id)
 );
+CREATE INDEX ON team_members (user_id) WHERE status = 'active';
 ```
 
-Routes (all `authMiddleware`): `GET /api/teams` (mine), `POST /api/teams`,
-`POST /api/teams/:id/members`, `PATCH /api/teams/:id/members/:userId` (access), `DELETE` (remove),
-`POST /api/teams/:id/accept`, `PATCH /api/teams/:id` (executor). Email→user-id resolution already
-exists via `zitadel.getUserByEmail` (`cloud/gateway/src/lib/zitadel.ts`).
+New routes (all `authMiddleware`): `POST /api/teams`, `GET /api/teams/mine`,
+`GET /api/teams/:id`, `POST /api/teams/:id/members`, `POST /api/teams/:id/members/accept`,
+`PATCH /api/teams/:id/members/:userId` (role change), `DELETE /api/teams/:id/members/:userId`,
+and `POST /api/teams/:id/token` (§4.4). Email → user id resolution already exists
+(`zitadel.getUserByEmail`, `cloud/gateway/src/lib/zitadel.ts`).
 
-### 6.2 Storage provisioning (Option B)
+### 4.2 Team tiers and team env
 
-An RWX StorageClass; a `teams` namespace holding the PV; per-member PVCs statically bound via
-`volumeName`; a reconciler that patches each member's Deployment volumes/volumeMounts on membership
-or access change, with `readOnly: true` for `read` members. Note this rolls the member's pod (§1.5).
+A team tier is one more entry in `TIERS` — the file's own header says it is "one of ~10 places that
+need updating across the monorepo", and the checklist is
+[`org/docs/contributing/add-a-tier.md`](../org/docs/contributing/add-a-tier.md). Every `Tier` field
+is required and `npx tsc` in `cloud/gateway/Dockerfile` gates the image build
+(`cloud/gateway/src/lib/tiers.ts#Tier`).
 
-### 6.3 Project-layout refactor (required either way)
+Team tiers differ from user tiers on the axes that actually matter for a shared pod — `pod.cpu`,
+`pod.mem`, `pod.maxSessions`, `pod.idleTtlMinutes` (§4.11), `budgetLimits`, and `cron` — plus a new
+`maxMembers`. Note the current per-user defaults are small: `DEFAULT_POD_CONFIG` is 500m/1Gi with
+`maxSessions: 3`, while the in-pod ceiling is `MAX_SESSIONS`, default 24
+(`sdk/org/libs/cli/src/server/session-manager.ts:296`). A team pod hosting a chat app plus N
+concurrent member sessions needs its own sizing curve, not a copy of `pro`.
 
-Move per-user derived state out of the shared tree (§5, items 5–6): page build output, caches,
-emitter state, hooks state. Decide the shared-db strategy (out of WAL, or reads via the executor).
+**Team env** falls out of the existing machinery once the team is a LiteLLM principal: provision a
+LiteLLM user and a Stripe customer keyed `team-<id>` exactly as `provisionUser` does per user
+(`cloud/gateway/src/routes/auth.ts#provisionUser`), and `getLiteLLMKey("team-<id>")` then feeds the
+same `litellmEnvDefaults` injection (`compute.ts:583-600`). Integration credentials likewise become
+team-scoped: `missingRequired` is computed against `process.env`
+(`sdk/org/libs/cli/src/server/routes/store-spaces.ts:479-491`), so a team's Slack connection is
+configured once, on the team pod, by an owner.
 
-### 6.4 Multi-root project discovery
+Consequence to state plainly: **an `editor` is trusted with team credentials**, because handler and
+hook code they author runs with the team pod's `process.env` (§2.5). Editors are a trust boundary,
+not just a permission level.
 
-`listProjects` scans `<root>` only (§1.3). Mounting a team at `<root>/<projectId>/` needs no change;
-mounting several team projects under one team volume needs `subPath` mounts or a second scan root.
+### 4.3 Team pod provisioning
 
-### 6.5 Read-only enforcement in the runtime
+`createUserPod` is user-shaped end to end — `user-${userId}` namespace, `user-data` PVC, the
+`lmthing` Deployment, `signComputeToken(userId)`, tier resolved from the user's LiteLLM metadata
+(`cloud/gateway/src/lib/compute.ts:543-660`). The refactor is broad but mechanical: parameterize
+**principal** (`user-<id>` | `team-<id>`) instead of user, and thread it through `ensureUserPod`,
+`scaleUserPod`, `wakeUserPod`, `getPodInternalBaseUrl`, `sweepIdlePods`, `deleteUserPod` and
+`getUserPodStatus`. The cron and webhook manifest tables are keyed by user id today
+(`cloud/gateway/src/routes/compute.ts:89-134`) and need the same widening.
 
-The mount flag stops filesystem writes, but **running an agent is itself a write** — a `read` member's
-turn can still `db.insert`, install a space, write knowledge, emit events, persist a transcript, and
-spend their own budget. A `read` member's session must additionally **intersect the agent's
-`CapabilityProfile`**, stripping `db:write`, `db:schema`, `pages:write`, `api:write`, `hooks:write`,
-`knowledge:write`, `store:install`, `project:manage`, `fs:scratch`. Because the profile drives both
-injection and the typecheck DTS (`sdk/org/libs/core/src/exec/bootstrap.ts:L99`), a stripped grant
-fails typecheck and the model retries differently instead of throwing — the behaviour we want. Accept
-that a read-only member gets a deliberately degraded agent, and surface that in the UI.
+### 4.4 Routing to a team pod
 
-### 6.6 Worker env hygiene
+Envoy currently computes the upstream from `sub` alone, which cannot express membership. Recommended:
+a **membership token** minted by `POST /api/teams/:id/token` — short TTL (~15 min, refreshable),
+`{ sub: userId, aud: 'team', team: teamId, role }`. The `SecurityPolicy` adds `claimToHeaders` for
+`team` and `role`; the Lua prefers the team claim when present:
 
-Scrub or allow-list `process.env` for team-mounted `api/`/`hooks/` code (§4.1).
+```lua
+local team = request_handle:headers():get("x-team-id")
+local target = team and ("team-" .. team) or ("user-" .. request_handle:headers():get("x-user-id"))
+```
 
-### 6.7 The shared app still has no per-user identity
+Authorization is baked in at mint time by the gateway, which owns the membership table; Envoy stays
+a dumb router. Revocation is bounded by the TTL, with pod-side re-validation closing the gap (§4.5).
 
-`runtime.handle(method, path, input)` takes no principal (`routes/app-api.ts:53`). Storage location
-does not tell you who is calling. Threading an actor into `ctx`, declaring endpoints read-only, and
-row-level ownership are separate work — and out of scope for v1, stated as a known limitation.
+Three transports need the same treatment: the agent WS (`?access_token=` extractor), the
+`access_token` **cookie** used by the app root mount so page navigations and relative assets route
+correctly (`sdk/org/apps/web/src/lib/pod-session.ts`) — a browser holds one cookie per name per
+origin, so team and personal sessions collide unless the cookie or the mount path is team-scoped —
+and **pod wake**, where the activator forwards the caller's JWT and `authMiddleware` currently
+guarantees "a caller can only wake its own pod" (`devops/argocd/envoy/app-policies.yaml:121-123`).
 
-### 6.8 SPA
+Alternative if instant revocation is a hard requirement: `ext_authz` to the gateway, at the cost of
+a synchronous hop on every pod request.
 
-Team list and membership UI; project list becomes a union of own + team projects, labelled with team
-and access; read-only affordances (disabled editors, hidden install/delete, an explicit banner, and a
-clear message when a read member's agent declines a write).
+### 4.5 Pod authentication and authorization — the security core
 
-### 6.9 Documentation
+The pod must stop trusting its socket:
 
-Ships with `org/docs/` updates in the same change: `cloud/routes.md` + `cloud/auth.md`,
-`devops/infrastructure.md` (storage class, the team volume), `cli-api/rest/projects.md`,
-`format/project/README.md` (layout refactor), `runtime-globals/` (capability intersection), `studio/`.
+1. **Establish a principal per request**, in the request handler before `router.dispatch`
+   (`serve.ts:L343-L370`), from the Envoy-injected headers → `{ actorId, role }`. A missing
+   principal in a non-gateway context must mean *owner* — otherwise `pnpm thing`, the CLI and every
+   test break.
+2. **Deny-by-default allowlist for non-owner principals** on pod-global surfaces: `/api/env`,
+   `/api/fs/*`, `WS /api/terminals/*`, `/api/restart`, `/api/backup*`, `/api/restore`,
+   `/api/session-ledger`, `POST`/`DELETE /api/projects`. New routes must be *opted in*, or the next
+   feature silently opens a hole.
+3. **Role gate.** `viewer` ⇒ 403 on every mutating route: the space-file `PUT`/`POST`/`DELETE`,
+   `PUT .../instructions`, `POST .../documents`, `PUT .../app/files/*`,
+   `PATCH .../app/data/:table/:id`, `POST .../hooks/:slug/run`, `POST .../app/build`,
+   `POST /api/apps/install`, `POST /api/store/spaces/install`, `POST /api/spaces`.
+4. **Re-validate membership** on a short cache rather than trusting the token for its full TTL,
+   using the pod's existing `aud:"compute"` JWT. This is what makes removal take effect in seconds.
+
+### 4.6 Read-only is a capability concern, not an HTTP one
+
+Blocking mutating routes is not enough, because **running an agent is itself a write**. One
+`viewer` chat turn can otherwise insert rows (`db:write`), create tables (`db:schema`), write
+pages/api/hooks, install a space, write knowledge, emit events that trigger writing hooks, and
+persist a transcript.
+
+So `viewer` must additionally **intersect the agent's `CapabilityProfile` at session creation** —
+strip `db:write`, `db:schema`, `pages:write`, `api:write`, `hooks:write`, `knowledge:write`,
+`store:install`, `project:manage`, `fs:scratch`; keep `db:read`, `store:read`, and `api:call`
+narrowed to read-only endpoints. Because the profile drives injection *and* the DTS
+(`libs/core/src/exec/bootstrap.ts:L99`), a stripped grant fails typecheck and the model retries
+differently instead of throwing — the behaviour the codebase already prescribes.
+
+Two consequences to surface in the UI rather than let users discover: a viewer gets a **degraded
+agent** that will correctly refuse to record things, and `apiCall` needs a policy because an
+endpoint is arbitrary Node code that can write regardless of the caller's grants.
+
+**When THING acts in a channel, the capability intersection must key off the invoking member's
+role**, not the agent's grants — a viewer invoking a writing agent has to fail cleanly.
+
+### 4.7 Caller identity in the app runtime — day-one blocker
+
+`handle(method, path, input)` takes no principal (`app/api/runtime.ts:103`). You cannot build a chat
+app where every message is from "the pod". Thread the principal from the HTTP layer through
+`createAppApiHandler` → `runtime.handle` → the worker into `ctx.actor`. This changes the
+app-authoring contract, so `org/docs/format/project/api/README.md` and the generated `@app/types`
+move with it — and it is what finally makes shared apps meaningful generally, not just for chat.
+
+### 4.8 A realtime seam for project-apps — day-one blocker
+
+Today a chat app can only poll (§2.5). Options, cheapest first: an SSE response kind in
+`ApiResponse`; or a declared WS path per app, matched in the upgrade handler alongside
+`/api/terminals/:id` (`serve.ts:405-416`). Either is useful to every app, not only this one. Worth
+noting the pod is a **single Node process**, so in-memory fan-out is trivial — no broker needed,
+unlike a gateway-hosted design where `replicas: 2` (`devops/argocd/core/gateway.yaml:57`) would have
+forced Postgres `LISTEN/NOTIFY`.
+
+### 4.9 The chat application
+
+An ordinary project-app on the team pod: `database/` for channels, messages, memberships and read
+state; `api/` for post/list/subscribe; `pages/` for the client; `hooks/` for notifications. It is
+the first app that genuinely needs §4.7 and §4.8, and it is the platform dogfooding itself — every
+limitation it hits is one every team app would hit.
+
+### 4.10 The THING bridge
+
+A first-party integration space on the team pod, shaped like `integration-slack` (§2.4): an
+`events/` emitter def turning a channel message into `message.received`, `getOrCreateThreadSession`
+giving each channel thread a persistent multi-turn session, and a space function posting the reply
+back through the chat app's own API. Because it is an ordinary event source, `@thing` in a team
+channel and `@thing` in Slack take the same path.
+
+Open sub-question: **how much channel history the agent sees.** A thread session gives it the
+thread; a room has history it may need and may not be entitled to — a privacy question and a
+context-window question at once.
+
+### 4.11 Always-on vs scale-to-zero
+
+A chat pod that sleeps cannot accept messages. Either the team pod is always-on — `idleTtlMinutes`
+effectively disabled and `LMTHING_SELF_IDLE` unset per-pod — or the first message of the day pays
+the wake latency, with the gateway accepting and replaying it (the inbound broker already wakes a
+pod and forwards, `cloud/gateway/src/routes/inbound.ts:113-157`). This is the main cost driver of a
+team tier and should be a tier field, not a constant.
+
+### 4.12 Client changes
+
+- **Two pods per member.** `COMPUTER_BASE_URL` is a single module-level constant resolved from the
+  host (`sdk/org/apps/web/src/lib/config.ts:18`). Every pod call and the WS must instead carry a
+  target + token. Mechanical but pervasive: thread a "pod session" instead of a constant.
+- **Merged project lists** across the personal pod and each team pod, labelled with team + role.
+- **Membership-token lifecycle** alongside the existing refresh in `@lmthing/auth`
+  (`sdk/org/libs/auth/src/client.ts#ensureValidToken`); on 403, return to the team list.
+- **Read-only affordances** — disabled editors, hidden install/delete, an explicit banner, and a
+  clear message when a viewer's agent declines a write. `PodEnsureGate`
+  (`sdk/org/apps/web/src/lib/gates.tsx:216`) needs a team variant; it ensures *your* pod today.
+- **The `lmthing.team` SPA** becomes a real surface rather than a scaffold.
+
+### 4.13 Documentation
+
+Ships in the same change per the repo contract: `cloud/routes.md` + `cloud/auth.md` (team routes,
+`aud:"team"` token), `cloud/billing-and-tiers.md` + `contributing/add-a-tier.md` (team tiers),
+`devops/infrastructure.md` (team namespaces and routing), `cli-api/rest/README.md` +
+`projects.md` (**the pod now has auth** — the "Auth: none at this layer" section is directly
+contradicted), `format/project/api/README.md` (`ctx.actor`), `runtime-globals/` (role-based
+capability intersection), and a new team surface doc.
 
 ---
 
-## Part 7 — Suggested staging
+## Part 5 — Staging
 
 | Stage | Scope | Ships |
 |---|---|---|
-| **0** | §6.1 team model + invite/accept UI. No data-plane change. | Teams exist; membership is visible. Fully safe. |
-| **1** | §6.3 project-layout refactor — per-user derived state out of the shared tree. | Prerequisite for every option; independently valuable. |
-| **2** | Option **C** (git-backed) for **spaces** only. | Shared spaces working end to end, no infra change. |
-| **3** | §6.5 capability intersection for `read` members; §6.6 env hygiene. | Read-only is real, not just filesystem-shaped. |
-| **4** | §6.2 RWX class + team volume + §5.6 designated executor. | Live shared projects. |
-| **5** | §6.7 app actor identity. | Shared apps with per-user data. |
+| **0** | §4.1 team model + routes + invite/accept UI. No data plane. | Teams exist and are visible. Fully safe. |
+| **1** | §4.2 team tier + LiteLLM/Stripe team principal; §4.3 team pod provisioning. | A team pod boots with its own key and budget. Reachable only by its creator. |
+| **2** | §4.5 pod principal + allowlist + role gate. Synthetic headers, no external traffic yet. | The pod is safe to expose. Testable in isolation. |
+| **3** | §4.4 membership tokens + team routing + team-capable wake. | Members reach the team pod. Projects and spaces work read-only. |
+| **4** | §4.6 capability intersection; `editor` enabled. | Read-only is real; write access works. |
+| **5** | §4.7 `ctx.actor` + §4.8 realtime seam. | The app platform can host a chat app. |
+| **6** | §4.9 chat app + §4.10 THING bridge + §4.11 always-on policy. | The team surface ships. |
 
-Stages 0–3 need **no** storage-class change and deliver the space use case completely. Stage 4 is
-where the infra work concentrates; treat it as a separate decision once 0–3 are in.
-
----
-
-## Part 8 — Decisions needed
-
-1. **Spaces via git-sync, projects via mount — or one mechanism for both?** (Part 3)
-2. **Is a team a mutual-trust boundary for code execution?** If yes, §4.1 is a documented assumption;
-   if no, worker env scrubbing becomes a blocker, not a mitigation.
-3. **Are read-only members inside or outside that trust boundary?** They currently must trust every
-   writer with their own env keys.
-4. **Shared-database strategy** — out of WAL, or reads routed through the executor pod? (§5.3–5.5)
-5. **Who is the automation executor, and what happens when their pod is asleep?** (§5.6)
-6. **Are team members' chat transcripts private from each other?** They persist inside the project
-   (§1.3).
-7. **Does a team have its own tier/quota**, or does each member's own tier govern? Storage size and
-   who pays for the team volume.
-8. **Is multi-node scale-out a requirement?** If yes, local-path is disqualified and §5.2–5.3 must be
-   solved. If a single node is acceptable for the foreseeable future, Option B gets much cheaper.
+Stages 0–4 deliver shared projects and spaces without any chat; 5–6 add the surface. If the chat is
+the priority, 5 can move earlier — it is independent of routing — but 2 must always precede 3.
 
 ---
 
-## Part 9 — Summary
+## Part 6 — Open decisions
 
-Sharing is not a project-layer feature; it is a change to the tenancy model. Today **identity,
-routing destination, trust boundary and billing account are all the same value** — the JWT `sub`.
+1. **Does a `viewer` get the Studio IDE, or only chat + the app?** Studio exposes raw space files and
+   app admin; a viewer arguably wants neither.
+2. **How much channel history does THING see** (§4.10)?
+3. **May an `editor` install spaces/apps onto the team pod?** It writes team disk and pulls in code
+   no one reviewed, and that code runs with team credentials (§4.2).
+4. **Team pod sizing curve and `maxMembers` per tier** (§4.2).
+5. **Always-on by default, or wake-on-first-message?** (§4.11) — the main cost driver.
+6. **Do personal projects move into a team?** A copy is easy; a move raises id collisions, since
+   slug-uniqueness and `RESERVED_PROJECT_IDS` are per-root.
+7. **Instant revocation?** If yes, `ext_authz`; if "within a minute" is fine, short-TTL tokens plus
+   pod re-validation is simpler and cheaper.
 
-The team model is the right frame: it makes the trust boundary explicit, keeps each member on their
-own compute and their own keys, and turns read-only into a kernel-enforced mount flag rather than an
-HTTP role gate. Moving *files* rather than *traffic* is the better decomposition, and it deletes the
-entire edge-authorization and pod-authentication work area.
+---
 
-What remains is concentrated and specific:
+## Part 7 — Summary
 
-1. **Storage cannot express a shared volume today.** PVCs are namespaced → one PVC per member → same
-   PV → needs RWX → `local-path` cannot → network storage → WAL SQLite breaks. Every path funnels
-   through this chokepoint.
-2. **Read-only members cannot currently read.** The project tree must be writable to serve its app
-   and open its WAL database. Fixing this — relocating per-user derived state — is on the critical
-   path for every option and is worth doing first.
-3. **Automation would run once per member**; a team needs a designated executor.
-4. **Per-user env keys close credential pooling, not code trust.** A writer's code runs in every
-   other member's pod with that member's keys.
-5. **The shared app still has no per-user identity**, and no storage decision changes that.
+The team pod is the right shape. It makes a team a first-class principal with its own pod, tier,
+env and storage, which deletes the entire shared-volume problem — namespaced PVCs, ReadWriteMany,
+`local-path`, WAL SQLite, mount churn and duplicated automation all stop applying (§2.6). It also
+makes the chat surface cheaper than a gateway-hosted one, because a single Node process fans out
+in memory.
 
-The highest-value next step is **§6.3, the project-layout refactor**: it is required by every variant,
-it is independently testable, and it is what currently makes "read-only" impossible to implement at
-all.
+What it costs is that multi-user access moves rather than disappears, and one elegant property is
+lost: read-only can no longer be enforced by a kernel mount. So the work is:
+
+1. A team model, tier and pod-provisioning path in the gateway — broad but mechanical.
+2. Membership-keyed routing at the edge — small in code, high in blast radius.
+3. **Authentication and authorization inside the pod, which today has none** — the largest and most
+   safety-critical item, and a hard prerequisite for every stage after it.
+4. Role-aware capability intersection, because read-only cannot be enforced over HTTP alone —
+   running an agent *is* writing.
+5. Caller identity in the app runtime and a realtime seam — both currently absent, both now on the
+   critical path, and both valuable to every app rather than just to chat.
+6. A chat app and a first-party integration space, which reuse existing machinery almost entirely.
+
+The single highest-value next step remains **§4.5 (pod auth)**: it gates everything, it is
+independently testable, and it closes a real hole in the current architecture regardless of whether
+teams ship.

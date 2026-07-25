@@ -110,6 +110,10 @@ Element/component stylesheets are BEM and built on `@apply` with token utilities
 
 Deps: `@lmthing/auth`, `@lmthing/core`, `@lmthing/css`, `marked`, `modern-screenshot`, `zustand` (`sdk/org/libs/ui/package.json:37-43`). React, all Radix primitives, `clsx`, `tailwind-merge`, `class-variance-authority`, `lucide-react`, `@xterm/*`, `@monaco-editor/react`, `react-resizable-panels` are **peer** deps (`sdk/org/libs/ui/package.json:50-68`).
 
+> **React ≥ 19 is required, not merely supported.** `@tamagui/core`, `@tamagui/web` and `@tamagui/animations-css` all declare `peerDependencies: { react: ">=19" }`, so the peer range here is `>=19` rather than `^18 || ^19`. This matters beyond version hygiene: `libs/ui` used to pin React 18 in its **devDependencies** while `apps/web`, `@lmthing/state` and `@lmthing/auth` were on 19, which put two copies of `@types/react` in the tree. That single pin is why `libs/ui` typechecked with `tsc --noCheck` and why its `app-sidebar`/`settings-dialog` suites could not render (a second React copy → "Invalid hook call"). Aligning it removed 133 `TS2786` errors from the `apps/web` typecheck. **`@lmthing/cli` deliberately stays on React 18** — it renders with `ink@5`, which is React 18 only; the two majors never meet in one bundle because `cli` is a Node CLI and `ui` is bundled by `apps/web`.
+
+The primitive **style-prop types** are exported too — `LayoutStyleProps`, `BoxStyleProps`, `TextStyleProps`, `MarginStyleProps` from `@lmthing/ui/elements/primitives` — so a composite that spreads rest props onto a primitive can declare that in its own props interface instead of narrowing to `ComponentProps<'div'>` and casting.
+
 ### Elements (primitives)
 
 `src/elements/` holds low-level React primitives; there is **no top-level barrel** — each is deep-imported by path (e.g. `@lmthing/ui/elements/forms/button`). Each visual element imports its paired stylesheet from `@lmthing/css` at the top of the module (e.g. `import '@lmthing/css/elements/forms/button/index.css'`, `src/elements/forms/button/index.tsx:1`) and composes classes with `cn`.

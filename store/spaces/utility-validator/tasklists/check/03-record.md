@@ -8,6 +8,7 @@ output:
   recorded: number
   duplicates: number
   autoResolved: number
+  stillOpen: number
   ok: boolean
 ---
 
@@ -53,7 +54,13 @@ for (const v of db.query('validation_violations', { where: { status: 'open' } })
   db.update('validation_violations', { where: { id: v.id }, set: { status: 'resolved' } });
   autoResolved++;
 }
-currentTask.resolve({ recorded, duplicates, autoResolved, ok: true });
+```
+
+3. Count what is left open, so the goal step can report it without needing database access:
+
+```ts
+const stillOpen = db.query('validation_violations', { where: { status: 'open' } }).length;
+currentTask.resolve({ recorded, duplicates, autoResolved, stillOpen, ok: true });
 ```
 
 The `scannedTables` guard is not optional: a table that failed, vanished or was never in this

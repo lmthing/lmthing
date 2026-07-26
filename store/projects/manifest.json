@@ -2951,6 +2951,77 @@
       ]
     },
     {
+      "id": "utility-enricher",
+      "title": "Enricher",
+      "description": "Finds the blank cells in your tables, researches each one on the web with a cited source, and fills them in only after you approve.",
+      "icon": "🔍",
+      "tags": [
+        "utility",
+        "research"
+      ],
+      "kind": "utility",
+      "settings": null,
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "buildResearchQuery",
+          "summary": "Build the web-search query for one blank cell — pure, deterministic, never throws.",
+          "signature": "buildResearchQuery(tableName: unknown, row: Record<string, unknown> | null | undefined, column: unknown, labelColumns?: string[] | null,): string"
+        },
+        {
+          "name": "computeEnrichKey",
+          "summary": "Stable identity for one enrichment task — pure, never throws.",
+          "signature": "computeEnrichKey(targetTable: unknown, rowId: unknown, column: unknown): string"
+        },
+        {
+          "name": "findEmptyCells",
+          "summary": "Find the blank cells worth researching — pure, never throws.",
+          "signature": "findEmptyCells(rows: Record<string, unknown>[] | null | undefined, columns: string[] | null | undefined,):"
+        },
+        {
+          "name": "validateProposedValue",
+          "summary": "Gate one researched value before it is ever proposed — pure, never throws.",
+          "signature": "validateProposedValue(column: unknown, value: unknown, hint?: unknown,):"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "enricher",
+          "actions": [
+            "plan",
+            "research",
+            "apply",
+            "review"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/enricher/charter.md",
+        "agents/enricher/instruct.md",
+        "functions/buildResearchQuery.ts",
+        "functions/computeEnrichKey.ts",
+        "functions/findEmptyCells.ts",
+        "functions/validateProposedValue.ts",
+        "knowledge/enricher/applying.md",
+        "knowledge/enricher/researching.md",
+        "package.json",
+        "tasklists/apply/01-load.md",
+        "tasklists/apply/02-apply.md",
+        "tasklists/apply/03-mark.md",
+        "tasklists/apply/04-report.md",
+        "tasklists/apply/index.md",
+        "tasklists/research/01-load.md",
+        "tasklists/research/02-research.md",
+        "tasklists/research/03-record.md",
+        "tasklists/research/04-report.md",
+        "tasklists/research/index.md",
+        "tests/functions.test.mjs",
+        "tests/space.test.mjs"
+      ]
+    },
+    {
       "id": "utility-importer",
       "title": "Importer",
       "description": "Turns a pasted CSV or JSON into real rows: parse, map columns, dry-run, then insert with dedupe.",

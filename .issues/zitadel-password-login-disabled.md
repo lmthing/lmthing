@@ -8,20 +8,36 @@ LiteLLM provisioning, returns `{ user_id, api_key }`), but the matching
 {"error":"password not supported"}
 ```
 
-So there is **no email/password path to obtain a gateway JWT** — register
-succeeds but the account can't log in. The Zitadel instance/app appears to not
-have the password grant / login flow enabled for the OIDC client used by
-`loginWithPassword` (`cloud/gateway/src/lib/zitadel.ts`). GitHub OAuth (IDP
-Intent) presumably still works; password login does not.
+The Zitadel instance/app appears to not have the password grant / login flow
+enabled for the OIDC client used by `loginWithPassword`
+(`cloud/gateway/src/lib/zitadel.ts`). GitHub OAuth (IDP Intent) is unaffected.
 
-Impact: automated/QA testing can't use register→login. Workaround used this
-session: mint a gateway HS256 JWT directly with `GATEWAY_JWT_SECRET`
-(`cloud/gateway/src/lib/tokens.ts` shape) for the registered `user_id` and inject
-it into `localStorage.lmthing_session`.
+## No longer blocking
+
+There **is** now an email path to a gateway JWT — it just doesn't use a password.
+`POST /api/auth/email/start` mails a 6-digit code plus a magic link to any
+address, and `POST /api/auth/email/verify` exchanges the code for a session,
+creating the account on first sign-in (`cloud/gateway/src/routes/auth.ts`; docs:
+`org/docs/cloud/auth.md`). Automated and QA testing should use that instead of
+register→login.
+
+Two things keep this issue open rather than closed:
+
+- `/register` + `/login` are still advertised (and `com/src/lib/cloud.ts` still
+  wraps both) while `/login` can never succeed.
+- Email sign-in needs a mail transport in the deployment (`RESEND_API_KEY`, or
+  the `SMTP_*` group, in `lmthing-secrets`). Until one is set,
+  `POST /api/auth/email/start` answers `503` and the testing fallback is still to
+  mint a gateway HS256 JWT directly with `GATEWAY_JWT_SECRET`
+  (`cloud/gateway/src/lib/tokens.ts` shape) and inject it into
+  `localStorage.lmthing_session`.
 
 ## To fix (open)
-- Enable the password grant / login flow on the Zitadel OIDC app, OR
-- Remove/replace the email-password register+login UI if only OAuth is intended
-  (currently `/register` advertises a password that can never be used to log in).
-- If keeping password auth, add an integration test that register→login→`/me`
+- Set a mail transport in `lmthing-secrets` so email sign-in is live in
+  production. This is a deploy step, not a code change — the gateway already
+  reads every key as an optional `secretKeyRef`.
+- Then either enable the password grant on the Zitadel OIDC app, OR remove
+  `/register` + `/login` and their `cloud.ts` wrappers, since passwordless email
+  now covers what they were meant to do.
+- If password auth is kept, add an integration test that register→login→`/me`
   round-trips on a real Zitadel.

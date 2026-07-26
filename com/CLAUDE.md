@@ -40,7 +40,7 @@ cd com && pnpm dev    # http://localhost:3002 / com.test
 | Working on… | Read |
 |---|---|
 | routes, pages, what each product SPA contains | [org/docs/product-spas/README.md](../org/docs/product-spas/README.md) |
-| auth — Zitadel, gateway JWTs, GitHub OAuth (IDP Intent), the SSO code exchange | [org/docs/cloud/auth.md](../org/docs/cloud/auth.md) |
+| auth — Zitadel, gateway JWTs, passwordless email sign-in (code + magic link), GitHub OAuth (IDP Intent), the SSO code exchange | [org/docs/cloud/auth.md](../org/docs/cloud/auth.md) |
 | any `/api/*` endpoint this SPA calls | [org/docs/cloud/routes.md](../org/docs/cloud/routes.md) |
 | tiers, budgets, Stripe checkout/portal, usage | [org/docs/cloud/billing-and-tiers.md](../org/docs/cloud/billing-and-tiers.md) |
 | **adding a pricing tier** (cross-cutting — `src/config/plans.ts` here is display only; the real tier logic is `cloud/gateway/src/lib/tiers.ts`) | [org/docs/contributing/add-a-tier.md](../org/docs/contributing/add-a-tier.md) |

@@ -93,7 +93,7 @@ There is **no other server** in the monorepo. `cloud/` is two processes on Kuber
 - **Gateway** (`cloud/gateway/`, **Hono on Node 24**, port 3000 — `cloud/gateway/package.json:12-13`, `cloud/gateway/Dockerfile:1`) mounts nine route modules under `/api/*`: `auth`, `keys`, `billing`, `stripe/webhook`, `compute`, `backup`, `inbound`, `status`, `issues` (`cloud/gateway/src/index.ts:29-39`). It is the token issuer, the Stripe integration, the LiteLLM key manager, and the compute-pod controller.
 - **LiteLLM** (upstream image) proxies `/v1/*` OpenAI-compatible traffic to Azure AI Foundry and enforces per-user spend caps.
 - **render** — an in-cluster headless-Chromium service backing agent `webSearch`/`webFetch`.
-- **Zitadel** — the identity store (user records, password verification, GitHub IDP); it never mints the tokens clients carry.
+- **Zitadel** — the identity store (user records, password verification, GitHub IDP); it never mints the tokens clients carry. Passwordless email sign-in creates its users here too, with no credential attached — the mailbox is the proof (`cloud/gateway/src/lib/zitadel.ts#createPasswordlessUser`).
 
 Both static SPAs and every compute pod talk to the gateway over HTTP; pods additionally call LiteLLM for LLM traffic and call back to the gateway to self-report idle state, register cron manifests, and receive inbound webhooks (`cloud/gateway/src/routes/compute.ts`, `.../inbound.ts`). Full route table, auth model, billing/tiers, LiteLLM and render detail: [cloud/README.md](./cloud/README.md) and its siblings (`org/cloud/routes.md`, `auth.md`, `billing-and-tiers.md`, `litellm.md`, `render.md`).
 

@@ -7,6 +7,9 @@ import {
   register as apiRegister,
   getOAuthUrl,
   getMe,
+  startEmailLogin,
+  verifyEmailLogin,
+  type EmailLoginStart,
 } from '../cloud'
 
 interface User {
@@ -22,6 +25,10 @@ interface AuthContextValue {
   signOut: () => Promise<void>
   signInWithGitHub: () => Promise<void>
   signInWithGoogle: () => Promise<void>
+  /** Mail a one-time code + magic link to any address. Resolves when it's sent. */
+  sendEmailCode: (email: string) => Promise<EmailLoginStart>
+  /** Exchange the mailed code for a session. */
+  signInWithEmailCode: (email: string, code: string) => Promise<void>
   setSessionFromOAuth: (accessToken: string, refreshToken: string, expiresAt: number) => void
 }
 
@@ -77,6 +84,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.href = url
   }, [])
 
+  // The magic link is delivered to an inbox, which may be opened on a different
+  // device or browser than the one that asked for it — so it lands on /callback
+  // (the same page the GitHub redirect uses) with the tokens in the fragment,
+  // rather than trying to resume this tab's state.
+  const sendEmailCode = useCallback(async (email: string) => {
+    const redirect = new URLSearchParams(window.location.search).get('redirect')
+    const callback = new URL('/callback', window.location.origin)
+    if (redirect) callback.searchParams.set('next', redirect)
+    return startEmailLogin(email, callback.toString())
+  }, [])
+
+  const signInWithEmailCode = useCallback(async (email: string, code: string) => {
+    const data = await verifyEmailLogin(email, code)
+    setUser(data.user)
+  }, [])
+
   // Called by the OAuth callback page after extracting tokens from hash
   const setSessionFromOAuth = useCallback((accessToken: string, refreshToken: string, expiresAt: number) => {
     storeTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: expiresAt })
@@ -91,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user, loading,
       signIn, signUp, signOut,
       signInWithGitHub, signInWithGoogle,
+      sendEmailCode, signInWithEmailCode,
       setSessionFromOAuth,
     }}>
       {children}

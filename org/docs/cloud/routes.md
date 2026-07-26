@@ -37,16 +37,19 @@ Three distinct authentication schemes appear below. Do not conflate them.
 | Method | Path | Handler / router | Auth | Purpose |
 |---|---|---|---|---|
 | GET | `/api/health` | `index.ts:28` | none | Liveness `{status:"ok"}` |
-| POST | `/api/auth/register` | `auth.ts:62` | none | Email+password signup → Zitadel user + provision (LiteLLM user + Stripe customer + free-tier key) |
-| POST | `/api/auth/login` | `auth.ts:94` | none | Email+password login via Zitadel → gateway JWT pair (**broken in prod — Zitadel "password not supported"**) |
-| GET | `/api/auth/oauth/url` | `auth.ts:121` | none | Start GitHub login via Zitadel IDP Intent; returns GitHub URL directly (needs `?redirect_to`) |
-| GET | `/api/auth/oauth/callback` | `auth.ts:138` | none | Zitadel IDP Intent callback (`?id&token&state`) → provision → redirect with tokens in URL hash |
-| POST | `/api/auth/provision` | `auth.ts:173` | JWT | Idempotently provision LiteLLM user + Stripe customer + API key for the caller |
-| GET | `/api/auth/me` | `auth.ts:186` | JWT | Caller's `{user_id,email,tier,budget_limits,spend}` from LiteLLM metadata |
-| POST | `/api/auth/refresh` | `auth.ts:208` | none (refresh token in body) | Exchange refresh token → new access+refresh pair |
-| POST | `/api/auth/sso/create` | `auth.ts:236` | JWT | Mint single-use cross-domain SSO code (60s TTL) in Postgres |
-| POST | `/api/auth/sso/exchange` | `auth.ts:261` | none (code in body) | Consume SSO code → gateway JWT session + provision |
-| GET | `/api/auth/demo-token` | `auth.ts:307` | none — **LOCAL_DEV only** (else 404) | Signed JWT for `local-dev-user` (demo computer app) |
+| POST | `/api/auth/register` | `auth.ts:81` | none | Email+password signup → Zitadel user + provision (LiteLLM user + Stripe customer + free-tier key) |
+| POST | `/api/auth/login` | `auth.ts:113` | none | Email+password login via Zitadel → gateway JWT pair (**broken in prod — Zitadel "password not supported"**; use `/email/start` instead) |
+| POST | `/api/auth/email/start` | `auth.ts:354` | none — IP rate-limited (10 / 15min) | Passwordless sign-in: mail a 6-digit code + magic link to **any** address; 503 when no mailer is configured |
+| POST | `/api/auth/email/verify` | `auth.ts:454` | none — IP rate-limited (30 / 15min) | Consume the 6-digit code → gateway JWT pair + `user`; creates the account on first sign-in |
+| GET | `/api/auth/email/callback` | `auth.ts:506` | none (`?token`) | Consume the magic link → redirect to the recorded `redirect_uri` with tokens in the URL hash (or JSON when none was recorded) |
+| GET | `/api/auth/oauth/url` | `auth.ts:140` | none | Start GitHub login via Zitadel IDP Intent; returns GitHub URL directly (needs `?redirect_to`) |
+| GET | `/api/auth/oauth/callback` | `auth.ts:157` | none | Zitadel IDP Intent callback (`?id&token&state`) → provision → redirect with tokens in URL hash |
+| POST | `/api/auth/provision` | `auth.ts:192` | JWT | Idempotently provision LiteLLM user + Stripe customer + API key for the caller |
+| GET | `/api/auth/me` | `auth.ts:205` | JWT | Caller's `{user_id,email,tier,budget_limits,spend}` from LiteLLM metadata |
+| POST | `/api/auth/refresh` | `auth.ts:227` | none (refresh token in body) | Exchange refresh token → new access+refresh pair |
+| POST | `/api/auth/sso/create` | `auth.ts:255` | JWT | Mint single-use cross-domain SSO code (60s TTL) in Postgres |
+| POST | `/api/auth/sso/exchange` | `auth.ts:280` | none (code in body) | Consume SSO code → gateway JWT session + provision |
+| GET | `/api/auth/demo-token` | `auth.ts:326` | none — **LOCAL_DEV only** (else 404) | Signed JWT for `local-dev-user` (demo computer app) |
 | GET | `/api/keys` | `keys.ts:12` | JWT | List caller's LiteLLM API keys (redacted subset) |
 | POST | `/api/keys` | `keys.ts:32` | JWT | Create a new API key at the caller's current tier |
 | DELETE | `/api/keys/:token` | `keys.ts:62` | JWT | Revoke (delete) an API key |
@@ -107,19 +110,25 @@ Three distinct authentication schemes appear below. Do not conflate them.
 
 Router `cloud/gateway/src/routes/auth.ts`. The shared `provisionUser(userId,email)` helper is idempotent: it returns early if the LiteLLM user already exists, otherwise creates a Stripe customer, a free-tier LiteLLM user, and an API key `cloud/gateway/src/routes/auth.ts#provisionUser`.
 
-- **`POST /register`** — requires `email`+`password` (≥8 chars); creates the Zitadel user then provisions. 400 on validation/Zitadel failure, 500 on provisioning failure (returns `user_id`) `cloud/gateway/src/routes/auth.ts:62-91`.
-- **`POST /login`** — verifies credentials via `zitadel.loginWithPassword`, then issues the gateway's OWN token pair (`signTokens`) rather than a Zitadel token; 401 on failure `cloud/gateway/src/routes/auth.ts:94-118`.
+- **`POST /register`** — requires `email`+`password` (≥8 chars); creates the Zitadel user then provisions. 400 on validation/Zitadel failure, 500 on provisioning failure (returns `user_id`) `cloud/gateway/src/routes/auth.ts:81-110`.
+- **`POST /login`** — verifies credentials via `zitadel.loginWithPassword`, then issues the gateway's OWN token pair (`signTokens`) rather than a Zitadel token; 401 on failure `cloud/gateway/src/routes/auth.ts:113-137`.
 
-  > Production note: `/login` returns 401 because Zitadel password grant is disabled ("password not supported"); see the repo's `.issues/zitadel-password-login-disabled.md`. OAuth is the working path.
+  > Production note: `/login` returns 401 because Zitadel password grant is disabled ("password not supported"); see the repo's `.issues/zitadel-password-login-disabled.md`. The working email path is `/email/start` + `/email/verify` (below), which needs no password at all.
 
-- **`GET /oauth/url`** — requires `?redirect_to`; encodes it into the callback's `state` (base64url) and returns the GitHub URL from `zitadel.startIdpIntent` `cloud/gateway/src/routes/auth.ts:121-135`.
-- **`GET /oauth/callback`** — resolves the IDP intent (`?id&token`), signs tokens, best-effort provisions, and `302`-redirects to the decoded `state` with `access_token`/`refresh_token`/`expires_at` in the **URL hash fragment** `cloud/gateway/src/routes/auth.ts:138-170`.
-- **`POST /provision`** (JWT) — run `provisionUser` for the caller `cloud/gateway/src/routes/auth.ts:173-183`.
-- **`GET /me`** (JWT) — `{user_id,email,tier,budget_limits,spend}` from LiteLLM `getUserInfo`; degrades to `tier:"free"` on error `cloud/gateway/src/routes/auth.ts:186-205`.
-- **`POST /refresh`** — verifies the refresh JWT, re-reads the email from Zitadel, re-issues a pair `cloud/gateway/src/routes/auth.ts:208-229`.
-- **`POST /sso/create`** (JWT) — requires `redirect_uri`+`app`; stores a 32-byte hex code with a 60s expiry in Postgres `cloud/gateway/src/routes/auth.ts:236-258`.
-- **`POST /sso/exchange`** — `findAndConsumeSsoCode` (single-use), re-reads the Zitadel user, signs tokens, best-effort provisions, returns the pair + `user` `cloud/gateway/src/routes/auth.ts:261-298`.
-- **`GET /demo-token`** — 404 unless `LOCAL_DEV=true`; returns a signed JWT for `local-dev-user`/`dev@local` `cloud/gateway/src/routes/auth.ts:307-316`.
+- **`POST /email/start`** — passwordless sign-in for **any** address. Normalizes + validates the address, optionally validates `redirect_uri` against an origin allowlist, checks the per-mailbox send throttle, stores hashes of a fresh 6-digit code and magic-link token, and mails both. Returns `{sent, email (masked), expires_at}` `cloud/gateway/src/routes/auth.ts:354-451`. 400 on a bad address or a disallowed `redirect_uri`, 429 on the throttle, **503 when no mail transport is configured**, 502 when delivery fails.
+- **`POST /email/verify`** — `{email, code}` → consumes the row and issues the gateway pair plus `user` `cloud/gateway/src/routes/auth.ts:454-503`. 401 on a wrong/expired/spent code, with `attempts_remaining` counting down to the 5-guess cap.
+- **`GET /email/callback?token=`** — the magic link. Consumes the row, then `302`-redirects to the recorded `redirect_uri` with the token trio in the **URL hash fragment** (the same shape `/oauth/callback` produces), or returns the session as JSON when no `redirect_uri` was recorded `cloud/gateway/src/routes/auth.ts:506-529`.
+
+  Both verification paths resolve the identity through `zitadel.findOrCreateUserByEmail`, so an unseen address gets an account and a known one lands in the account it already has `cloud/gateway/src/lib/zitadel.ts#findOrCreateUserByEmail`. Full model → [./auth.md](./auth.md#passwordless-email-sign-in-magic-link--one-time-code).
+
+- **`GET /oauth/url`** — requires `?redirect_to`; encodes it into the callback's `state` (base64url) and returns the GitHub URL from `zitadel.startIdpIntent` `cloud/gateway/src/routes/auth.ts:140-154`.
+- **`GET /oauth/callback`** — resolves the IDP intent (`?id&token`), signs tokens, best-effort provisions, and `302`-redirects to the decoded `state` with `access_token`/`refresh_token`/`expires_at` in the **URL hash fragment** `cloud/gateway/src/routes/auth.ts:157-189`.
+- **`POST /provision`** (JWT) — run `provisionUser` for the caller `cloud/gateway/src/routes/auth.ts:192-202`.
+- **`GET /me`** (JWT) — `{user_id,email,tier,budget_limits,spend}` from LiteLLM `getUserInfo`; degrades to `tier:"free"` on error `cloud/gateway/src/routes/auth.ts:205-224`.
+- **`POST /refresh`** — verifies the refresh JWT, re-reads the email from Zitadel, re-issues a pair `cloud/gateway/src/routes/auth.ts:227-248`.
+- **`POST /sso/create`** (JWT) — requires `redirect_uri`+`app`; stores a 32-byte hex code with a 60s expiry in Postgres `cloud/gateway/src/routes/auth.ts:255-277`.
+- **`POST /sso/exchange`** — `findAndConsumeSsoCode` (single-use), re-reads the Zitadel user, signs tokens, best-effort provisions, returns the pair + `user` `cloud/gateway/src/routes/auth.ts:280-317`.
+- **`GET /demo-token`** — 404 unless `LOCAL_DEV=true`; returns a signed JWT for `local-dev-user`/`dev@local` `cloud/gateway/src/routes/auth.ts:326-335`.
 
 ## Keys — `/api/keys/*`
 

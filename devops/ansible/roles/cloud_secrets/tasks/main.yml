@@ -54,6 +54,20 @@
         GITHUB_OAUTH_CLIENT_ID: "{{ vault_github_oauth_client_id | default('') }}"
         GITHUB_OAUTH_CLIENT_SECRET: "{{ vault_github_oauth_client_secret | default('') }}"
         CONNECTIONS_ENC_KEY: "{{ vault_connections_enc_key | default('') }}"
+        # Passwordless email sign-in. Every key is optional and the gateway reads
+        # them as optional secretKeyRefs, so an unset vault leaves email sign-in
+        # off (POST /api/auth/email/start answers 503) without breaking the pod.
+        # Set EITHER vault_resend_api_key (HTTPS API) OR the vault_smtp_* group.
+        EMAIL_PROVIDER: "{{ vault_email_provider | default('') }}"
+        EMAIL_FROM: "{{ vault_email_from | default('') }}"
+        EMAIL_FROM_NAME: "{{ vault_email_from_name | default('') }}"
+        RESEND_API_KEY: "{{ vault_resend_api_key | default('') }}"
+        SMTP_HOST: "{{ vault_smtp_host | default('') }}"
+        SMTP_PORT: "{{ vault_smtp_port | default('') }}"
+        SMTP_USER: "{{ vault_smtp_user | default('') }}"
+        SMTP_PASSWORD: "{{ vault_smtp_password | default('') }}"
+        SMTP_SECURITY: "{{ vault_smtp_security | default('') }}"
+        EMAIL_LOGIN_ALLOWED_ORIGINS: "{{ vault_email_login_allowed_origins | default('') }}"
         # Shared token authenticating requests to the in-cluster headless-browser
         # render service (browserless). Consumed by the `render` Deployment as TOKEN
         # and injected by the gateway into each pod's user-env as RENDER_SERVICE_TOKEN.

@@ -80,9 +80,9 @@ Routes (`com/src/routeTree.gen.ts`):
 | `/` | Landing page (`index.tsx`) |
 | `/about`, `/docs` | About + documentation |
 | `/pricing` | Plan comparison, 4 tiers (`pricing.tsx`, data from `src/config/plans.ts`) |
-| `/login`, `/signup` | **GitHub OAuth only** — a single "Continue with GitHub" button; no email/password form is rendered (`com/src/routes/login.tsx#Login,38-43`, `com/src/routes/signup.tsx#Signup,33`) |
-| `/forgot-password`, `/reset-password` | **Redirect stubs** — both `useEffect`-navigate to `/login` ("Password reset is not available with GitHub-only authentication"), `com/src/routes/forgot-password.tsx:8-17`, `com/src/routes/reset-password.tsx:8-17` |
-| `/callback` | OAuth callback — reads `#access_token/refresh_token/expires_at` from the hash, stores them, then calls `provision()` (`com/src/routes/callback.tsx:15-36`) |
+| `/login`, `/signup` | Both render the same `SignInPanel` — a passwordless **email** form (mail a 6-digit code, then type it back) plus "Continue with GitHub". Only the heading differs, because on both paths an unseen address gets an account and a known one lands in the account it already has (`com/src/routes/login.tsx#Login`, `com/src/routes/signup.tsx#Signup`, `com/src/lib/auth/SignInPanel.tsx#SignInPanel`) |
+| `/forgot-password`, `/reset-password` | **Redirect stubs** — both `useEffect`-navigate to `/login`; there are no passwords to reset, sign-in is a mailed code or GitHub (`com/src/routes/forgot-password.tsx:8-17`, `com/src/routes/reset-password.tsx:8-17`) |
+| `/callback` | Post-sign-in landing for **both** GitHub OAuth and the email magic link — reads `#access_token/refresh_token/expires_at` from the hash, stores them, calls `provision()`, then follows `?next=` (same-origin paths only) or `sessionStorage.login_redirect` (`com/src/routes/callback.tsx#postLoginDestination`, `com/src/routes/callback.tsx:31-63`) |
 | `/auth/sso` | Cross-domain SSO code issuer (`redirect_uri`/`app`/`state` params) |
 | `/onboarding` | Post-signup repo + PIN setup |
 | `/checkout` | Stripe Embedded Checkout (`@stripe/react-stripe-js`) |
@@ -97,29 +97,38 @@ Routes (`com/src/routeTree.gen.ts`):
 
   | `cloud.ts` wrapper | Endpoint | Gateway | Reached from |
   |---|---|---|---|
-  | `register()` | `POST /api/auth/register` | `cloud/gateway/src/routes/auth.ts:62` | `AuthProvider.signUp` — **no UI caller** |
-  | `login()` | `POST /api/auth/login` | `auth.ts:94` | `AuthProvider.signIn` — **no UI caller** |
-  | `getOAuthUrl()` | `GET /api/auth/oauth/url` | `auth.ts:121` | `signInWithGitHub` (`/login`, `/signup`) |
-  | `provision()` | `POST /api/auth/provision` | `auth.ts:173` | `/callback` |
-  | `getMe()` | `GET /api/auth/me` | `auth.ts:186` | `AuthProvider` |
-  | (inline refresh) | `POST /api/auth/refresh` | `auth.ts:208` | `ensureValidToken()` |
-  | `createSsoCode()` | `POST /api/auth/sso/create` | `auth.ts:236` | `/auth/sso` |
-  | `exchangeSsoCode()` | `POST /api/auth/sso/exchange` | `auth.ts:261` | **unused in `com`** — other SPAs exchange via `sdk/org/libs/auth/src/client.ts:63` |
+  | `register()` | `POST /api/auth/register` | `cloud/gateway/src/routes/auth.ts:81` | `AuthProvider.signUp` — **no UI caller** |
+  | `login()` | `POST /api/auth/login` | `auth.ts:113` | `AuthProvider.signIn` — **no UI caller** |
+  | `getOAuthUrl()` | `GET /api/auth/oauth/url` | `auth.ts:140` | `signInWithGitHub` (`/login`, `/signup`) |
+  | `provision()` | `POST /api/auth/provision` | `auth.ts:192` | `/callback` |
+  | `getMe()` | `GET /api/auth/me` | `auth.ts:205` | `AuthProvider` |
+  | (inline refresh) | `POST /api/auth/refresh` | `auth.ts:227` | `ensureValidToken()` |
+  | `startEmailLogin()` | `POST /api/auth/email/start` | `auth.ts:354` | `AuthProvider.sendEmailCode` → `/login`, `/signup` |
+  | `verifyEmailLogin()` | `POST /api/auth/email/verify` | `auth.ts:454` | `AuthProvider.signInWithEmailCode` → `/login`, `/signup` |
+  | `createSsoCode()` | `POST /api/auth/sso/create` | `auth.ts:255` | `/auth/sso` |
+  | `exchangeSsoCode()` | `POST /api/auth/sso/exchange` | `auth.ts:280` | **unused in `com`** — other SPAs exchange via `sdk/org/libs/auth/src/client.ts:63` |
   | `listApiKeys/createApiKey/revokeApiKey()` | `GET/POST /api/keys`, `DELETE /api/keys/:token` | `keys.ts:12,32,62` | `/account/keys` |
   | `createCheckout/getCheckoutStatus()` | `POST /api/billing/checkout`, `GET /api/billing/checkout/status` | `billing.ts:63,205` | `/checkout` |
   | `billingPortal()` | `POST /api/billing/portal` | `billing.ts:99` | `/billing` |
   | `getUsage()` | `GET /api/billing/usage` | `billing.ts:115` | `/billing/usage` |
 
-  Two wrappers are **dead code today**: `register()`/`login()` (email/password) are exposed through
-  `AuthProvider.signUp`/`signIn` but no route renders a password form (`/login` and `/signup` are
-  GitHub-only, above), and `exchangeSsoCode()` has no importer in `com`. Route-level detail →
+  Three wrappers are **dead code today**: `register()`/`login()` (email/**password**) are exposed
+  through `AuthProvider.signUp`/`signIn` but no route renders a password form — the email path in the
+  UI is passwordless (`startEmailLogin`/`verifyEmailLogin`), and `/api/auth/login` is broken in
+  production anyway — and `exchangeSsoCode()` has no importer in `com`. Route-level detail →
   [../cloud/routes.md](../cloud/routes.md).
 - **`src/lib/auth/AuthProvider.tsx`** — `useAuth()` context (`user`, `loading`, `signIn`, `signUp`,
-  `signOut`, `signInWithGitHub/Google`, `setSessionFromOAuth`) built on `cloud.ts`
-  (`com/src/lib/auth/AuthProvider.tsx:2-9,20-24,52-77`); `com` does **not** use the shared
+  `signOut`, `signInWithGitHub/Google`, `sendEmailCode`, `signInWithEmailCode`,
+  `setSessionFromOAuth`) built on `cloud.ts` (`com/src/lib/auth/AuthProvider.tsx#AuthContextValue`,
+  `com/src/lib/auth/AuthProvider.tsx#AuthProvider`); `com` does **not** use the shared
   `@lmthing/auth` package (it is not in `com/package.json`). `signInWithGoogle` is implemented
-  (`AuthProvider.tsx:75-77`) but no route renders a Google button — only `signInWithGitHub` is
-  destructured by `/login` and `/signup`.
+  (`AuthProvider.tsx#signInWithGoogle`) but no route renders a Google button.
+
+  `sendEmailCode(email)` is the only place the magic link's landing URL is built: it passes
+  `<origin>/callback?next=<the ?redirect= this page was opened with>` to the gateway, so the
+  post-login destination survives in the **URL** rather than in this tab's `sessionStorage` — which
+  is what makes the link work when the mail is opened in a different browser
+  (`com/src/lib/auth/AuthProvider.tsx#sendEmailCode`).
 - **`src/config/plans.ts`** — frontend plan metadata for 4 tiers (Free/Basic/Pro/Max) with budget
   windows; a display mirror of `cloud/gateway/src/lib/tiers.ts` and only one of ~10 files a new tier
   touches (`com/src/config/plans.ts:1-2,14`). Tier checklist → [../cloud/billing-and-tiers.md](../cloud/billing-and-tiers.md).

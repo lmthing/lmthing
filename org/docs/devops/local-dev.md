@@ -117,6 +117,10 @@ const DEMO_SESSION: AuthSession = {
 
 In dev, `AuthProvider` also points the com/cloud URLs at the local proxy: `com.test` / `cloud.test` when `import.meta.env.DEV` (overridable with `VITE_COM_URL` / `VITE_CLOUD_URL`) (`sdk/org/libs/auth/src/AuthProvider.tsx#resolveConfig`).
 
+### Exercising the real sign-in flow locally
+
+Demo mode above skips auth entirely. To drive the **actual** passwordless email flow against a local gateway with no mail relay, run it with `LOCAL_DEV=true` (which `make` already sets) or `EMAIL_DEV_ECHO=true`: with no transport configured, the mailer falls back to its `console` transport (the message is printed to the gateway log) and `POST /api/auth/email/start` additionally returns `dev_code` + `dev_link` in the response body, which `/login` renders as a clickable "Dev only: open the sign-in link" (`cloud/gateway/src/lib/email.ts#mailerKind`, `cloud/gateway/src/routes/auth.ts:381`, `com/src/lib/auth/SignInPanel.tsx#SignInPanel`). Point `SMTP_HOST`/`SMTP_PORT` at a local catch-all relay (with `SMTP_SECURITY=none`) to test real delivery instead. Full model → [../cloud/auth.md](../cloud/auth.md), section "Passwordless email sign-in".
+
 ## Full local backend + compute pod (minikube)
 
 For work that needs the real gateway, Postgres, LiteLLM, and a compute pod, use the `local-*` targets. Config lives in [`devops/local/`](../../../devops/local).

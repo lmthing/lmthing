@@ -8,7 +8,7 @@ a subscription buys a *tier*, and the tier's spend caps are enforced by LiteLLM 
 API key (grep for `stripe.` shows only `customers.create`, `checkout.sessions.{create,retrieve}`,
 `billingPortal.sessions.create`, `webhooks.constructEvent` — `cloud/gateway/src/routes/billing.ts:35`,
 `:78`, `:103`, `:211`; `cloud/gateway/src/routes/webhook.ts:19-23`;
-`cloud/gateway/src/routes/auth.ts:32-35`).
+`cloud/gateway/src/routes/auth.ts:51-54`).
 
 Related: [routes.md](./routes.md) (full route table) · [litellm.md](./litellm.md) ·
 [../contributing/add-a-tier.md](../contributing/add-a-tier.md) (checklist) ·
@@ -112,7 +112,7 @@ The tier name itself lives in **LiteLLM user metadata** (`metadata.tier`), writt
 `resolvePodConfig()` (`cloud/gateway/src/lib/compute.ts:L494-L504`), `/api/billing/usage`
 (`cloud/gateway/src/routes/billing.ts:L138`), `/api/billing/budget` (`:L167`), `/api/keys` POST
 (`cloud/gateway/src/routes/keys.ts:L37-L45`) and `/api/auth/me`
-(`cloud/gateway/src/routes/auth.ts:L194`). There is no `tier` column in the gateway's own
+(`cloud/gateway/src/routes/auth.ts:L213`). There is no `tier` column in the gateway's own
 Postgres schema.
 
 ### Two `Tier` fields that fail silently if you get them wrong
@@ -355,7 +355,7 @@ send (`sdk/org/libs/ui/src/chat/app/BudgetWindows.tsx:L12-L55`;
 ### `/api/auth/me` and `/api/keys`
 
 `GET /api/auth/me` echoes `{ user_id, email, tier, budget_limits, spend }` from LiteLLM
-(`cloud/gateway/src/routes/auth.ts:L186-L205`). `POST /api/keys` mints an **additional** key
+(`cloud/gateway/src/routes/auth.ts:L205-224`). `POST /api/keys` mints an **additional** key
 that inherits the user's *current* tier (models + budget windows + tpm/rpm)
 (`cloud/gateway/src/routes/keys.ts:L32-L59`); `GET /api/keys` lists them with `spend` and
 `max_budget` (`:L12-L29`). Every key carries its own budget windows — which is why

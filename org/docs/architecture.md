@@ -134,7 +134,7 @@ store/
     └── integration-<id>/  # a complete space template      → org/format/space/
 ```
 
-**Six** project-apps ship today — `blog`, `demo-feed`, `health`, `homes`, `kitchen`, `trips` (dirs under `store/projects/`; `apps[].id` in `store/projects/manifest.json`). Thirteen integration spaces ship — `integration-{demo,discord,github,google,line,lmthing,mattermost,nextcloud-talk,slack,sms,synology-chat,telegram,whatsapp}` (`store/spaces/`).
+**Six** project-apps ship today — `blog`, `demo-feed`, `health`, `homes`, `kitchen`, `trips` (dirs under `store/projects/`; `apps[].id` in `store/projects/manifest.json`). Thirteen integration spaces ship — `integration-{demo,discord,github,google,line,lmthing,mattermost,nextcloud-talk,slack,sms,synology-chat,telegram,whatsapp}` (`store/spaces/`) — plus twelve schema-agnostic **utility** spaces (`utility-{archivist,auditor,deadlines,dispatcher,enricher,importer,insights,intake,janitor,ledger,planner,validator}`, `store/spaces/`; `lmthing.kind: "utility"` in each `package.json`), which bind to whatever tables the installed project has rather than to a provider.
 
 Two install paths, both on the pod:
 

@@ -1578,9 +1578,6 @@
           "slug": "handler",
           "actions": [
             "handle"
-          ],
-          "triggers": [
-            "webhook"
           ]
         }
       ],
@@ -2738,6 +2735,77 @@
         "knowledge/whatsapp/api/endpoints.md",
         "knowledge/whatsapp/api/index.md",
         "package.json"
+      ]
+    },
+    {
+      "id": "utility-deadlines",
+      "title": "Deadlines",
+      "description": "Watches date columns across your app's tables and records approaching deadlines as alerts, on a daily sweep.",
+      "icon": "⏰",
+      "tags": [
+        "utility",
+        "reminders"
+      ],
+      "kind": "utility",
+      "settings": null,
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "computeDueItems",
+          "summary": "Window math for one watcher over one table's rows — pure, deterministic via injected `now`.",
+          "signature": "computeDueItems(rows: Record<string, unknown>[] | null | undefined, column: string, leadDays: number, nowIso: string, labelColumn?: string | null, graceDays = 1,):"
+        },
+        {
+          "name": "discoverDateColumns",
+          "summary": "Classify date-like columns from a schema listing plus sampled rows — pure, never throws.",
+          "signature": "discoverDateColumns(tables: unknown, samples: Record<string, Record<string, unknown>[]> | null | undefined,):"
+        },
+        {
+          "name": "makeDedupeKey",
+          "summary": "Stable identity for one deadline alert — pure, never throws.",
+          "signature": "makeDedupeKey(table: unknown, rowId: unknown, column: unknown, dueAt: unknown): string"
+        },
+        {
+          "name": "parseDateValue",
+          "summary": "Lenient date parser — returns a canonical ISO-8601 string (UTC) or `null`, never throws.",
+          "signature": "parseDateValue(value: unknown): string | null"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "keeper",
+          "actions": [
+            "bind",
+            "sweep",
+            "review"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/keeper/charter.md",
+        "agents/keeper/instruct.md",
+        "functions/computeDueItems.ts",
+        "functions/discoverDateColumns.ts",
+        "functions/makeDedupeKey.ts",
+        "functions/parseDateValue.ts",
+        "hooks/daily-sweep.ts",
+        "knowledge/deadlines/binding.md",
+        "knowledge/deadlines/sweeping.md",
+        "package.json",
+        "tasklists/bind/01-inventory.md",
+        "tasklists/bind/02-propose.md",
+        "tasklists/bind/03-persist.md",
+        "tasklists/bind/04-report.md",
+        "tasklists/bind/index.md",
+        "tasklists/sweep/01-load.md",
+        "tasklists/sweep/02-scan.md",
+        "tasklists/sweep/03-record.md",
+        "tasklists/sweep/04-report.md",
+        "tasklists/sweep/index.md",
+        "tests/functions.test.mjs",
+        "tests/hooks.test.mjs"
       ]
     }
   ]

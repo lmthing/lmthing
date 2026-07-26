@@ -99,12 +99,39 @@ ADD=$(api "$TOK_A" POST "/api/teams/${TEAM_ID}/members" \
   "{\"email\":\"${EMAIL_B}\",\"role\":\"viewer\"}")
 expect 'B (has an account) joins immediately' "$(printf '%s' "$ADD" | jq -r '.status')" 'added'
 
+EMAIL_C="nobody-${STAMP}@example.com"
 INV=$(api "$TOK_A" POST "/api/teams/${TEAM_ID}/members" \
-  "{\"email\":\"nobody-${STAMP}@example.com\",\"role\":\"viewer\"}")
+  "{\"email\":\"${EMAIL_C}\",\"role\":\"viewer\"}")
 expect 'an unknown email becomes a pending invite' "$(printf '%s' "$INV" | jq -r '.status')" 'invited'
+INVITE_ID=$(printf '%s' "$INV" | jq -r '.invite_id')
 
 api "$TOK_B" GET /api/teams >/dev/null
 expect 'B can list teams' "$STATUS" '200'
+
+# ── 2b. That invite is claimable once the person actually signs up ───────────
+# There is no mailer: an invite is claimed on next login, so this is the whole
+# of the invite flow and the only thing that proves the pending row is usable.
+step '2b. Claiming an invitation'
+USER_C=$(register "$EMAIL_C" 'VerifyTeams-Pw3!')
+[ -n "$USER_C" ] || { echo "could not register the invited user" >&2; exit 1; }
+TOK_C=$(mint "$USER_C" "$EMAIL_C")
+
+PENDING=$(api "$TOK_C" GET /api/teams)
+expect 'C sees the invitation waiting' \
+  "$(printf '%s' "$PENDING" | jq -r --arg i "$INVITE_ID" '[.invites[]? | select(.id==$i)] | length')" '1'
+
+api "$TOK_B" POST "/api/teams/invites/${INVITE_ID}/accept" >/dev/null
+expect "someone else's invite is not claimable" "$STATUS" '403'
+
+ACC=$(api "$TOK_C" POST "/api/teams/invites/${INVITE_ID}/accept")
+expect 'C claims the invitation' "$STATUS" '200'
+expect 'and lands in the right team' "$(printf '%s' "$ACC" | jq -r '.team_id')" "$TEAM_ID"
+
+ROSTER=$(api "$TOK_A" GET "/api/teams/${TEAM_ID}")
+expect 'the roster now holds all three' \
+  "$(printf '%s' "$ROSTER" | jq -r '.members | length')" '3'
+expect 'and the invite is no longer pending' \
+  "$(printf '%s' "$ROSTER" | jq -r '[.invites[]? | select(.id=="'"$INVITE_ID"'")] | length')" '0'
 
 # ── 3. Team tokens ───────────────────────────────────────────────────────────
 step '3. Team-scoped tokens'
@@ -155,6 +182,14 @@ pod "$TEAM_TOK_A" POST /api/projects '{"name":"team-project"}' >/dev/null
   && ok 'an editor creates a project' \
   || bad "an editor creates a project (got $STATUS)"
 
+# Creating a channel is configuring the team, so it is an editor's act; talking
+# in one is every member's. This is the seam between the two roles in the chat.
+pod "$TEAM_TOK_B" POST /api/team/channels '{"name":"viewer-channel"}' >/dev/null
+expect 'a viewer cannot create a channel' "$STATUS" '403'
+pod "$TEAM_TOK_A" POST /api/team/channels '{"name":"standup"}' >/dev/null
+[ "$STATUS" = '200' ] || [ "$STATUS" = '201' ] \
+  && ok 'an editor creates a channel' || bad "an editor creates a channel (got $STATUS)"
+
 # ── 6. Channels, and THING's memory across members ───────────────────────────
 step '6. Channels + THING in a thread'
 CH=$(pod "$TEAM_TOK_A" GET /api/team/channels)
@@ -203,7 +238,27 @@ pod "$TEAM_TOK_B2" POST /api/projects '{"name":"now-an-editor"}' >/dev/null
   && ok 'B can now write' || bad "B can now write (got $STATUS)"
 
 api "$TOK_A" PUT "/api/teams/${TEAM_ID}/members/${USER_A}" '{"role":"viewer"}' >/dev/null
-expect 'the last editor cannot be demoted' "$STATUS" '409'
+[ "$STATUS" = '200' ] && ok 'A may step down while B is an editor' \
+  || bad "A may step down while B is an editor (got $STATUS)"
+api "$TOK_B" PUT "/api/teams/${TEAM_ID}/members/${USER_B}" '{"role":"viewer"}' >/dev/null
+expect 'the LAST editor cannot be demoted' "$STATUS" '409'
+api "$TOK_B" PUT "/api/teams/${TEAM_ID}/members/${USER_A}" '{"role":"editor"}' >/dev/null
+
+# ── 7b. The team pays for itself ─────────────────────────────────────────────
+# A team's budget is its own LiteLLM principal (team-<id>), never a member's.
+step '7b. Billing'
+USAGE=$(api "$TOK_A" GET "/api/teams/${TEAM_ID}/billing/usage")
+expect 'a member can read the team usage' "$STATUS" '200'
+expect 'a fresh team is on the free tier' "$(printf '%s' "$USAGE" | jq -r '.tier')" 'free'
+
+api "$TOK_C" POST "/api/teams/${TEAM_ID}/billing/checkout" '{"tier":"basic"}' >/dev/null
+expect 'a viewer cannot start a checkout' "$STATUS" '403'
+CO=$(api "$TOK_A" POST "/api/teams/${TEAM_ID}/billing/checkout" '{"tier":"basic"}')
+expect 'an editor gets a checkout url' "$STATUS" '200'
+case "$(printf '%s' "$CO" | jq -r '.url')" in
+  https://*) ok 'and it points at Stripe' ;;
+  *)         bad "and it points at Stripe (got $(printf '%s' "$CO" | jq -r '.url'))" ;;
+esac
 
 # ── 8. Wake from scale-to-zero ───────────────────────────────────────────────
 # Only meaningful with cluster access; skipped otherwise.
@@ -218,6 +273,21 @@ if [ -x "$(dirname "${BASH_SOURCE[0]}")/cluster-kubectl.sh" ] && [ "${SKIP_WAKE:
     sleep 3
   done
   expect 'the activator wakes the team pod' "$STATUS" '200'
+fi
+
+# ── 9. Teardown ──────────────────────────────────────────────────────────────
+# Deleting a team removes its pod and its namespace — the test leaves no
+# workspace running. Do it last, and only if nothing above needed it.
+if [ "${KEEP_TEAM:-}" != '1' ]; then
+  step '9. Deleting the team'
+  api "$TOK_C" DELETE "/api/teams/${TEAM_ID}" >/dev/null
+  expect 'a viewer cannot delete the team' "$STATUS" '403'
+  api "$TOK_A" DELETE "/api/teams/${TEAM_ID}" >/dev/null
+  expect 'an editor deletes it' "$STATUS" '200'
+  api "$TOK_A" GET "/api/teams/${TEAM_ID}" >/dev/null
+  expect 'and it is gone' "$STATUS" '404'
+else
+  step "9. Teardown skipped — team ${TEAM_ID} left running"
 fi
 
 step "Result: ${pass} passed, ${fail} failed"

@@ -104,7 +104,25 @@ Both globals speak the same currency — a **JSX descriptor** `{type, props, chi
 ```
 `sdk/org/libs/ui/src/chat/app/Message.tsx:224-243` — a **string** display is parsed as Markdown (`marked`) `sdk/org/libs/ui/src/chat/app/Message.tsx#MarkdownText`; anything else goes to `renderDescriptor`.
 
-`renderDescriptor` is a recursive, case-insensitive switch over `descriptor.type` covering headings/text/strong/em/muted/kbd/code/codeblock/markdown/quote/link, media (`image`, `audio`), layout (`stack`, `row`, `columns`, `spacer`, `divider`), surfaces (`card`/`panel`, `callout`/`alert`/`banner`, `badge`/`tag`/`pill`), collections (`list`, `orderedlist`, `table`, `keyvalue`, `timeline`) and indicators (`progressbar`, `spinner`, `statcard`, `details`) `sdk/org/libs/ui/src/chat/components/render-descriptor.tsx#renderDescriptor`. Children render recursively; a `text` prop wins over children as the body `sdk/org/libs/ui/src/chat/components/render-descriptor.tsx:16-19`. An **unknown type does not throw** — it falls through to a monospace `type: <preview>` line `sdk/org/libs/ui/src/chat/components/render-descriptor.tsx:141`, and a non-descriptor value renders as a truncated preview `sdk/org/libs/ui/src/chat/components/render-descriptor.tsx:14`.
+`renderDescriptor` is a recursive, case-insensitive switch over `descriptor.type` covering headings/text/strong/em/muted/kbd/code/codeblock/markdown/quote/link, media (`image`, `audio`), layout (`stack`, `row`, `columns`, `spacer`, `divider`), surfaces (`card`/`panel`, `callout`/`alert`/`banner`, `badge`/`tag`/`pill`), collections (`list`, `orderedlist`, `table`, `keyvalue`, `timeline`) and indicators (`progressbar`, `spinner`, `statcard`, `details`) `sdk/org/libs/ui/src/chat/components/render-descriptor.tsx#renderDescriptor`. Children render recursively; a `text` prop wins over children as the body `sdk/org/libs/ui/src/chat/components/render-descriptor.tsx#renderDescriptor`.
+
+It is the **only** descriptor renderer on the web target, and it is exported from the package so a surface outside `/chat` draws an agent answer the same way `sdk/org/libs/ui/src/chat/index.ts:9`.
+
+#### The allowlist: only shipped components render
+
+A type must be a design-system catalog component or one of the renderer aliases (`fragment`, `h1`–`h4`, `p`, `span`, `inline`, `img`/`image`, `audio`) `sdk/org/libs/core/src/ui/descriptor.ts#isRenderableType`. Anything else is **unwrapped**: its children still render, the box is dropped, and the descriptor itself never reaches the reader `sdk/org/libs/ui/src/chat/components/render-descriptor.tsx#renderDescriptor`.
+
+That is the fix for a real defect, not defensive coding. The fallback used to be a monospace `type: <props preview>` line, so an answer the renderer did not recognise arrived at the reader as its own JSON. The same rule applies server-side before a descriptor is ever stored `sdk/org/libs/core/src/ui/descriptor.ts#sanitizeDescriptor`.
+
+A non-descriptor value (an agent that returned data rather than UI) still renders as a truncated preview `sdk/org/libs/ui/src/chat/components/render-descriptor.tsx#renderDescriptor` — that is data, not a component, and the allowlist only rules on components.
+
+#### A descriptor that arrived as text
+
+Between the sandbox and a reader a descriptor may be serialized: a channel log line, a `result` flattened by an older writer. `toRenderableDescriptor` parses a string back to a descriptor when it is one, and returns `null` for ordinary prose so the caller renders markdown `sdk/org/libs/ui/src/chat/components/render-descriptor.tsx#toRenderableDescriptor` · `sdk/org/libs/core/src/ui/descriptor.ts#parseDescriptorPayload`.
+
+#### Both targets
+
+Every case renders `@lmthing/ui` primitives, which fork per platform, so the same function draws the transcript on web and on React Native. Two rules make that true and are easy to break: a **raw host tag** (`<h1>`) has no view config on React Native and throws on mount, and React Native refuses a **bare string inside a View**, so content going into a `Box`/`Col`/`Row`/`ListItem`/table cell is wrapped in a `Text` first `sdk/org/libs/ui/src/chat/components/render-descriptor.tsx#inView`. Neither is visible to a jsdom test — `isWeb` is always true there and `react-test-renderer` does not enforce the string rule — so the proof is the Metro suite `sdk/org/libs/ui/metro/suites/descriptor.tsx`.
 
 If the block came from a sub-agent node (kind ≠ `session`/`run`), an `AttributionButton` above it opens that node in the inspector `sdk/org/libs/ui/src/chat/app/Message.tsx#AttributionButton,231-233`.
 
@@ -142,7 +160,7 @@ Once answered or cancelled the form goes `inert` (pointer-events off, dimmed) an
 
 The package also exports a **second, simpler family** of renderers `sdk/org/libs/ui/src/chat/index.ts:5-8`. They are used by `ReplChatView` `sdk/org/libs/ui/src/chat/components/ReplChatView.tsx:79-92` — the connected-session view shared by the embeddable `AgentChatPanel` (the Studio THING dock) and project-app `<Chat>` pages `sdk/org/libs/cli/src/app/runtime/chat.tsx:121-133` — and by the CLI's `--web` DevTools app `sdk/org/libs/cli/src/web/app.tsx:100-112` — **not** by the `/chat` `ChatShell`, which renders via `Message` + `renderDescriptor` instead.
 
-- `DisplayBlock` — a smaller descriptor switch (h1–h3, p, span, code, card, alert, badge, button, markdown; everything else → `<span>`) `sdk/org/libs/ui/src/chat/components/DisplayBlock.tsx#renderNode,104-106`.
+- `DisplayBlock` — **delegates to `renderDescriptor`**, so these views draw exactly what the `/chat` transcript draws `sdk/org/libs/ui/src/chat/components/DisplayBlock.tsx#DisplayBlock`. It used to carry its own, much smaller switch (h1–h3, p, span, code, card, alert, badge, button, markdown; everything else → `<span>`), which meant the components an agent actually reaches for rendered as bare text with their props discarded — and the prop-only ones (`Table` has no children, only `columns`/`rows`) rendered as nothing at all, while a non-descriptor was `JSON.stringify`d at the reader. A string display goes to Markdown, matching the transcript, unless it parses back to a descriptor.
 - `AskBlock` — consent card first, then a `textinput`/`select`/`checkbox` form built from the descriptor's children, submitting a single value when there is one field and an object otherwise; also offers Cancel `sdk/org/libs/ui/src/chat/components/AskBlock.tsx#AskBlock,89-138`.
 - `VariablesBlock` — the monospace `VARIABLES` panel (name → value) `sdk/org/libs/ui/src/chat/components/VariablesBlock.tsx#VariablesBlock`. The `/chat` surface shows variables in the Inspector's `variables` tab instead `sdk/org/libs/ui/src/chat/app/inspector.tsx#VariablesTab`.
 

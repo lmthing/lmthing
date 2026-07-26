@@ -169,6 +169,52 @@ test) can wait for them
 A failed turn is posted into the channel as a `system` message rather than
 disappearing.
 
+### What THING's answer is stored as
+
+THING answers in JSX far more often than in prose — `display(<Stack>…)` is the
+house style — and a JSX answer is a `{type, props, children}` descriptor, not a
+string. So a `thing` message carries **two** fields
+`sdk/org/libs/cli/src/server/team-channels.ts#ChannelMessage`:
+
+| Field | What it holds |
+|---|---|
+| `blocks?` | every `display()` descriptor of the turn, in order, reduced to allowed components |
+| `text` | the flattened plain text — what a client that cannot draw components shows, and what a search or a notification reads |
+
+The reply is stored as **structure**, not as the string it flattens to. This used
+to end at `JSON.stringify(result)`, and because the append-only log is the only
+record of the answer, a channel that stored braces could only ever render braces
+— no client fix could recover it
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#runThingReply`.
+
+Three rules shape what lands in `blocks`
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#renderResult`:
+
+1. **Every display of the turn, not just the last.** An agent that displayed a
+   heading and then a table said both things, and a channel post is the whole
+   answer. `runHeadlessThreaded` returns them as `displays`
+   `sdk/org/libs/cli/src/server/session-manager.ts#HeadlessRunResult`; `result`
+   (the last one, or the final history entry) is the fallback for a caller that
+   reported none.
+2. **Only allowed components survive.** A type outside the design-system catalog
+   is unwrapped — its children are kept, the box is dropped — so a channel is not
+   the place to discover a component nobody ships
+   `sdk/org/libs/core/src/ui/descriptor.ts#sanitizeDescriptor`.
+3. **A descriptor that arrived serialized is still a descriptor.** A string that
+   parses back to one is treated as one, not posted as prose
+   `sdk/org/libs/core/src/ui/descriptor.ts#parseDescriptorPayload`.
+
+A prose answer stores only `text`, unchanged.
+
+The channels UI renders `blocks` through the SAME `renderDescriptor` the `/chat`
+transcript uses, so an answer looks the same wherever it is read and works on
+both targets `sdk/org/apps/web/src/routes/team/$teamId/channels.tsx#MessageBody`.
+`blocks` is newer than the log, so a message from before it existed still holds
+the descriptor stringified into `text`; the UI parses that back rather than
+showing a member the braces forever. A member's own message stays prose —
+rendering a colleague's text as markdown would let a stray `#` restyle what they
+typed. Rendering detail → [../../chat/views.md](../../chat/views.md).
+
 > **Known limitation.** Headless runs fail closed on consent-gated capabilities,
 > so THING-in-a-channel cannot use a connection that would prompt for consent —
 > the consent prompter is only wired for interactive sessions

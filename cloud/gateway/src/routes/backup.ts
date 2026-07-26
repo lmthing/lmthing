@@ -17,7 +17,7 @@ import {
   setBackupInstallation,
   setBackupSettings,
 } from "../lib/db.js";
-import { getEnvVars, setEnvVars } from "../lib/compute.js";
+import { getEnvVars, setEnvVars, userPrincipal } from "../lib/compute.js";
 import type { Env } from "../types.js";
 
 const backup = new Hono<Env>();
@@ -143,9 +143,9 @@ backup.put("/config", authMiddleware, async (c) => {
     // Inject operational config into the pod's user-env secret. GET+merge+PUT
     // (setEnvVars replaces the whole secret). No GitHub token is injected — the
     // pod fetches short-lived installation tokens from POST /token on demand.
-    const existing = await getEnvVars(user.id);
+    const existing = await getEnvVars(userPrincipal(user.id));
     const backupJwt = await signBackupToken(user.id);
-    await setEnvVars(user.id, {
+    await setEnvVars(userPrincipal(user.id), {
       ...existing,
       GITHUB_BACKUP_REPO: repo,
       GITHUB_BACKUP_AUTO: auto ? "1" : "0",

@@ -22,8 +22,8 @@ knowledge base" anywhere in the repo.
 One object literal. Everything else in the gateway iterates `TIERS` or resolves a tier by
 name/price id, so **no route code changes** (`getTierByPriceId`/`getTierByName`,
 `cloud/gateway/src/lib/tiers.ts:164-175`; consumers: `cloud/gateway/src/routes/billing.ts:70`,
-`cloud/gateway/src/routes/keys.ts:45`, `cloud/gateway/src/routes/compute.ts:102`,
-`cloud/gateway/src/routes/webhook.ts:44`, `cloud/gateway/src/lib/compute.ts:437-447`).
+`cloud/gateway/src/routes/keys.ts:45`, `cloud/gateway/src/routes/compute.ts:130`,
+`cloud/gateway/src/routes/webhook.ts:44`, `cloud/gateway/src/lib/compute.ts:494-504`).
 
 ---
 
@@ -71,12 +71,12 @@ Field by field:
 | Field | Rules | Code |
 |---|---|---|
 | **key** (`pro`) | This is the tier's identity everywhere: the `tier` string in `POST /api/billing/checkout` (`TIERS[tier]`), the `metadata.tier` LiteLLM writes back, and the `plan.id` on the pricing page. | `cloud/gateway/src/routes/billing.ts:70`; `cloud/gateway/src/lib/tiers.ts#getTierByName` |
-| **`name`** | ⚠️ **`name.toLowerCase()` must equal the record key.** LiteLLM stores `metadata: { tier: tier.name.toLowerCase() }` (`createUser`/`generateKey`/`updateUserTier`), and every read path feeds that string back into `getTierByName()` → `TIERS[name]`. A `name: "Team Plus"` under key `team` resolves to `null` forever after and the user silently falls back to `free`. | `cloud/gateway/src/lib/litellm.ts#createUser`, `:52`, `:67`; `cloud/gateway/src/lib/tiers.ts#getTierByName`; `cloud/gateway/src/routes/compute.ts:27-35` |
+| **`name`** | ⚠️ **`name.toLowerCase()` must equal the record key.** LiteLLM stores `metadata: { tier: tier.name.toLowerCase() }` (`createUser`/`generateKey`/`updateUserTier`), and every read path feeds that string back into `getTierByName()` → `TIERS[name]`. A `name: "Team Plus"` under key `team` resolves to `null` forever after and the user silently falls back to `free`. | `cloud/gateway/src/lib/litellm.ts#createUser`, `:52`, `:67`; `cloud/gateway/src/lib/tiers.ts#getTierByName`; `cloud/gateway/src/routes/compute.ts:32-40` |
 | **`stripePriceId`** | `null` for a free tier; otherwise `process.env.STRIPE_PRICE_<TIER> \|\| ""`. `getTierByPriceId()` skips falsy ids, and `/api/billing/checkout` 400s on a tier without one. | `cloud/gateway/src/lib/tiers.ts:122`, `:164-171`; `cloud/gateway/src/routes/billing.ts:70-73` |
 | **`budgetLimits`** | Array of `{ duration, maxBudget }` rolling windows (LiteLLM duration strings, `"1d"`/`"7d"`/`"30d"`). `toBudgetLimits()` maps them onto the LiteLLM payload; a request is rejected once **any** window is exhausted. `monthlyBudget()` reads the `30d` window as the headline. | `cloud/gateway/src/lib/tiers.ts#BudgetWindow`, `:71-76`, `:179-193` |
 | **`models`** | Normally `[...TIER_MODELS]` — `[...ENABLED_MODELS, ...TRANSCRIBE_MODELS]`. A model missing from a key's allowlist gets a LiteLLM `key_model_access_denied` 403. Adding a **model** (not a tier) is a different recipe → [add-a-provider.md](./add-a-provider.md#a-add-a-model-to-the-managed-lmthingcloud-provider-litellm). | `cloud/gateway/src/lib/tiers.ts:7-25` |
 | **`tpmLimit` / `rpmLimit`** | Stamped on the LiteLLM user *and* key. Today all four tiers use `1_000_000` / `5_000`; if you introduce a genuinely lower tier, know that a stale/low tpm 429s THING's large system prompt on the first turn (that is why `resync-tier-budgets.ts` re-applies them). | `cloud/gateway/src/lib/litellm.ts#createUser`, `:49-50`; `cloud/scripts/resync-tier-budgets.ts:169-174` |
-| **`pod`** | `PodConfig` → the K8s Deployment. Omit `cpuRequest`/`memRequest` to keep the pod **Guaranteed** (`request == limit`); set them below the limits for a **Burstable**, densely-packed pod (what `free` does). `idleTtlMinutes` → `IDLE_TTL_MINUTES`, `maxSessions` → `MAX_SESSIONS`. | `cloud/gateway/src/lib/tiers.ts#PodConfig`, `:109-116`; `cloud/gateway/src/lib/compute.ts:226-241` |
+| **`pod`** | `PodConfig` → the K8s Deployment. Omit `cpuRequest`/`memRequest` to keep the pod **Guaranteed** (`request == limit`); set them below the limits for a **Burstable**, densely-packed pod (what `free` does). `idleTtlMinutes` → `IDLE_TTL_MINUTES`, `maxSessions` → `MAX_SESSIONS`. | `cloud/gateway/src/lib/tiers.ts#PodConfig`, `:109-116`; `cloud/gateway/src/lib/compute.ts:273-288` |
 | **`cron`** | **Required — see below.** | `cloud/gateway/src/lib/tiers.ts#CronPolicy`, `:87` |
 
 ### `cron` is not optional — omitting it breaks cron for every user on the tier
@@ -96,10 +96,10 @@ the pod calls to publish its **entire** cron schedule — dereferences it uncond
   …
     await replaceCronManifest(userId, jobs, policy.minIntervalMs);
 ```
-— `cloud/gateway/src/routes/compute.ts:101-128`. With `cron` absent, `policy` is `undefined` and
+— `cloud/gateway/src/routes/compute.ts:129-156`. With `cron` absent, `policy` is `undefined` and
 the first property read throws a `TypeError`; the route never persists the manifest (the handler's
 own `catch` turns the last one into `{ error: "cron-manifest failed" }`, 500 —
-`cloud/gateway/src/routes/compute.ts:130-133`). The manifest is **replace-all**, so the user's cron
+`cloud/gateway/src/routes/compute.ts:158-161`). The manifest is **replace-all**, so the user's cron
 hooks stop firing entirely. `tsc` catches this (`cron: CronPolicy` is non-optional,
 `cloud/gateway/src/lib/tiers.ts#Tier.cron`) — never silence it with a cast.
 
@@ -208,7 +208,7 @@ Stripe customer portal (`sdk/org/libs/ui/src/elements/settings/billing/index.tsx
    (`cloud/scripts/resync-tier-budgets.ts:33`) and re-applies budgets **and** models **and**
    tpm/rpm to every key a user holds (`:128-140`, `:162-174`).
 4. **Verify** end to end: subscribe on `/pricing` → Stripe `customer.subscription.created` →
-   `getTierByPriceId` → `updateUserTier` + `ensureUserPod(tier.pod)`
+   `getTierByPriceId` → `updateUserTier` + `ensurePod(tier.pod)`
    (`cloud/gateway/src/routes/webhook.ts:44-72`); then `GET /api/billing/usage` should report the
    new `tier` and its `budgets[]` (`cloud/gateway/src/routes/billing.ts:136-145`).
 

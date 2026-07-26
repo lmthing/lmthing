@@ -1,0 +1,167 @@
+# Lua script: routes to the TEAM's pod using the `team` claim, and wakes it when
+# it has scaled to zero. Mirrors computer-lua-routing, with two differences: the
+# upstream is keyed on the team rather than the caller, and a token WITHOUT a
+# team claim is rejected — that is what stops a personal token from reaching a
+# team workspace (it validates fine against the same JWKS, but the JWT filter
+# emits no x-team-id header for it).
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyExtensionPolicy
+metadata:
+  name: team-lua-routing
+  namespace: gateway
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: team-api-proxy
+  lua:
+    - type: Inline
+      inline: |
+        function envoy_on_request(request_handle)
+          request_handle:headers():remove("x-dynamic-host-header")
+
+          -- x-team-id / x-user-id / x-lmthing-role reach here from the JWT
+          -- filter's claimToHeaders, which runs first and OVERWRITES any
+          -- same-named header the client sent. That is what makes them
+          -- unspoofable; the pod trusts them absolutely.
+          local team_id = request_handle:headers():get("x-team-id")
+          if team_id == nil then
+            -- A personal token validates against the same JWKS but carries no
+            -- team claim, so no header is emitted and it stops here.
+            request_handle:respond(
+              {[":status"] = "401", ["content-type"] = "text/plain"},
+              "missing team claim"
+            )
+            return
+          end
+
+          if not string.match(team_id, "^[A-Za-z0-9_-]+$") then
+            request_handle:respond(
+              {[":status"] = "400", ["content-type"] = "text/plain"},
+              "invalid team id"
+            )
+            return
+          end
+
+          -- Defence in depth: every token the gateway mints with a `team` claim
+          -- also carries a role, so a missing/unknown role means the header did
+          -- not come from claimToHeaders. Fail closed rather than let the pod
+          -- decide what an unrecognised role may do.
+          local role = request_handle:headers():get("x-lmthing-role")
+          if role ~= "viewer" and role ~= "editor" then
+            request_handle:respond(
+              {[":status"] = "401", ["content-type"] = "text/plain"},
+              "missing or invalid role claim"
+            )
+            return
+          end
+
+          local upstream = "lmthing.team-" .. team_id .. ".svc.cluster.local:8080"
+          request_handle:headers():replace("x-dynamic-host-header", upstream)
+
+          -- Stash context for the activator (envoy_on_response can't read request
+          -- headers): the validated team JWT (the gateway wakes the pod named by
+          -- its `team` claim) + whether this is a document navigation.
+          local token = nil
+          local auth = request_handle:headers():get("authorization")
+          if auth ~= nil and string.sub(auth, 1, 7) == "Bearer " then
+            token = string.sub(auth, 8)
+          end
+          if token == nil then
+            local cookie = request_handle:headers():get("cookie")
+            if cookie ~= nil then token = string.match(cookie, "access_token=([^;]+)") end
+          end
+          if token == nil then
+            token = string.match(request_handle:headers():get(":path"), "[?&]access_token=([^&]+)")
+          end
+          local rmd = request_handle:streamInfo():dynamicMetadata()
+          if token ~= nil then rmd:set("activator", "token", token) end
+          rmd:set("activator", "doc", request_handle:headers():get("sec-fetch-dest") == "document")
+        end
+
+        -- The team's pod is scaled to zero (Envoy has no Service endpoint → a
+        -- locally-generated 503/504). Wake it via the always-on gateway and hand
+        -- the caller a self-healing "waking…" response so it recovers on its own.
+        function envoy_on_response(response_handle)
+          local status = response_handle:headers():get(":status")
+          if status ~= "503" and status ~= "504" then return end
+          -- Only Envoy's own no-endpoint reply lacks this upstream-timing header; a
+          -- 503 the pod itself returned (e.g. memory pressure) has it → pass through.
+          if response_handle:headers():get("x-envoy-upstream-service-time") ~= nil then return end
+
+          local md = response_handle:streamInfo():dynamicMetadata():get("activator")
+          local token = md and md["token"]
+          if token ~= nil then
+            -- Fire-and-forget POST /api/compute/wake. The gateway reads the token's
+            -- `team` claim and wakes the TEAM's pod, not the caller's own
+            -- (cloud/gateway/src/routes/compute.ts#resolveWakePrincipal).
+            -- 5th arg true = asynchronous.
+            response_handle:httpCall(
+              "gateway-activator",
+              {
+                [":method"] = "POST",
+                [":path"] = "/api/compute/wake",
+                [":authority"] = "gateway",
+                ["authorization"] = "Bearer " .. token,
+              },
+              "", 2000, true)
+          end
+
+          response_handle:headers():replace("retry-after", "2")
+          if md and md["doc"] then
+            local html = [[<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Waking the team workspace…</title><style>html{color-scheme:light dark}body{margin:0;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,sans-serif;gap:1.25rem}.s{width:2.5rem;height:2.5rem;border:3px solid;border-top-color:transparent;border-radius:50%;animation:r 1s linear infinite;opacity:.55}p{opacity:.7;font-size:.95rem;margin:0}@keyframes r{to{transform:rotate(360deg)}}</style><div class=s></div><p id=m>Waking the team workspace…</p><script>var t=Date.now(),d={n:0,t:0};try{d=JSON.parse(sessionStorage.lm_wake)}catch(e){}if(t-d.t>30000){d.n=0}d.n++;d.t=t;sessionStorage.lm_wake=JSON.stringify(d);if(d.n>28){sessionStorage.lm_wake='';document.getElementById('m').textContent='Still waking — tap to retry';document.body.style.cursor='pointer';document.body.onclick=function(){location.reload()}}else{setTimeout(function(){location.reload()},900)}</script>]]
+            response_handle:headers():replace("content-type", "text/html; charset=utf-8")
+            response_handle:body(true):setBytes(html)
+          else
+            response_handle:headers():replace("content-type", "application/json")
+            response_handle:body(true):setBytes('{"waking":true}')
+          end
+        end
+
+---
+# JWT validation (gateway-issued HS256) — projects the team-token claims into
+# request headers. These four headers are the pod's ONLY source of caller
+# identity: it has no auth of its own and trusts its network position, so every
+# value here must come from the validated token. Envoy's JWT filter OVERWRITES
+# any client-supplied header of the same name, which is what makes
+# `x-lmthing-role` unspoofable.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: team-jwt
+  namespace: gateway
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: team-api-proxy
+  jwt:
+    providers:
+      - name: gateway
+        # The team-scoped token minted by POST /api/teams/:teamId/token —
+        # gateway-issued HS256, no iss/aud, validated against the same local
+        # JWKS (oct key) as every other surface, from the gateway-jwt-jwks
+        # ConfigMap created out-of-band so the signing secret never enters git.
+        extractFrom:
+          headers:
+            - name: Authorization
+              valuePrefix: "Bearer "
+          # WebSockets cannot set headers, so the channel and agent sockets pass
+          # the team token as ?access_token=… — do not remove this.
+          params:
+            - access_token
+        claimToHeaders:
+          - claim: sub
+            header: x-user-id
+          - claim: email
+            header: x-user-email
+          - claim: team
+            header: x-team-id
+          - claim: role
+            header: x-lmthing-role
+        localJWKS:
+          type: ValueRef
+          valueRef:
+            group: ""
+            kind: ConfigMap
+            name: gateway-jwt-jwks

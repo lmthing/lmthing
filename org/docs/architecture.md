@@ -8,7 +8,7 @@ For the doc hub and the authoring/runtime/serving planes, start at [README.md](.
 
 ## The shape of the system, in one paragraph
 
-lmthing is a fleet of **static single-page apps** plus **one shared backend** plus **one runtime per user**. Seven product SPAs (`com/ social/ team/ store/ space/ blog/ casa/`) and one *unified* SPA (`sdk/org/apps/web/`, which is the chat + studio + computer surfaces in a single build) are all React 19 / Vite / TanStack Router / Tailwind 4 bundles served by nginx (e.g. `com/package.json`, `store/package.json` — `react ^19`, `vite ^8`, `@tanstack/react-router`, `tailwindcss ^4`). None of them hold server code. Everything server-side — auth, billing, LLM proxying, compute-pod control, backups, inbound webhooks — lives in `cloud/`, a Hono/Node **Gateway** plus an upstream **LiteLLM** proxy on Kubernetes (`cloud/gateway/src/index.ts:28-38`). Each logged-in user gets a private, single-tenant **compute pod** (`@lmthing/cli`, image `compute:latest`) that the gateway provisions into a `user-<id>` namespace (`cloud/gateway/src/lib/compute.ts#createUserPod` `createUserPod`); that pod is where the THING agent's model-authored TypeScript actually runs, in a QuickJS WASM sandbox, and it also serves the unified SPA and any installed project-app.
+lmthing is a fleet of **static single-page apps** plus **one shared backend** plus **one runtime per user**. Seven product SPAs (`com/ social/ team/ store/ space/ blog/ casa/`) and one *unified* SPA (`sdk/org/apps/web/`, which is the chat + studio + computer surfaces in a single build) are all React 19 / Vite / TanStack Router / Tailwind 4 bundles served by nginx (e.g. `com/package.json`, `store/package.json` — `react ^19`, `vite ^8`, `@tanstack/react-router`, `tailwindcss ^4`). None of them hold server code. Everything server-side — auth, billing, LLM proxying, compute-pod control, backups, inbound webhooks — lives in `cloud/`, a Hono/Node **Gateway** plus an upstream **LiteLLM** proxy on Kubernetes (`cloud/gateway/src/index.ts:29-39`). Each logged-in user gets a private, single-tenant **compute pod** (`@lmthing/cli`, image `compute:latest`) that the gateway provisions into a `user-<id>` namespace (`cloud/gateway/src/lib/compute.ts#createPod` `createPod`); that pod is where the THING agent's model-authored TypeScript actually runs, in a QuickJS WASM sandbox, and it also serves the unified SPA and any installed project-app.
 
 ---
 
@@ -90,7 +90,7 @@ graph TD
 
 There is **no other server** in the monorepo. `cloud/` is two processes on Kubernetes plus supporting services, all in the `lmthing` namespace:
 
-- **Gateway** (`cloud/gateway/`, **Hono on Node 24**, port 3000 — `cloud/gateway/package.json:12-13`, `cloud/gateway/Dockerfile:1`) mounts nine route modules under `/api/*`: `auth`, `keys`, `billing`, `stripe/webhook`, `compute`, `backup`, `inbound`, `status`, `issues` (`cloud/gateway/src/index.ts:28-38`). It is the token issuer, the Stripe integration, the LiteLLM key manager, and the compute-pod controller.
+- **Gateway** (`cloud/gateway/`, **Hono on Node 24**, port 3000 — `cloud/gateway/package.json:12-13`, `cloud/gateway/Dockerfile:1`) mounts nine route modules under `/api/*`: `auth`, `keys`, `billing`, `stripe/webhook`, `compute`, `backup`, `inbound`, `status`, `issues` (`cloud/gateway/src/index.ts:29-39`). It is the token issuer, the Stripe integration, the LiteLLM key manager, and the compute-pod controller.
 - **LiteLLM** (upstream image) proxies `/v1/*` OpenAI-compatible traffic to Azure AI Foundry and enforces per-user spend caps.
 - **render** — an in-cluster headless-Chromium service backing agent `webSearch`/`webFetch`.
 - **Zitadel** — the identity store (user records, password verification, GitHub IDP); it never mints the tokens clients carry.
@@ -107,8 +107,8 @@ The tier table is defined once in `cloud/gateway/src/lib/tiers.ts` and consumed 
 
 Every logged-in user gets a single-tenant runtime — **not** a shared backend. The gateway provisions it into a dedicated `user-<id>` namespace on first use:
 
-- `createUserPod(userId, pod)` creates the namespace, an image-pull secret, a **1Gi** PersistentVolumeClaim, a `user-env` secret, a Deployment named `lmthing`, and a Service (`cloud/gateway/src/lib/compute.ts:543-660`). Default pod size is `500m` CPU / `1Gi` memory (`cloud/gateway/src/lib/compute.ts#DEFAULT_POD_CONFIG`, sized per tier).
-- `ensureUserPod(userId, pod)` is the idempotent entry point: it creates everything on first use, else scales/updates the existing Deployment (`cloud/gateway/src/lib/compute.ts#ensureUserPod`).
+- `createPod(userId, pod)` creates the namespace, an image-pull secret, a **1Gi** PersistentVolumeClaim, a `user-env` secret, a Deployment named `lmthing`, and a Service (`cloud/gateway/src/lib/compute.ts:601-714`). Default pod size is `500m` CPU / `1Gi` memory (`cloud/gateway/src/lib/compute.ts#DEFAULT_POD_CONFIG`, sized per tier).
+- `ensurePod(userId, pod)` is the idempotent entry point: it creates everything on first use, else scales/updates the existing Deployment (`cloud/gateway/src/lib/compute.ts#ensurePod`).
 - The image is `lmthingacr.azurecr.io/compute:latest` (`cloud/gateway/src/lib/compute.ts#ACR_REGISTRY,69`), a build of `@lmthing/cli`.
 
 Inside the pod, `lmthing serve` (the bare `lmthing` command) runs one HTTP+WS server that:
@@ -160,7 +160,7 @@ sequenceDiagram
 
     U->>GW: login → HS256 access JWT (Zitadel verifies identity)
     U->>GW: POST /api/compute/ensure
-    GW->>POD: provision user-<id> pod (createUserPod / scale)
+    GW->>POD: provision user-<id> pod (createPod / scale)
     U->>SPA: type a message
     SPA->>POD: POST /api/sessions + WS /api/ws (trace)
     POD->>RT: run turn loop (inject capability-gated globals)
@@ -182,7 +182,7 @@ Notes grounding each hop:
 
 Two other flows worth naming:
 
-- **Inbound webhooks** — a public per-user broker `POST|GET /api/inbound/:userToken/:path` on the gateway forwards to the pod's dispatcher (`cloud/gateway/src/routes/inbound.ts:51-165`); the pod turns it into an event on the unified event pipeline (`emitEvent` + event hooks).
+- **Inbound webhooks** — a public per-user broker `POST|GET /api/inbound/:userToken/:path` on the gateway forwards to the pod's dispatcher (`cloud/gateway/src/routes/inbound.ts:52-166`); the pod turns it into an event on the unified event pipeline (`emitEvent` + event hooks).
 - **Backup** — the pod's PVC workspace can be pushed to a user-authorized GitHub App repo; the gateway mints a 365d backup token and holds the install config (`cloud/gateway/src/routes/backup.ts`). This is optional persistence, not the primary store.
 
 ---

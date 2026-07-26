@@ -22,10 +22,22 @@ Besides the user session pair, `tokens.ts` mints four long-lived, single-purpose
 
 | Function | `aud` | TTL | Purpose |
 |---|---|---|---|
-| `signBackupToken` / `verifyBackupToken` | `backup` | `365d` | Pod exchanges it at `POST /api/backup/token` for a short-lived GitHub App token; injected into the pod's `user-env` secret `cloud/gateway/src/lib/tokens.ts:65-87` |
-| `signComputeToken` / `verifyComputeToken` | `compute` | `365d` | Pod's autonomous callbacks (self-idle, cron-manifest); userId is taken from the verified subject, never the request body `cloud/gateway/src/lib/tokens.ts:99-121` |
-| `signInstallState` / `verifyInstallState` | `backup-install` | `10m` | Signed state carried through the GitHub App install redirect; extra claim `rt` = redirectTo `cloud/gateway/src/lib/tokens.ts:126-156` |
-| `signInboundToken` / `verifyInboundToken` | `inbound` | `365d` | Embedded in a per-user public inbound-webhook URL; resolves which pod to wake `cloud/gateway/src/lib/tokens.ts:170-194` |
+| `signBackupToken` / `verifyBackupToken` | `backup` | `365d` | Pod exchanges it at `POST /api/backup/token` for a short-lived GitHub App token; injected into the pod's `user-env` secret `cloud/gateway/src/lib/tokens.ts:122-144` |
+| `signComputeToken` / `verifyComputeToken` | `compute` | `365d` | Pod's autonomous callbacks (self-idle, cron-manifest); userId is taken from the verified subject, never the request body `cloud/gateway/src/lib/tokens.ts:156-178` |
+| `signInstallState` / `verifyInstallState` | `backup-install` | `10m` | Signed state carried through the GitHub App install redirect; extra claim `rt` = redirectTo `cloud/gateway/src/lib/tokens.ts:183-213` |
+| `signInboundToken` / `verifyInboundToken` | `inbound` | `365d` | Embedded in a per-user public inbound-webhook URL; resolves which pod to wake `cloud/gateway/src/lib/tokens.ts:227-251` |
+
+### The team token
+
+Separate from both the session pair and the service tokens: a **team-scoped access token**, minted by `POST /api/teams/:teamId/token` after a membership check `cloud/gateway/src/lib/tokens.ts#signTeamToken`. Same secret and algorithm, no `aud`, TTL **1 hour** `cloud/gateway/src/lib/tokens.ts#TEAM_TTL`.
+
+It carries `sub` = the member's user id and `email`, plus two extra claims the edge reads: `team` (the team id) and `role` (`viewer` or `editor`, read from the database at mint time, never from the client). A browser on lmthing.team cannot use a personal token, because the edge routes by the `team` claim — a personal token would resolve to the member's own pod. `verifyTeamToken` requires a string `team` claim and a known role, so a personal token can never satisfy it `cloud/gateway/src/lib/tokens.ts#verifyTeamToken`.
+
+The one-hour TTL *is* the propagation mechanism for authorization changes: a role change or a removal takes effect on the next silent re-mint rather than lingering for a browser session.
+
+> A team token also satisfies `verifyAccessToken`, since it carries `sub` and `email` `cloud/gateway/src/lib/tokens.ts#verifyAccessToken`. That grants nothing beyond the member's own identity, which they already hold — `sub` is always the member, never the team.
+
+Full model (tables, roles, the principal key) → [./teams.md](./teams.md).
 
 ## Auth middleware
 
@@ -36,7 +48,7 @@ Besides the user session pair, `tokens.ts` mints four long-lived, single-purpose
 3. Try `verifyAccessToken(token)` — the normal path for gateway-issued tokens (OAuth + password logins) `cloud/gateway/src/middleware/auth.ts:30-35`.
 4. **Fallback**: Zitadel introspection at `POST {ZITADEL_URL}/oauth/v2/introspect` with HTTP Basic (`ZITADEL_CLIENT_ID:ZITADEL_CLIENT_SECRET`) for any legacy tokens; requires the response `active` plus `sub` and string `email` `cloud/gateway/src/middleware/auth.ts#authMiddleware`.
 
-CORS is applied to all `/api/*` with `origin: "*"` and allowed headers `Content-Type`/`Authorization` `cloud/gateway/src/index.ts:19-26`; the auth router is mounted at `/api/auth` `cloud/gateway/src/index.ts:30`.
+CORS is applied to all `/api/*` with `origin: "*"` and allowed headers `Content-Type`/`Authorization` `cloud/gateway/src/index.ts:20-27`; the auth router is mounted at `/api/auth` `cloud/gateway/src/index.ts:31`.
 
 ## Register / login / OAuth / refresh
 
@@ -77,7 +89,7 @@ Other lmthing.\* SPAs delegate login to com/ via a single-use code exchanged for
 - `POST /sso/create` (JWT): mints a 32-byte hex `code` with a **60-second** TTL and stores it via `db.insertSsoCode(user.id, code, redirect_uri, app, expiresAt)` `cloud/gateway/src/routes/auth.ts:236-258`.
 - `POST /sso/exchange` (public): `db.findAndConsumeSsoCode(code, redirect_uri)` atomically consumes the row, then `zitadel.getUserById` + `signTokens` return `{ access_token, refresh_token, expires_at, user: { id, email } }` and best-effort provision `cloud/gateway/src/routes/auth.ts:261-298`.
 
-The `sso_codes` table (id uuid, user_id **text**, code unique, redirect_uri, app, expires_at, used_at, created_at) is created idempotently by `ensureSchema()` on gateway boot `cloud/gateway/src/lib/db.ts:99-114`, which runs before the server starts serving `cloud/gateway/src/index.ts:48-51`.
+The `sso_codes` table (id uuid, user_id **text**, code unique, redirect_uri, app, expires_at, used_at, created_at) is created idempotently by `ensureSchema()` on gateway boot `cloud/gateway/src/lib/db.ts:99-114`, which runs before the server starts serving `cloud/gateway/src/index.ts:50-53`.
 
 ### Client library `@lmthing/auth` (`sdk/org/libs/auth/`)
 
@@ -120,4 +132,4 @@ The register/provision flow issues the first key automatically `cloud/gateway/sr
 - **There is no working email/password path to a gateway JWT in production.** `/register` succeeds, but `POST /api/auth/login` returns `{"error":"password not supported"}` because the Zitadel OIDC client has no password grant — [../../.issues/zitadel-password-login-disabled.md](../../../.issues/zitadel-password-login-disabled.md). GitHub OAuth and `/sso/exchange` are the only real login paths; hand-minting a JWT (above) is the test workaround.
 - **Two different demo identities.** The client's `DEMO_SESSION` user is `demo-user` / `demo@lmthing.local` `sdk/org/libs/auth/src/AuthProvider.tsx:27-40`; the gateway middleware's `"demo"`-token bypass resolves to `local-dev-user` / `dev@local` `cloud/gateway/src/middleware/auth.ts:24-28`.
 - **Demo mode is not env-gated alone.** It engages when `import.meta.env.VITE_DEMO_USER === 'true'` **or** `isLocalRun()` (localhost/loopback/`*.test`) `sdk/org/libs/auth/src/AuthProvider.tsx:39`, `sdk/org/libs/auth/src/client.ts#isLocalRun`.
-- **`GET /api/auth/demo-token` exists** (local dev only) `cloud/gateway/src/routes/auth.ts:307-316`, and the gateway mints **four** audience-scoped service tokens beyond the user session pair `cloud/gateway/src/lib/tokens.ts:56-194`.
+- **`GET /api/auth/demo-token` exists** (local dev only) `cloud/gateway/src/routes/auth.ts:307-316`, and the gateway mints **four** audience-scoped service tokens beyond the user session pair `cloud/gateway/src/lib/tokens.ts:113-251`.

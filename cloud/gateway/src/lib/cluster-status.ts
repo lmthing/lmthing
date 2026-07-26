@@ -1,8 +1,9 @@
 import {
   k8s,
   sweepIdlePods,
-  ensureUserPod,
+  ensurePod,
   resolvePodConfig,
+  parsePrincipalKey,
 } from "./compute.js";
 import {
   claimTick,
@@ -267,7 +268,9 @@ async function cronWakeTick(): Promise<void> {
       const userId = users[i++]!;
       try {
         const pod = await resolvePodConfig(userId);
-        await ensureUserPod(userId, pod);
+        // A cron row's user_id is a principal key: a bare user id, or `team-<id>`
+        // for a team's own scheduled hooks.
+        await ensurePod(parsePrincipalKey(userId), pod);
       } catch (err) {
         console.warn(
           `[cron-wake] wake failed for ${userId}:`,

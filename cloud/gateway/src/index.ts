@@ -10,6 +10,7 @@ import backup from "./routes/backup.js";
 import inbound from "./routes/inbound.js";
 import status from "./routes/status.js";
 import issues from "./routes/issues.js";
+import teams from "./routes/teams.js";
 import { podProxy, attachWsProxy } from "./lib/pod-proxy.js";
 import { startRefresher } from "./lib/cluster-status.js";
 import { ensureSchema } from "./lib/db.js";
@@ -36,6 +37,7 @@ app.route("/api/backup", backup);
 app.route("/api/inbound", inbound);
 app.route("/api/status", status);
 app.route("/api/issues", issues);
+app.route("/api/teams", teams);
 
 // Local dev only: proxy pod API paths (sessions, state, etc.) and WebSocket to the user's minikube pod.
 // In production, Envoy Gateway handles this routing via Lua + JWT extraction.

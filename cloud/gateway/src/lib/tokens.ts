@@ -53,6 +53,63 @@ export async function verifyRefreshToken(
   }
 }
 
+// --- Team tokens ---
+//
+// A team is its own principal with its own pod (namespace `team-<id>`), so a
+// browser on lmthing.team can't present a personal access token: Envoy routes
+// by JWT claim, and a personal token would resolve to the member's OWN pod. The
+// gateway instead mints a team-scoped token after checking membership, carrying
+// the team id and the member's role as claims. Envoy's SecurityPolicy validates
+// it against the same JWKS and projects `team`/`role`/`sub`/`email` into request
+// headers, which is how the single-tenant pod learns who is calling and what
+// they may do (see team-guard.ts in the pod runtime).
+//
+// The TTL is short so a role change or a removal takes effect on the next silent
+// re-mint rather than lingering for a browser session. Note that a team token
+// also satisfies verifyAccessToken (it carries `sub` + `email`) — that grants
+// nothing beyond the member's own identity, which they already have.
+
+const TEAM_TTL = "1h";
+const TEAM_TTL_SECONDS = 60 * 60;
+
+export async function signTeamToken(
+  userId: string,
+  email: string,
+  teamId: string,
+  role: "viewer" | "editor",
+): Promise<{ access_token: string; expires_at: number }> {
+  const now = Math.floor(Date.now() / 1000);
+  const access_token = await new SignJWT({ email, team: teamId, role })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(userId)
+    .setIssuedAt(now)
+    .setExpirationTime(TEAM_TTL)
+    .sign(secret);
+  return { access_token, expires_at: now + TEAM_TTL_SECONDS };
+}
+
+export async function verifyTeamToken(token: string): Promise<{
+  userId: string;
+  email: string;
+  teamId: string;
+  role: "viewer" | "editor";
+} | null> {
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    if (!payload.sub) return null;
+    if (typeof payload["team"] !== "string") return null;
+    if (payload["role"] !== "viewer" && payload["role"] !== "editor") return null;
+    return {
+      userId: payload.sub,
+      email: typeof payload.email === "string" ? payload.email : "",
+      teamId: payload["team"],
+      role: payload["role"],
+    };
+  } catch {
+    return null;
+  }
+}
+
 // --- Backup tokens ---
 //
 // The compute pod runs backups/restores autonomously (a periodic timer, and a

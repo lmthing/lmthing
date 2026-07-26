@@ -99,17 +99,17 @@ The pod's model aliases are pinned to these names in the `user-env` secret
 | `budgetLimits` | **LiteLLM**, at the **key** level. `toBudgetLimits()` maps `{duration,maxBudget}` → LiteLLM's `budget_limits: [{budget_duration, max_budget}]` and it is sent on `/user/new`, `/key/generate` and `/key/update`. A request is rejected once **any** window is exhausted. | `cloud/gateway/src/lib/tiers.ts#toBudgetLimits`; `cloud/gateway/src/lib/litellm.ts:L25-L54`, `L56-L81` |
 | `models` | LiteLLM key `models` allowlist (same three calls) | `cloud/gateway/src/lib/litellm.ts#createUser,L47,L74` |
 | `tpmLimit` / `rpmLimit` | LiteLLM user + key `tpm_limit` / `rpm_limit` | `cloud/gateway/src/lib/litellm.ts#createUser,L49-L50,L76-L77` |
-| `pod.cpu` / `pod.mem` / `pod.cpuRequest` / `pod.memRequest` | The K8s Deployment's `resources` (Burstable when `*Request < limit`, Guaranteed otherwise); `NODE_OPTIONS=--max-old-space-size=` is derived as 60% of the mem limit | `cloud/gateway/src/lib/compute.ts:L226-L241`, `L110-L113` |
-| `pod.maxSessions` | Injected as `MAX_SESSIONS` env → the pod's `SessionManager` (`this.maxSessions`), which refuses a new session when all resident sessions are busy | `cloud/gateway/src/lib/compute.ts:L237`; `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.constructor`, `:832`, `:945` |
-| `pod.idleTtlMinutes` | Injected as `IDLE_TTL_MINUTES` env → `SessionManager.idleTtlMs` (and the pod's self-idle → scale-to-zero) | `cloud/gateway/src/lib/compute.ts:L238`; `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.constructor`; `cloud/gateway/src/routes/compute.ts:L65-L82` |
-| `cron.minIntervalMs` | `POST /api/compute/cron-manifest` clamps every published job's interval **up** to the floor, and the DB upsert re-enforces it (`next_run_at = GREATEST(next_run_at, last_woken_at + floor)`) | `cloud/gateway/src/routes/compute.ts:L101-L124`; `cloud/gateway/src/lib/db.ts#replaceCronManifest` |
-| `cron.maxJobs` | Same route — jobs past the cap are dropped (`if (jobs.length >= policy.maxJobs) break;`) | `cloud/gateway/src/routes/compute.ts:L124` |
+| `pod.cpu` / `pod.mem` / `pod.cpuRequest` / `pod.memRequest` | The K8s Deployment's `resources` (Burstable when `*Request < limit`, Guaranteed otherwise); `NODE_OPTIONS=--max-old-space-size=` is derived as 60% of the mem limit | `cloud/gateway/src/lib/compute.ts:L273-L288`, `L110-L113` |
+| `pod.maxSessions` | Injected as `MAX_SESSIONS` env → the pod's `SessionManager` (`this.maxSessions`), which refuses a new session when all resident sessions are busy | `cloud/gateway/src/lib/compute.ts:L284`; `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.constructor`, `:832`, `:945` |
+| `pod.idleTtlMinutes` | Injected as `IDLE_TTL_MINUTES` env → `SessionManager.idleTtlMs` (and the pod's self-idle → scale-to-zero) | `cloud/gateway/src/lib/compute.ts:L285`; `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.constructor`; `cloud/gateway/src/routes/compute.ts:L93-L110` |
+| `cron.minIntervalMs` | `POST /api/compute/cron-manifest` clamps every published job's interval **up** to the floor, and the DB upsert re-enforces it (`next_run_at = GREATEST(next_run_at, last_woken_at + floor)`) | `cloud/gateway/src/routes/compute.ts:L129-L152`; `cloud/gateway/src/lib/db.ts#replaceCronManifest` |
+| `cron.maxJobs` | Same route — jobs past the cap are dropped (`if (jobs.length >= policy.maxJobs) break;`) | `cloud/gateway/src/routes/compute.ts:L152` |
 | `stripePriceId` | `getTierByPriceId()` in the Stripe webhook; `TIERS[tier].stripePriceId` in `/api/billing/checkout` | `cloud/gateway/src/lib/tiers.ts#getTierByPriceId`; `cloud/gateway/src/routes/webhook.ts:L44`; `cloud/gateway/src/routes/billing.ts:L70-L82` |
 
 The tier name itself lives in **LiteLLM user metadata** (`metadata.tier`), written by
 `createUser`/`updateUserTier` (`cloud/gateway/src/lib/litellm.ts#createUser,L67`) and read back by
-`resolveUserTier()` in the compute route (`cloud/gateway/src/routes/compute.ts:L27-L35`),
-`resolvePodConfig()` (`cloud/gateway/src/lib/compute.ts:L437-L447`), `/api/billing/usage`
+`resolveUserTier()` in the compute route (`cloud/gateway/src/routes/compute.ts:L32-L40`),
+`resolvePodConfig()` (`cloud/gateway/src/lib/compute.ts:L494-L504`), `/api/billing/usage`
 (`cloud/gateway/src/routes/billing.ts:L138`), `/api/billing/budget` (`:L167`), `/api/keys` POST
 (`cloud/gateway/src/routes/keys.ts:L37-L45`) and `/api/auth/me`
 (`cloud/gateway/src/routes/auth.ts:L194`). There is no `tier` column in the gateway's own
@@ -120,7 +120,7 @@ Postgres schema.
 - **`cron: CronPolicy` is required, not optional** (`cloud/gateway/src/lib/tiers.ts:L58-L66`,
   `:L87`). `POST /api/compute/cron-manifest` dereferences `tier.cron` unconditionally —
   `const policy = tier.cron;` then `policy.minIntervalMs` / `policy.maxJobs`
-  (`cloud/gateway/src/routes/compute.ts:L101-L124`). A tier defined without it throws on every
+  (`cloud/gateway/src/routes/compute.ts:L129-L152`). A tier defined without it throws on every
   manifest publish, which **silently kills every cron hook for every user on that tier**.
 - **`tier.name.toLowerCase()` must equal the `TIERS` record key.** LiteLLM stores
   `metadata: { tier: tier.name.toLowerCase() }` (`cloud/gateway/src/lib/litellm.ts#createUser,L52,L67,L78`)
@@ -135,13 +135,13 @@ Full field-by-field rules → [../contributing/add-a-tier.md](../contributing/ad
 
 **No `/api/compute/*` route checks the tier.** `status`, `ensure`, `wake`, `wake-wait`,
 `upgrade`, `env` (GET **and** PUT) are behind `authMiddleware` only; the tier is used solely to
-*size* the pod (`cloud/gateway/src/routes/compute.ts:L186-L195`, `L199-L221`, `L225-L249`,
+*size* the pod (`cloud/gateway/src/routes/compute.ts:L214-L223`, `L199-L221`, `L225-L249`,
 `L258-L269`, `L291-L301`, `L306-L340`). Every tier — including `free` — gets a pod
 (`cloud/gateway/src/lib/tiers.ts:L36` "Every tier now gets a pod"; `:L82-L84` "All tiers now
-receive an ephemeral pod"; route comment `cloud/gateway/src/routes/compute.ts:L198` "All tiers
+receive an ephemeral pod"; route comment `cloud/gateway/src/routes/compute.ts:L226` "All tiers
 now have compute access"). `PUT /api/compute/env` validates key syntax
 (`/^[A-Za-z_][A-Za-z0-9_]*$/`), string values, and a **max of 100 vars** — no tier check
-(`cloud/gateway/src/routes/compute.ts:L303-L339`).
+(`cloud/gateway/src/routes/compute.ts:L336-L372`).
 
 Nor do `/api/backup`, `/api/inbound`, `/api/status`, `/api/issues` or `/api/keys` reference
 `TIERS` at all (grep for `getTierByName|TIERS` across `cloud/gateway/src` returns only
@@ -239,7 +239,7 @@ request body** — the `return_url` some callers post is not used.
 
 ### 4.5 Webhook — the only place a tier actually changes
 
-`POST /api/stripe/webhook` (mounted at `cloud/gateway/src/index.ts:33`) verifies the signature
+`POST /api/stripe/webhook` (mounted at `cloud/gateway/src/index.ts:34`) verifies the signature
 with `STRIPE_WEBHOOK_SECRET` over the **raw body** and handles three events
 (`cloud/gateway/src/routes/webhook.ts:L9-L110`). The endpoint itself — URL and the exact
 event subscription — is registered by the Ansible setup script, which subscribes precisely these
@@ -250,8 +250,8 @@ through to `default:` and is logged only (`:L105-L106`):
 
 | Event | Action |
 |---|---|
-| `customer.subscription.created` / `.updated` | `getTierByPriceId(priceId)` → `litellm.updateUserTier(userId, tier)` (rewrites the user's attrs **and every one of their keys'** budget windows/models/limits) → `ensureUserPod(userId, tier.pod)` (idempotent: create, wake, or **patch resources** — handles upgrades *and* downgrades) `:L33-L74` |
-| `customer.subscription.deleted` | `litellm.updateUserTier(userId, TIERS.free)` → `deleteUserPod(userId)` — the whole `user-<id>` namespace is torn down; the user reverts to lazy provisioning `:L76-L103` |
+| `customer.subscription.created` / `.updated` | `getTierByPriceId(priceId)` → `litellm.updateUserTier(userId, tier)` (rewrites the user's attrs **and every one of their keys'** budget windows/models/limits) → `ensurePod(userId, tier.pod)` (idempotent: create, wake, or **patch resources** — handles upgrades *and* downgrades) `:L33-L74` |
+| `customer.subscription.deleted` | `litellm.updateUserTier(userId, TIERS.free)` → `deletePod(userId)` — the whole `user-<id>` namespace is torn down; the user reverts to lazy provisioning `:L76-L103` |
 
 Both LiteLLM and K8s failures are caught and logged, and the handler still returns
 `{ received: true }` (`:L56-L58, L69-L72, L109`) — Stripe is never retried on a partial

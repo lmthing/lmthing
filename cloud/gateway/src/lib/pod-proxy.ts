@@ -5,7 +5,7 @@ import type { IncomingMessage } from "node:http";
 import type { Socket } from "node:net";
 import type { Env } from "../types.js";
 import { verifyAccessToken } from "./tokens.js";
-import { getPodProxyUrl } from "./compute.js";
+import { getPodProxyUrl, userPrincipal } from "./compute.js";
 
 const LOCAL_DEV = process.env.LOCAL_DEV === "true";
 
@@ -47,7 +47,7 @@ podProxy.all("*", async (c) => {
   const user = await resolveUser(token);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
 
-  const podUrl = await getPodProxyUrl(user.userId);
+  const podUrl = await getPodProxyUrl(userPrincipal(user.userId));
   if (!podUrl) return c.json({ error: "Pod not ready" }, 503);
 
   const url = new URL(c.req.url);
@@ -97,7 +97,7 @@ export function attachWsProxy(server: ServerType) {
         return;
       }
 
-      const podUrl = await getPodProxyUrl(user.userId);
+      const podUrl = await getPodProxyUrl(userPrincipal(user.userId));
       if (!podUrl) {
         socket.write("HTTP/1.1 503 Service Unavailable\r\n\r\n");
         socket.destroy();

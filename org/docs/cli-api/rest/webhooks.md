@@ -13,20 +13,20 @@ spec [`webhook` emitter def](../../format/space/events/webhook.md).
 
 External providers never reach the pod directly. They POST to the cloud gateway's broker,
 `POST {BASE_URL}/api/inbound/:userToken/:path`, where the long-lived `userToken` (`aud:"inbound"`)
-IS the auth — no `authMiddleware` `cloud/gateway/src/routes/inbound.ts:107-120`. The gateway
+IS the auth — no `authMiddleware` `cloud/gateway/src/routes/inbound.ts:108-121`. The gateway
 rate-limits per verified user (token bucket, default capacity 120 / refill 2/s, fail-open)
-`cloud/gateway/src/routes/inbound.ts:74-105`,`cloud/gateway/src/routes/inbound.ts:123-125`, wakes a
-scaled-to-zero pod (bounded wait, default 4 s) `cloud/gateway/src/routes/inbound.ts#INBOUND_WAKE_WAIT_MS`,`cloud/gateway/src/routes/inbound.ts:127-135`,
+`cloud/gateway/src/routes/inbound.ts:75-106`,`cloud/gateway/src/routes/inbound.ts:124-126`, wakes a
+scaled-to-zero pod (bounded wait, default 4 s) `cloud/gateway/src/routes/inbound.ts#INBOUND_WAKE_WAIT_MS`,`cloud/gateway/src/routes/inbound.ts:128-136`,
 forwards `content-type` + every `x-*` header plus `x-lmthing-inbound-url` to
 `{podBase}/api/inbound/:path` **fire-and-forget**, and answers the provider `202 {ok:true, accepted:true}`
-immediately so a slow agent run never times the provider out `cloud/gateway/src/routes/inbound.ts#forwardHeaders`,`cloud/gateway/src/routes/inbound.ts:137-156`.
+immediately so a slow agent run never times the provider out `cloud/gateway/src/routes/inbound.ts#forwardHeaders`,`cloud/gateway/src/routes/inbound.ts:138-157`.
 
 `x-lmthing-inbound-url` exists because Twilio-style signatures are computed over the request URL,
-which the pod otherwise never sees `cloud/gateway/src/routes/inbound.ts:21-27` (consumed by the
+which the pod otherwise never sees `cloud/gateway/src/routes/inbound.ts:22-28` (consumed by the
 `twilio` verify spec `sdk/org/libs/cli/src/server/webhook-verifiers.ts:276-287`).
 
 The UI's webhook URLs come from `GET /api/inbound` on the gateway → `{ baseUrl, token, bindings }`,
-where `bindings` is what the pod last published `cloud/gateway/src/routes/inbound.ts:51-65`. The pod
+where `bindings` is what the pod last published `cloud/gateway/src/routes/inbound.ts:52-66`. The pod
 publishes that list by POSTing its manifest to `{gateway}/api/compute/webhook-manifest`
 (compute-JWT authed, best-effort) `sdk/org/libs/cli/src/server/webhook-manifest.ts#publishWebhookManifest`.
 
@@ -213,7 +213,7 @@ existing mapping `sdk/org/libs/cli/src/server/webhook-threads.ts:60-69`.
 
 Auth on this route is **per-provider signature verification only** — the pod server has no JWT
 middleware; the gateway's `userToken` gates the public edge
-`cloud/gateway/src/routes/inbound.ts:107-120`.
+`cloud/gateway/src/routes/inbound.ts:108-121`.
 
 ## Environment
 
@@ -223,7 +223,7 @@ middleware; the gateway's `userToken` gates the public edge
 | `SLACK_SIGNING_SECRET`, `GITHUB_WEBHOOK_SECRET` | built-in provider secrets `sdk/org/libs/cli/src/server/webhook-verifiers.ts#PROVIDER_SECRET_ENV` |
 | `LMTHING_WEBHOOK_DEDUPE_TTL_MS` | dedupe window (default 600000) `sdk/org/libs/cli/src/server/webhook-dedupe.ts#TTL_MS` |
 | `LMTHING_EMITTER_EMIT_TIMEOUT_MS` | emitter `emit()` wall-clock cap (default 5000) `sdk/org/libs/cli/src/server/routes/webhooks.ts#EMIT_TIMEOUT_MS` |
-| gateway `INBOUND_RATE_CAPACITY`, `INBOUND_RATE_REFILL_PER_SEC`, `INBOUND_WAKE_WAIT_MS` | broker rate limit + pod-wake wait `cloud/gateway/src/routes/inbound.ts#INBOUND_WAKE_WAIT_MS`,`cloud/gateway/src/routes/inbound.ts:74-76` |
+| gateway `INBOUND_RATE_CAPACITY`, `INBOUND_RATE_REFILL_PER_SEC`, `INBOUND_WAKE_WAIT_MS` | broker rate limit + pod-wake wait `cloud/gateway/src/routes/inbound.ts#INBOUND_WAKE_WAIT_MS`,`cloud/gateway/src/routes/inbound.ts:75-77` |
 
 ## Example — a verified inbound POST reaching an emitter def
 
@@ -251,7 +251,7 @@ the route registration:
   `sdk/org/libs/cli/src/server/routes/webhooks.ts:275-285` — and `resolveChallenge` is fully implemented
   `sdk/org/libs/cli/src/server/webhook-verifiers.ts#resolveChallenge`.
 - The gateway forwards a provider's GET handshake **synchronously**, preserving the `hub.*` query string,
-  and relays the pod's status/body verbatim `cloud/gateway/src/routes/inbound.ts:165-206`.
+  and relays the pod's status/body verbatim `cloud/gateway/src/routes/inbound.ts:166-207`.
 - But `serve.ts` registers the ingress for **POST only** —
   `router.add('POST', '/api/inbound/:path', createInboundHandler(…))`
   `sdk/org/libs/cli/src/server/serve.ts:236` (the sole registration in the file) — and `Router.dispatch`
@@ -259,7 +259,7 @@ the route registration:
 
 So a GET to a bound path falls through to the pod's catch-all reserved-`/api/*` 404,
 `{ error: 'unknown API route GET /api/inbound/<path>' }` `sdk/org/libs/cli/src/server/serve.ts:360-366`,
-which the gateway then relays to the provider as a 404 `cloud/gateway/src/routes/inbound.ts:198-201`. A
+which the gateway then relays to the provider as a 404 `cloud/gateway/src/routes/inbound.ts:199-202`. A
 Meta/WhatsApp-style subscription verification therefore cannot succeed against a live pod, and neither
 challenge branch is reachable in production.
 

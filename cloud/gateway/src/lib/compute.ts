@@ -129,23 +129,61 @@ function poolPlacement(): Record<string, unknown> {
   };
 }
 
+// --- Pod principals ---
+//
+// A compute pod belongs to a *principal*: either a user or a team. The two are
+// provisioned identically — same Deployment, Service, PVC and env secret — and
+// differ only in which namespace they live in and which LiteLLM/billing identity
+// pays for them.
+//
+// `principalKey` is the string a principal is known by OUTSIDE Kubernetes: its
+// LiteLLM user id, the `user_id` column in the gateway's own tables, and the
+// subject of the scoped tokens the pod calls back with. A user's key is their
+// bare id, so every pre-existing row, key alias and token keeps working
+// unchanged; a team's key is `team-<id>`, which is also its namespace.
+
+export type PodPrincipal = { kind: "user" | "team"; id: string };
+
+export const userPrincipal = (id: string): PodPrincipal => ({ kind: "user", id });
+export const teamPrincipal = (id: string): PodPrincipal => ({ kind: "team", id });
+
+/** The principal's Kubernetes namespace: `user-<id>` or `team-<id>`. */
+export const nsOf = (p: PodPrincipal): string => `${p.kind}-${p.id}`;
+
+/** The principal's identity outside K8s (LiteLLM user, DB key, token subject). */
+export const principalKey = (p: PodPrincipal): string =>
+  p.kind === "user" ? p.id : `team-${p.id}`;
+
+/** Inverse of {@link principalKey}, for values read back out of the DB or a token. */
+export const parsePrincipalKey = (key: string): PodPrincipal =>
+  key.startsWith("team-") ? teamPrincipal(key.slice("team-".length)) : userPrincipal(key);
+
 // --- Pod template (inline — matches k8s/compute/user-pod-template.yaml) ---
 
-function namespace(userId: string) {
+/** Identifying labels every resource in a principal's namespace carries. */
+function principalLabels(p: PodPrincipal): Record<string, string> {
+  return {
+    "lmthing.cloud/principal": principalKey(p),
+    // Retained for user pods so pre-existing selectors and tooling keep matching.
+    ...(p.kind === "user" ? { "lmthing.cloud/user": p.id } : {}),
+  };
+}
+
+function namespace(p: PodPrincipal) {
   return {
     apiVersion: "v1",
     kind: "Namespace",
     metadata: {
-      name: `user-${userId}`,
+      name: nsOf(p),
       labels: {
-        "lmthing.cloud/user": userId,
+        ...principalLabels(p),
         "lmthing.cloud/type": "compute",
       },
     },
   };
 }
 
-function acrPullSecret(userId: string) {
+function acrPullSecret(p: PodPrincipal) {
   const auth = Buffer.from(`${ACR_USERNAME}:${ACR_PASSWORD}`).toString(
     "base64",
   );
@@ -155,20 +193,20 @@ function acrPullSecret(userId: string) {
   return {
     apiVersion: "v1",
     kind: "Secret",
-    metadata: { name: PULL_SECRET_NAME, namespace: `user-${userId}` },
+    metadata: { name: PULL_SECRET_NAME, namespace: nsOf(p) },
     type: "kubernetes.io/dockerconfigjson",
     data: { ".dockerconfigjson": dockerConfig },
   };
 }
 
-function dataPvc(userId: string) {
+function dataPvc(p: PodPrincipal) {
   return {
     apiVersion: "v1",
     kind: "PersistentVolumeClaim",
     metadata: {
       name: "user-data",
-      namespace: `user-${userId}`,
-      labels: { "lmthing.cloud/user": userId },
+      namespace: nsOf(p),
+      labels: principalLabels(p),
     },
     spec: {
       accessModes: ["ReadWriteOnce"],
@@ -178,6 +216,15 @@ function dataPvc(userId: string) {
   };
 }
 
+/**
+ * `LMTHING_TEAM_MODE=1` on a team pod, nothing on a user pod. The pod runtime
+ * only enforces caller identity and viewer/editor gating when this is set —
+ * a user pod stays the single-tenant server it has always been.
+ */
+function teamModeEnv(p: PodPrincipal): Array<{ name: string; value: string }> {
+  return p.kind === "team" ? [{ name: "LMTHING_TEAM_MODE", value: "1" }] : [];
+}
+
 const DEFAULT_POD_CONFIG: PodConfig = {
   cpu: "500m",
   mem: "1Gi",
@@ -185,13 +232,13 @@ const DEFAULT_POD_CONFIG: PodConfig = {
   maxSessions: 3,
 };
 
-function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
+function deployment(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_CONFIG) {
   return {
     apiVersion: "apps/v1",
     kind: "Deployment",
     metadata: {
       name: "lmthing",
-      namespace: `user-${userId}`,
+      namespace: nsOf(p),
       // Baseline for the idle-sweep backstop. Refreshed on wake + by pod
       // heartbeats (annotateLastActive); on Deployment METADATA, never the pod
       // template (a template patch would trigger a rolling restart).
@@ -204,7 +251,7 @@ function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
         metadata: {
           labels: {
             app: "compute",
-            "lmthing.cloud/user": userId,
+            ...principalLabels(p),
           },
           ...(COMPUTE_IMAGE_TAG
             ? { annotations: { "lmthing.cloud/compute-tag": COMPUTE_IMAGE_TAG } }
@@ -238,6 +285,12 @@ function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
                 { name: "IDLE_TTL_MINUTES", value: String(pod.idleTtlMinutes) },
                 // Bound the V8 heap under the Burstable limit (GC before OOM).
                 { name: "NODE_OPTIONS", value: nodeOptionsFor(pod) },
+                // Turns on the pod's caller-identity + role guard. Deliberately a
+                // CONTAINER env var, not a `user-env` key: PUT /env is replace-all,
+                // so a team editor could otherwise drop this key and silently
+                // disable the guard. Container env also wins over envFrom, so a
+                // value set in the secret can't override it either.
+                ...teamModeEnv(p),
               ],
               envFrom: [{ secretRef: { name: "user-env", optional: true } }],
               volumeMounts: [{ name: "data", mountPath: "/data" }],
@@ -272,13 +325,13 @@ function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
   };
 }
 
-function service(userId: string) {
+function service(p: PodPrincipal) {
   return {
     apiVersion: "v1",
     kind: "Service",
     metadata: {
       name: "lmthing",
-      namespace: `user-${userId}`,
+      namespace: nsOf(p),
     },
     spec: {
       // NodePort when LOCAL_DEV so the gateway process (running on the host) can reach the pod
@@ -289,7 +342,7 @@ function service(userId: string) {
   };
 }
 
-function envSecret(userId: string, vars: Record<string, string>) {
+function envSecret(p: PodPrincipal, vars: Record<string, string>) {
   const data: Record<string, string> = {};
   for (const [k, v] of Object.entries(vars)) {
     data[k] = Buffer.from(v).toString("base64");
@@ -297,7 +350,7 @@ function envSecret(userId: string, vars: Record<string, string>) {
   return {
     apiVersion: "v1",
     kind: "Secret",
-    metadata: { name: "user-env", namespace: `user-${userId}` },
+    metadata: { name: "user-env", namespace: nsOf(p) },
     type: "Opaque",
     data,
   };
@@ -306,28 +359,30 @@ function envSecret(userId: string, vars: Record<string, string>) {
 // --- LiteLLM key helpers ---
 
 /**
- * Returns the user's LiteLLM virtual key string (sk-...).
- * Fetches the first existing key via listKeys; if none exist, generates one.
+ * Returns the principal's LiteLLM virtual key string (sk-...). For a team this is
+ * the team's own key, carrying the team's budget — nothing a team spends is ever
+ * billed against a member's key.
  */
-async function getLiteLLMKey(userId: string): Promise<string> {
+async function getLiteLLMKey(p: PodPrincipal): Promise<string> {
   const { TIERS } = await import("./tiers.js");
+  const key = principalKey(p);
   // Ensure the LiteLLM user exists (idempotent — ignore "already exists").
   try {
-    await litellm.createUser(userId, TIERS.free);
+    await litellm.createUser(key, TIERS.free);
   } catch {
     // already provisioned
   }
-  // LiteLLM requires globally-unique key aliases, so scope it per user
+  // LiteLLM requires globally-unique key aliases, so scope it per principal
   // (the default "default" alias collides across users).
   try {
-    const result = await litellm.generateKey(userId, TIERS.free, `compute-${userId}`);
+    const result = await litellm.generateKey(key, TIERS.free, `compute-${key}`);
     return result.key as string;
   } catch (err) {
     // Alias already provisioned by a previous ensure/upgrade call. LiteLLM
     // never returns a key's raw secret again after creation (/key/list only
     // returns hashed tokens), so recover the value already persisted in the
     // pod's env instead of erroring out on every subsequent call.
-    const existing = await getEnvVars(userId);
+    const existing = await getEnvVars(p);
     if (existing.LMTHINGCLOUD_API_KEY) return existing.LMTHINGCLOUD_API_KEY;
     throw err;
   }
@@ -375,10 +430,10 @@ function litellmEnvDefaults(litellmKey: string): Record<string, string> {
  * except LMTHINGCLOUD_API_KEY, which always tracks the user's current key.
  */
 async function injectLiteLLMEnv(
-  userId: string,
+  p: PodPrincipal,
   litellmKey: string,
 ): Promise<void> {
-  const existing = await getEnvVars(userId);
+  const existing = await getEnvVars(p);
   const defaults = litellmEnvDefaults(litellmKey);
   const merged: Record<string, string> = { ...defaults, ...existing };
   // The user's subscription key is authoritative — never let a stale value win.
@@ -392,7 +447,7 @@ async function injectLiteLLMEnv(
     (k) => existing[k] !== merged[k],
   );
   if (needsUpdate) {
-    await setEnvVars(userId, merged);
+    await setEnvVars(p, merged);
   }
 }
 
@@ -403,17 +458,19 @@ async function injectLiteLLMEnv(
  * is missing (the JWT is long-lived — no rotation on every ensure, so no needless
  * pod restart). This is the migration path for pods created before P1.
  */
-async function injectComputeEnv(userId: string): Promise<void> {
-  const existing = await getEnvVars(userId);
+async function injectComputeEnv(p: PodPrincipal): Promise<void> {
+  const existing = await getEnvVars(p);
   const additions: Record<string, string> = {};
   if (!existing.LMTHING_COMPUTE_JWT) {
-    additions.LMTHING_COMPUTE_JWT = await signComputeToken(userId);
+    // Subject is the principal key, so a team pod's callbacks (self-idle, cron
+    // and webhook manifests) land under `team-<id>` in the gateway's tables.
+    additions.LMTHING_COMPUTE_JWT = await signComputeToken(principalKey(p));
   }
   if (existing.LMTHING_SELF_IDLE === undefined) {
     additions.LMTHING_SELF_IDLE = "1";
   }
   if (Object.keys(additions).length === 0) return;
-  await setEnvVars(userId, { ...existing, ...additions });
+  await setEnvVars(p, { ...existing, ...additions });
 }
 
 /**
@@ -422,10 +479,10 @@ async function injectComputeEnv(userId: string): Promise<void> {
  * METADATA (a merge-patch), never the pod template, so it never rolls the pod.
  */
 export async function annotateLastActive(
-  userId: string,
+  p: PodPrincipal,
   iso: string = new Date().toISOString(),
 ): Promise<void> {
-  const ns = `user-${userId}`;
+  const ns = nsOf(p);
   await k8s(
     `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
     "PATCH",
@@ -434,11 +491,12 @@ export async function annotateLastActive(
   );
 }
 
-/** Resolve a user's tier pod sizing (defaults to free). Used by the cron-wake
- *  tick so a woken pod gets its own tier's resources, not a generic default. */
-export async function resolvePodConfig(userId: string): Promise<PodConfig> {
+/** Resolve a principal's tier pod sizing (defaults to free). Used by the cron-wake
+ *  tick so a woken pod gets its own tier's resources, not a generic default.
+ *  Takes the principal KEY, since callers usually have it from a token or a DB row. */
+export async function resolvePodConfig(principalKeyOrUserId: string): Promise<PodConfig> {
   try {
-    const info = await litellm.getUserInfo(userId);
+    const info = await litellm.getUserInfo(principalKeyOrUserId);
     const tierName = info.user_info?.metadata?.tier || "free";
     return (getTierByName(tierName) ?? TIERS.free).pod;
   } catch {
@@ -447,8 +505,8 @@ export async function resolvePodConfig(userId: string): Promise<PodConfig> {
 }
 
 /** Read the epoch-ms of a pod's `last-active` annotation, or null if unset. */
-async function getLastActive(userId: string): Promise<number | null> {
-  const ns = `user-${userId}`;
+async function getLastActive(p: PodPrincipal): Promise<number | null> {
+  const ns = nsOf(p);
   const dep = (await k8s(
     `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
     "GET",
@@ -468,26 +526,26 @@ async function getLastActive(userId: string): Promise<number | null> {
  * its own namespace. Returns what happened (for logging).
  */
 export async function reportPodActivity(
-  userId: string,
+  p: PodPrincipal,
   idle: boolean,
 ): Promise<"scaled-down" | "heartbeat" | "wake-race"> {
   if (!idle) {
-    await annotateLastActive(userId);
+    await annotateLastActive(p);
     return "heartbeat";
   }
-  const last = await getLastActive(userId);
+  const last = await getLastActive(p);
   if (last !== null && Date.now() - last < WAKE_RACE_MS) return "wake-race";
-  await scaleUserPod(userId, 0);
-  console.log(`[self-idle] scaled down pod for ${userId} (self-reported idle)`);
+  await scalePod(p, 0);
+  console.log(`[self-idle] scaled down pod for ${nsOf(p)} (self-reported idle)`);
   return "scaled-down";
 }
 
 // --- Public API ---
 
 export async function getEnvVars(
-  userId: string,
+  p: PodPrincipal,
 ): Promise<Record<string, string>> {
-  const ns = `user-${userId}`;
+  const ns = nsOf(p);
   const secret = await k8s(`/api/v1/namespaces/${ns}/secrets/user-env`, "GET");
   if (!secret || !secret.data) return {};
   const vars: Record<string, string> = {};
@@ -500,10 +558,10 @@ export async function getEnvVars(
 }
 
 export async function setEnvVars(
-  userId: string,
+  p: PodPrincipal,
   vars: Record<string, string>,
 ): Promise<void> {
-  const ns = `user-${userId}`;
+  const ns = nsOf(p);
   const existing = await k8s(
     `/api/v1/namespaces/${ns}/secrets/user-env`,
     "GET",
@@ -512,13 +570,13 @@ export async function setEnvVars(
     await k8s(
       `/api/v1/namespaces/${ns}/secrets/user-env`,
       "PUT",
-      envSecret(userId, vars),
+      envSecret(p, vars),
     );
   } else {
     await k8s(
       `/api/v1/namespaces/${ns}/secrets`,
       "POST",
-      envSecret(userId, vars),
+      envSecret(p, vars),
     );
   }
   // Trigger rolling restart so pods pick up the new env vars
@@ -540,14 +598,14 @@ export async function setEnvVars(
   );
 }
 
-export async function createUserPod(
-  userId: string,
+export async function createPod(
+  p: PodPrincipal,
   pod: PodConfig = DEFAULT_POD_CONFIG,
 ): Promise<void> {
-  const ns = `user-${userId}`;
+  const ns = nsOf(p);
 
   // Create namespace (skip if exists)
-  const nsResult = await k8s("/api/v1/namespaces", "POST", namespace(userId));
+  const nsResult = await k8s("/api/v1/namespaces", "POST", namespace(p));
   if (nsResult === "conflict") {
     console.log(`Namespace ${ns} already exists, skipping creation`);
   } else {
@@ -559,7 +617,7 @@ export async function createUserPod(
     const pullSecretResult = await k8s(
       `/api/v1/namespaces/${ns}/secrets`,
       "POST",
-      acrPullSecret(userId),
+      acrPullSecret(p),
     );
     if (pullSecretResult === "conflict") {
       console.log(`ACR pull secret in ${ns} already exists, skipping`);
@@ -572,7 +630,7 @@ export async function createUserPod(
   const pvcResult = await k8s(
     `/api/v1/namespaces/${ns}/persistentvolumeclaims`,
     "POST",
-    dataPvc(userId),
+    dataPvc(p),
   );
   if (pvcResult === "conflict") {
     console.log(`PVC in ${ns} already exists, skipping`);
@@ -580,17 +638,17 @@ export async function createUserPod(
     console.log(`Created PVC in ${ns}`);
   }
 
-  // Fetch the user's LiteLLM virtual key and build the initial env secret
+  // Fetch the principal's LiteLLM virtual key and build the initial env secret
   let litellmKey = "";
   try {
-    litellmKey = await getLiteLLMKey(userId);
+    litellmKey = await getLiteLLMKey(p);
   } catch (err) {
-    console.warn(`Could not fetch LiteLLM key for ${userId}: ${err}`);
+    console.warn(`Could not fetch LiteLLM key for ${ns}: ${err}`);
   }
   // Seed the initial env with LiteLLM defaults + the pod→gateway compute creds
   // (scoped JWT + self-idle flag) so a fresh pod boots ready to self-report and
   // publish its cron manifest — no post-create restart needed.
-  const computeJwt = await signComputeToken(userId);
+  const computeJwt = await signComputeToken(principalKey(p));
   const initialEnv: Record<string, string> = {
     ...(litellmKey ? litellmEnvDefaults(litellmKey) : {}),
     LMTHING_COMPUTE_JWT: computeJwt,
@@ -601,15 +659,15 @@ export async function createUserPod(
   const envResult = await k8s(
     `/api/v1/namespaces/${ns}/secrets`,
     "POST",
-    envSecret(userId, initialEnv),
+    envSecret(p, initialEnv),
   );
   if (envResult === "conflict") {
     console.log(`Env secret in ${ns} already exists, merging LiteLLM + compute keys`);
     // Secret already exists — merge defaults without clobbering user-set keys
     if (litellmKey) {
-      await injectLiteLLMEnv(userId, litellmKey);
+      await injectLiteLLMEnv(p, litellmKey);
     }
-    await injectComputeEnv(userId);
+    await injectComputeEnv(p);
   } else {
     console.log(`Created env secret in ${ns}`);
   }
@@ -618,7 +676,7 @@ export async function createUserPod(
   const depResult = await k8s(
     `/apis/apps/v1/namespaces/${ns}/deployments`,
     "POST",
-    deployment(userId, pod),
+    deployment(p, pod),
   );
   if (depResult === "conflict") {
     console.log(`Deployment in ${ns} already exists, skipping`);
@@ -630,7 +688,7 @@ export async function createUserPod(
   const svcResult = await k8s(
     `/api/v1/namespaces/${ns}/services`,
     "POST",
-    service(userId),
+    service(p),
   );
   if (svcResult === "conflict") {
     console.log(`Service in ${ns} already exists, skipping`);
@@ -640,22 +698,18 @@ export async function createUserPod(
 }
 
 /**
- * Scale a user's compute deployment to the given replica count.
+ * Scale a principal's compute deployment to the given replica count.
  * Typically called with replicas=0 (idle teardown) or replicas=1 (wake up).
  *
- * Idle sweep pattern (not wired as a background controller here — see stub below):
- *   The pod's agent server reports inactivity via its own /health or a sidecar.
- *   An external cron or the pod itself can call POST /api/compute/scale with
- *   replicas=0 when it detects that no sessions have been active for
- *   tier.pod.idleTtlMinutes minutes.  Alternatively, a future in-process
- *   timer in the gateway could periodically call getUserPodStatus and then
- *   scaleUserPod(userId, 0) for pods whose last-active annotation is stale.
+ * The PRIMARY scale-down path is the pod self-reporting idle (POST
+ * /api/compute/self-idle → reportPodActivity); {@link sweepIdlePods} is the
+ * gateway-side backstop for pods whose watchdog stopped heartbeating.
  */
-export async function scaleUserPod(
-  userId: string,
+export async function scalePod(
+  p: PodPrincipal,
   replicas: number,
 ): Promise<void> {
-  const ns = `user-${userId}`;
+  const ns = nsOf(p);
   await k8s(
     `/apis/apps/v1/namespaces/${ns}/deployments/lmthing/scale`,
     "PATCH",
@@ -666,20 +720,21 @@ export async function scaleUserPod(
 }
 
 /**
- * Idempotent: bring the user's pod to a running state with the correct tier sizing.
+ * Idempotent: bring the principal's pod to a running state with the correct tier
+ * sizing.
  *
- * - If the namespace/deployment does not exist: create everything (via createUserPod).
+ * - If the namespace/deployment does not exist: create everything (via createPod).
  * - If the deployment exists but is scaled to 0: scale it to 1 and patch resources.
  * - If the deployment exists and is already running: patch resources to match the
  *   new tier (handles upgrades/downgrades) and no-op the replica count.
  *
  * Returns connection info the frontend needs to open a session.
  */
-export async function ensureUserPod(
-  userId: string,
+export async function ensurePod(
+  p: PodPrincipal,
   pod: PodConfig,
 ): Promise<{ host: string; port: number }> {
-  const ns = `user-${userId}`;
+  const ns = nsOf(p);
 
   const dep = await k8s(
     `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
@@ -688,7 +743,7 @@ export async function ensureUserPod(
 
   if (!dep) {
     // First use — provision the full namespace + resources
-    await createUserPod(userId, pod);
+    await createPod(p, pod);
   } else {
     // Patch resources + env + pod-shape to match current config (handles tier
     // changes AND migrates existing pods onto the P1–P4 spec — Burstable requests,
@@ -722,6 +777,7 @@ export async function ensureUserPod(
                       value: String(pod.idleTtlMinutes),
                     },
                     { name: "NODE_OPTIONS", value: nodeOptionsFor(pod) },
+                    ...teamModeEnv(p),
                   ],
                   // Migrate existing pods to the startup probe and REMOVE the old
                   // readiness probe (readinessProbe: null deletes it in a
@@ -750,8 +806,8 @@ export async function ensureUserPod(
     // the user-env secret (envFrom) at container start, seeded by a prior ensure.
     const currentReplicas = dep.spec?.replicas ?? 0;
     if (currentReplicas === 0) {
-      await scaleUserPod(userId, 1);
-      console.log(`Woke up scaled-to-zero pod for user ${userId}`);
+      await scalePod(p, 1);
+      console.log(`Woke up scaled-to-zero pod for ${ns}`);
     }
 
     // Ensure LiteLLM + compute env are present (idempotent merges). On a steady-
@@ -760,7 +816,7 @@ export async function ensureUserPod(
     // gateway↔LiteLLM latency on the blocking /ensure the SPA awaits.
     let envComplete = false;
     try {
-      const env = await getEnvVars(userId);
+      const env = await getEnvVars(p);
       envComplete = Boolean(
         env.LMTHINGCLOUD_API_KEY && env.LMTHING_COMPUTE_JWT && env.LMTHING_SELF_IDLE,
       );
@@ -769,24 +825,24 @@ export async function ensureUserPod(
     }
     if (!envComplete) {
       try {
-        const litellmKey = await getLiteLLMKey(userId);
-        await injectLiteLLMEnv(userId, litellmKey);
+        const litellmKey = await getLiteLLMKey(p);
+        await injectLiteLLMEnv(p, litellmKey);
       } catch (err) {
-        console.warn(`Could not inject LiteLLM env for ${userId}: ${err}`);
+        console.warn(`Could not inject LiteLLM env for ${ns}: ${err}`);
       }
       try {
-        await injectComputeEnv(userId);
+        await injectComputeEnv(p);
       } catch (err) {
-        console.warn(`Could not inject compute env for ${userId}: ${err}`);
+        console.warn(`Could not inject compute env for ${ns}: ${err}`);
       }
     }
   }
 
-  // Stamp the idle-sweep backstop clock — an ensure means the user is active.
+  // Stamp the idle-sweep backstop clock — an ensure means the principal is active.
   try {
-    await annotateLastActive(userId);
+    await annotateLastActive(p);
   } catch (err) {
-    console.warn(`Could not annotate last-active for ${userId}: ${err}`);
+    console.warn(`Could not annotate last-active for ${ns}: ${err}`);
   }
 
   // Bounded wait for the pod to actually be serving before returning, so the
@@ -795,7 +851,7 @@ export async function ensureUserPod(
   // refused" 503s). Warm pods return on the first check (~no delay). Capped well
   // under the ~15s ingress timeout; a slower boot just returns not-ready and the
   // client polls /status.
-  await waitForPodReady(userId, WAKE_READY_WAIT_MS);
+  await waitForPodReady(p, WAKE_READY_WAIT_MS);
 
   if (LOCAL_DEV) {
     // Resolve the NodePort assigned to the user's service so the gateway proxy can reach it
@@ -818,27 +874,27 @@ export async function ensureUserPod(
  * 503). Unlike `ensureUserPod` this SKIPS the bounded readiness wait and the
  * LiteLLM env re-injection: it must return immediately because the original
  * caller is already going to retry into the waking pod. A scaled-to-zero pod
- * already carries its correct shape/env from the last `ensureUserPod`, so a plain
- * `scaleUserPod(1)` is enough; only a never-provisioned user needs the full
- * `createUserPod`. Idempotent + cheap, so every retry in the wake window is safe.
+ * already carries its correct shape/env from the last `ensurePod`, so a plain
+ * `scalePod(1)` is enough; only a never-provisioned principal needs the full
+ * `createPod`. Idempotent + cheap, so every retry in the wake window is safe.
  */
-export async function wakeUserPod(userId: string, pod: PodConfig): Promise<void> {
-  const ns = `user-${userId}`;
+export async function wakePod(p: PodPrincipal, pod: PodConfig): Promise<void> {
+  const ns = nsOf(p);
   const dep = await k8s(
     `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
     "GET",
   );
   if (!dep) {
-    await createUserPod(userId, pod);
+    await createPod(p, pod);
   } else if ((dep.spec?.replicas ?? 0) === 0) {
-    await scaleUserPod(userId, 1);
-    console.log(`[activator] woke scaled-to-zero pod for user ${userId}`);
+    await scalePod(p, 1);
+    console.log(`[activator] woke scaled-to-zero pod for ${ns}`);
   }
-  // Stamp the idle-sweep backstop clock — a wake means the user is active.
+  // Stamp the idle-sweep backstop clock — a wake means the principal is active.
   try {
-    await annotateLastActive(userId);
+    await annotateLastActive(p);
   } catch (err) {
-    console.warn(`Could not annotate last-active for ${userId}: ${err}`);
+    console.warn(`Could not annotate last-active for ${ns}: ${err}`);
   }
 }
 
@@ -847,7 +903,7 @@ export async function wakeUserPod(userId: string, pod: PodConfig): Promise<void>
 // on a warm pod. TTL is deliberately short so a pod that scaled to zero in between
 // is re-checked promptly.
 const READY_CACHE_TTL_MS = 5_000;
-const readyCache = new Map<string, number>(); // userId → epoch-ms last seen ready
+const readyCache = new Map<string, number>(); // namespace → epoch-ms last seen ready
 
 /**
  * Wake the user's pod and BLOCK until it's serving (bounded by `timeoutMs`).
@@ -857,17 +913,18 @@ const readyCache = new Map<string, number>(); // userId → epoch-ms last seen r
  * short-circuits via the ready cache — no wake, no k8s poll, no tier lookup — so
  * repeated doc navs stay cheap. Tier/pod config is resolved lazily only on a miss.
  */
-export async function wakeAndWaitUserPod(
-  userId: string,
+export async function wakeAndWaitPod(
+  p: PodPrincipal,
   timeoutMs: number,
 ): Promise<boolean> {
-  const cached = readyCache.get(userId);
+  const ns = nsOf(p);
+  const cached = readyCache.get(ns);
   if (cached && Date.now() - cached < READY_CACHE_TTL_MS) return true;
-  const pod = await resolvePodConfig(userId);
-  await wakeUserPod(userId, pod);
-  const ready = await waitForPodReady(userId, timeoutMs);
-  if (ready) readyCache.set(userId, Date.now());
-  else readyCache.delete(userId);
+  const pod = await resolvePodConfig(principalKey(p));
+  await wakePod(p, pod);
+  const ready = await waitForPodReady(p, timeoutMs);
+  if (ready) readyCache.set(ns, Date.now());
+  else readyCache.delete(ns);
   return ready;
 }
 
@@ -881,10 +938,10 @@ export async function wakeAndWaitUserPod(
  *
  * Returns null in production (pods are only reachable in-cluster via Envoy).
  */
-export async function getPodProxyUrl(userId: string): Promise<string | null> {
+export async function getPodProxyUrl(p: PodPrincipal): Promise<string | null> {
   if (!LOCAL_DEV) return null;
   if (process.env.COMPUTE_LOCAL_URL) return process.env.COMPUTE_LOCAL_URL;
-  const ns = `user-${userId}`;
+  const ns = nsOf(p);
   const svc = await k8s(`/api/v1/namespaces/${ns}/services/lmthing`, "GET");
   const nodePort = svc?.spec?.ports?.[0]?.nodePort as number | undefined;
   if (!nodePort) return null;
@@ -897,19 +954,19 @@ export async function getPodProxyUrl(userId: string): Promise<string | null> {
  * {@link getPodProxyUrl}, which is for a browser/host process in LOCAL_DEV).
  * Used by the inbound-webhook broker to forward a request into the pod.
  * In production, the gateway runs in-cluster, so it dials the same DNS name
- * `ensureUserPod` hands back as `host` — `lmthing.user-<userId>.svc.cluster.local`
+ * `ensurePod` hands back as `host` — `lmthing.<namespace>.svc.cluster.local`
  * on port 8080. In LOCAL_DEV the gateway runs on the host, so it reuses
  * `getPodProxyUrl`'s NodePort resolution.
  */
 export async function getPodInternalBaseUrl(
-  userId: string,
+  p: PodPrincipal,
 ): Promise<string | null> {
-  if (LOCAL_DEV) return getPodProxyUrl(userId);
-  return `http://lmthing.user-${userId}.svc.cluster.local:8080`;
+  if (LOCAL_DEV) return getPodProxyUrl(p);
+  return `http://lmthing.${nsOf(p)}.svc.cluster.local:8080`;
 }
 
 /**
- * Backstop idle-sweep controller body. Enumerates every `user-*` namespace's
+ * Backstop idle-sweep controller body. Enumerates every compute namespace's
  * Deployment and scales to 0 any pod that is (a) currently at replicas ≥ 1 and
  * (b) whose `last-active` annotation is older than {@link SWEEP_STALE_MS} — i.e.
  * its self-idle watchdog stopped heartbeating (wedged / crashed / pre-migration
@@ -925,18 +982,25 @@ export async function sweepIdlePods(): Promise<{
   scanned: number;
   scaledDown: number;
 }> {
-  const nsData = (await k8s("/api/v1/namespaces", "GET")) as {
+  // Select by the label every gateway-created namespace carries rather than by
+  // name prefix, so team namespaces are swept too and the set can never drift
+  // from what createPod actually makes.
+  const nsData = (await k8s(
+    `/api/v1/namespaces?labelSelector=${encodeURIComponent("lmthing.cloud/type=compute")}`,
+    "GET",
+  )) as {
     items?: Array<{ metadata?: { name?: string } }>;
   } | null;
-  const userNs = (nsData?.items ?? [])
+  const computeNs = (nsData?.items ?? [])
     .map((n) => n.metadata?.name ?? "")
-    .filter((name) => name.startsWith("user-"));
+    .filter(Boolean);
 
   const now = Date.now();
   let scaledDown = 0;
   await Promise.allSettled(
-    userNs.map(async (ns) => {
-      const userId = ns.slice("user-".length);
+    computeNs.map(async (ns) => {
+      const principal = principalFromNamespace(ns);
+      if (!principal) return;
       const dep = (await k8s(
         `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
         "GET",
@@ -950,27 +1014,34 @@ export async function sweepIdlePods(): Promise<{
       const lastActive = dep.metadata?.annotations?.[LAST_ACTIVE_ANNOTATION];
       if (!lastActive) {
         // No baseline yet (pre-migration pod) — grace round: stamp and wait.
-        await annotateLastActive(userId, new Date(now).toISOString()).catch(() => {});
+        await annotateLastActive(principal, new Date(now).toISOString()).catch(() => {});
         return;
       }
       const lastMs = Date.parse(lastActive);
       if (Number.isFinite(lastMs) && now - lastMs < SWEEP_STALE_MS) return; // fresh
 
-      await scaleUserPod(userId, 0);
+      await scalePod(principal, 0);
       scaledDown++;
       console.log(
         `[sweep] scaled down stale pod ${ns} (last-active ${lastActive})`,
       );
     }),
   );
-  if (scaledDown > 0 || userNs.length > 0) {
-    console.log(`[sweep] scanned ${userNs.length} pod(s), scaled down ${scaledDown}`);
+  if (scaledDown > 0 || computeNs.length > 0) {
+    console.log(`[sweep] scanned ${computeNs.length} pod(s), scaled down ${scaledDown}`);
   }
-  return { scanned: userNs.length, scaledDown };
+  return { scanned: computeNs.length, scaledDown };
 }
 
-export async function deleteUserPod(userId: string): Promise<void> {
-  const ns = `user-${userId}`;
+/** Recover the principal a compute namespace belongs to, or null if it is neither shape. */
+function principalFromNamespace(ns: string): PodPrincipal | null {
+  if (ns.startsWith("user-")) return userPrincipal(ns.slice("user-".length));
+  if (ns.startsWith("team-")) return teamPrincipal(ns.slice("team-".length));
+  return null;
+}
+
+export async function deletePod(p: PodPrincipal): Promise<void> {
+  const ns = nsOf(p);
 
   // Delete the namespace — cascades to all resources within it
   const result = await k8s(`/api/v1/namespaces/${ns}`, "DELETE");
@@ -979,10 +1050,10 @@ export async function deleteUserPod(userId: string): Promise<void> {
   } else {
     console.log(`Deleted namespace ${ns}`);
   }
-  // Drop the user's externalized cron schedule so the wake tick stops targeting
-  // a now-deleted pod.
-  await deleteCronJobs(userId).catch((err) =>
-    console.warn(`Could not delete cron jobs for ${userId}: ${err}`),
+  // Drop the principal's externalized cron schedule so the wake tick stops
+  // targeting a now-deleted pod.
+  await deleteCronJobs(principalKey(p)).catch((err) =>
+    console.warn(`Could not delete cron jobs for ${ns}: ${err}`),
   );
 }
 
@@ -1085,8 +1156,8 @@ async function readPodMilestone(ns: string): Promise<PodStage> {
   return "probing";
 }
 
-export async function getUserPodStatus(userId: string): Promise<PodStatus> {
-  const ns = `user-${userId}`;
+export async function getPodStatus(p: PodPrincipal): Promise<PodStatus> {
+  const ns = nsOf(p);
 
   const dep = await k8s(
     `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
@@ -1149,14 +1220,14 @@ export async function getUserPodStatus(userId: string): Promise<PodStatus> {
  * LOCAL_DEV, matching `ensureUserPod`'s prior behaviour.
  */
 export async function waitForPodReady(
-  userId: string,
+  p: PodPrincipal,
   timeoutMs: number,
 ): Promise<boolean> {
   if (LOCAL_DEV) return true;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const st = await getUserPodStatus(userId);
+      const st = await getPodStatus(p);
       if (st.ready) return true;
     } catch {
       /* transient — keep polling */
@@ -1167,13 +1238,13 @@ export async function waitForPodReady(
 }
 
 /**
- * Trigger a rolling restart of the user's compute pod, updating the
+ * Trigger a rolling restart of the principal's compute pod, updating the
  * compute-tag annotation so the new image version is tracked.
  * Since imagePullPolicy is Always and the image uses :latest, the new pod
  * will pull the latest compute image from ACR.
  */
-export async function restartUserPod(userId: string): Promise<void> {
-  const ns = `user-${userId}`;
+export async function restartPod(p: PodPrincipal): Promise<void> {
+  const ns = nsOf(p);
   await k8s(
     `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
     "PATCH",
@@ -1193,5 +1264,5 @@ export async function restartUserPod(userId: string): Promise<void> {
     },
     "application/merge-patch+json",
   );
-  console.log(`Triggered rolling restart for user ${userId} pod`);
+  console.log(`Triggered rolling restart for ${ns} pod`);
 }

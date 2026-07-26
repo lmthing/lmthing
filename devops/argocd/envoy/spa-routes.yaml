@@ -270,59 +270,6 @@ spec:
           weight: 1
 
 ---
-# ── lmthing.team ─────────────────────────────────────────────────────────────
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: team-http-redirect
-  namespace: gateway
-spec:
-  parentRefs:
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-      name: lmthing-gw
-      sectionName: team-http
-  hostnames:
-    - lmthing.team
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      filters:
-        - type: RequestRedirect
-          requestRedirect:
-            scheme: https
-            statusCode: 301
-
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: team-static
-  namespace: gateway
-spec:
-  parentRefs:
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-      name: lmthing-gw
-      sectionName: team-https
-  hostnames:
-    - lmthing.team
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - group: ""
-          kind: Service
-          name: team
-          namespace: lmthing
-          port: 80
-          weight: 1
-
----
 # ── lmthing.blog ─────────────────────────────────────────────────────────────
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

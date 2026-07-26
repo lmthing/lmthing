@@ -219,6 +219,44 @@ pair on this one object, and every HTTPRoute and policy `targetRef`s it
 The HTTPRoutes, policies (Lua per-user routing, JWT), and the pod-wake activator that hang off
 this Gateway are inventoried in [./deploy.md](./deploy.md).
 
+### Routing a request to a pod
+
+Five domains proxy `/api` into a compute pod rather than serving a static SPA: `lmthing.computer`,
+`lmthing.chat`, `lmthing.studio`, `lmthing.app` and `lmthing.team`. Each has a `<name>-api-proxy`
+HTTPRoute whose `PathPrefix: /api` rule (longer than the SPA route's `/`, so it wins) carries the
+`rewrite-host-from-header` filter and the `dynamic-user-backend` `Backend`
+(`type: DynamicResolver`) — both cluster singletons declared once in
+`devops/argocd/envoy/computer-policies.yaml:1-21` and referenced by name from every such route.
+
+Two policies decide *which* pod:
+
+1. A `SecurityPolicy` validates the gateway-issued HS256 JWT against the local JWKS in the
+   out-of-band `gateway-jwt-jwks` ConfigMap, and projects claims into request headers via
+   `claimToHeaders`. Tokens are extracted from `Authorization: Bearer` **and** the `access_token`
+   query param — WebSockets cannot set headers, so the param form is required, not optional
+   `devops/argocd/envoy/computer-policies.yaml:120-153`.
+2. An `EnvoyExtensionPolicy` runs Lua that reads those headers and writes
+   `x-dynamic-host-header`, which the filter turns into the upstream.
+
+The **user** surfaces route on `sub` → `lmthing.user-<sub>.svc.cluster.local:8080`
+`devops/argocd/envoy/computer-policies.yaml:38-59`. **lmthing.team** routes on the `team` claim
+instead → `lmthing.team-<teamId>.svc.cluster.local:8080`
+`devops/argocd/envoy/team-policies.yaml:20-60`, and additionally projects `email` and `role` so
+the pod learns who is calling and what they may do (`x-user-id`, `x-user-email`, `x-team-id`,
+`x-lmthing-role`) `devops/argocd/envoy/team-policies.yaml:122-167`.
+
+This is the whole reason a team needs its own token: a **personal** token validates against the
+same JWKS but carries no `team` claim, so no `x-team-id` header is emitted and the Lua answers
+401 — it can never reach a team workspace. The Lua also fails closed on a missing or unknown
+role, and clears any client-supplied `x-dynamic-host-header` before setting its own. Because the
+JWT filter runs first and **overwrites** same-named headers, none of these values can be spoofed
+by a client. `devops/scripts/test-team-lua.py` exercises exactly these cases against the real
+script without a cluster.
+
+Since the pod has no authentication of its own (see [../cli-api/rest/README.md](../cli-api/rest/README.md)),
+these headers are its only source of caller identity — which is why the edge, not the pod, is the
+trust boundary.
+
 ---
 
 ## TLS — cert-manager
@@ -280,33 +318,49 @@ Kubespray installs it.
 | `lmthing` | ArgoCD (`lmthing-core`) | LiteLLM, gateway/Hono, Postgres, Zitadel, render, and the SPA deployments (`studio` `computer` `chat` `com` `social` `team` `store` `space` `blog` `casa`) `devops/argocd/core/*.yaml`, `core/namespace.yaml:1-3` |
 | `gateway` | ArgoCD (`lmthing-envoy`) | `lmthing-gw` Gateway, HTTPRoutes, policies, ReferenceGrant, Certificates `core/namespace.yaml:5-7`, `devops/argocd/envoy/*.yaml` |
 | `user-<id>` | gateway (K8s API, live) | one compute pod per user (below) `cloud/gateway/src/lib/compute.ts#namespace` |
+| `team-<id>` | gateway (K8s API, live) | the same pod, owned by a team instead `cloud/gateway/src/lib/compute.ts#nsOf` |
 
 `namespace.yaml` creates only `lmthing` and `gateway` `devops/argocd/core/namespace.yaml:1-7`;
 the platform namespaces are created by their Helm/addon installers (except `local-path-storage`,
-which no code in this repo creates — see [Storage](#storage)), and `user-<id>` namespaces are
+which no code in this repo creates — see [Storage](#storage)), and `user-<id>`/`team-<id>` namespaces are
 created at runtime by the gateway.
 
 ---
 
-## Per-user compute pod
+## Per-principal compute pod
 
-Every user (all tiers, provisioned lazily) gets a dedicated pod in its own `user-<id>`
-namespace. The pod runs the compute image (`@lmthing/core` QuickJS sandbox + `@lmthing/cli`
-multi-session server) on port 8080 — see [./deploy.md](./deploy.md) for the image build.
+A compute pod belongs to a **principal** — either a user or a team
+`cloud/gateway/src/lib/compute.ts#PodPrincipal`. Every user (all tiers, provisioned lazily) gets a
+dedicated pod in its own `user-<id>` namespace, and every team gets an identical one in
+`team-<id>` `cloud/gateway/src/lib/compute.ts#nsOf`. The pod runs the compute image
+(`@lmthing/core` QuickJS sandbox + `@lmthing/cli` multi-session server) on port 8080 — see
+[./deploy.md](./deploy.md) for the image build.
+
+The namespace is the *only* structural difference between the two: same Deployment, Service, PVC
+and env-secret names inside it. What differs is who pays — a team's LiteLLM user, budget and
+Stripe customer are its own (`principalKey` → `team-<id>`
+`cloud/gateway/src/lib/compute.ts#principalKey`), so nothing a team spends is billed to a member.
+Team model → [../cloud/teams.md](../cloud/teams.md).
 
 **The live pod spec is built programmatically in the gateway**, not read from a template file.
-`cloud/gateway/src/lib/compute.ts` constructs each object:
+`cloud/gateway/src/lib/compute.ts` constructs each object (`p` is the principal):
 
-- `namespace(userId)` → `user-<id>` with labels `lmthing.cloud/user` + `lmthing.cloud/type=compute`
-  `compute.ts:134-146`.
-- `acrPullSecret(userId)` → `acr-pull-secret` (`kubernetes.io/dockerconfigjson`) built from
-  `ACR_USERNAME`/`ACR_PASSWORD`/`ACR_REGISTRY` env `compute.ts:53-55,148-162`.
-- `dataPvc(userId)` → `user-data` PVC, 1 Gi, default StorageClass `compute.ts:164-179`.
-- `deployment(userId, pod)` → Deployment `lmthing`, 1 replica, container `compute` on 8080, image
+- `namespace(p)` → `user-<id>` / `team-<id>`, labelled `lmthing.cloud/principal` +
+  `lmthing.cloud/type=compute` (user pods also keep the older `lmthing.cloud/user` label)
+  `compute.ts:180-193`.
+- `acrPullSecret(p)` → `acr-pull-secret` (`kubernetes.io/dockerconfigjson`) built from
+  `ACR_USERNAME`/`ACR_PASSWORD`/`ACR_REGISTRY` env `compute.ts:53-55,195-209`.
+- `dataPvc(p)` → `user-data` PVC, 1 Gi, default StorageClass `compute.ts:211-226`.
+- `deployment(p, pod)` → Deployment `lmthing`, 1 replica, container `compute` on 8080, image
   `COMPUTE_IMAGE`, `envFrom` the optional `user-env` secret, `/data` mounted from the PVC
-  `compute.ts:188-273`.
-- `service(userId)` → Service `lmthing` (ClusterIP in prod; NodePort under `LOCAL_DEV`) targeting
-  8080 `compute.ts:275-290`.
+  `compute.ts:245-330`.
+- `service(p)` → Service `lmthing` (ClusterIP in prod; NodePort under `LOCAL_DEV`) targeting
+  8080 `compute.ts:332-346`.
+
+A **team** pod additionally gets `LMTHING_TEAM_MODE=1` as a *container* env var, which turns on
+the pod's caller-identity and viewer/editor gating `cloud/gateway/src/lib/compute.ts#teamModeEnv`.
+It is deliberately not a `user-env` key: `PUT /env` is replace-all, so an editor could otherwise
+drop it and silently disable the guard.
 
 **Legacy YAMLs — do not edit these expecting an effect.** `devops/argocd/compute/user-pod-template.yaml`
 and the `compute-pod-template` ConfigMap (`devops/argocd/core/compute-pod-template.yaml`, still
@@ -338,20 +392,21 @@ at ~60% of the memory limit so V8 GCs before the cgroup OOMs `compute.ts:107-113
 
 **Lifecycle — scale-to-zero, not always-on** `compute.ts`:
 - Created/woken lazily by `POST /api/compute/ensure` (any tier), which creates the namespace +
-  resources on first use or scales the deployment back to 1 `compute.ts:549-573+,671-698+`.
+  resources on first use or scales the deployment back to 1 `compute.ts:601,733`.
 - The pod self-idles after `IDLE_TTL_MINUTES` and is scaled to zero; a backstop idle-sweep in the
   gateway scales down pods whose `lmthing.cloud/last-active` annotation is stale
-  (`COMPUTE_SWEEP_STALE_MIN`, default 30 min) `compute.ts:79-88,912-976`.
+  (`COMPUTE_SWEEP_STALE_MIN`, default 30 min). The sweep enumerates namespaces by the
+  `lmthing.cloud/type=compute` label rather than by name prefix, so team pods are covered too `compute.ts:79-88,981-1035`.
 - Wake path: Envoy Lua `httpCall("gateway-activator", …)` hits `/api/compute/wake`; the
   `gateway-activator` cluster is injected into xDS by the `activator-patch.yaml` EnvoyPatchPolicy
   pointing at `gateway.lmthing.svc.cluster.local` `devops/argocd/envoy/activator-patch.yaml:17-47`.
 - A `startupProbe` (not readiness) gates only the boot window, so a busy single-threaded Node
-  event loop can't get yanked from Service endpoints mid-session `compute.ts:244-260`.
+  event loop can't get yanked from Service endpoints mid-session `compute.ts:306-312`.
 
 Pods are therefore **never always-on and never Pro-only**: every tier — `free` included — gets a
 pod, it is created on first use rather than at subscription time, and it is scaled to zero (not
-deleted) whenever it goes idle `compute.ts:79-88`, `:678`, `:912-976`. A pod is only torn down
-namespace-and-all when a Stripe subscription is *deleted* (`deleteUserPod`,
+deleted) whenever it goes idle `compute.ts:79-88`, `:733`, `:981-1035`. A pod is only torn down
+namespace-and-all when a Stripe subscription is *deleted* (`deletePod`,
 `cloud/gateway/src/routes/webhook.ts:76-103`).
 
 **RBAC** — the gateway runs as ServiceAccount `gateway` (namespace `lmthing`) bound to ClusterRole

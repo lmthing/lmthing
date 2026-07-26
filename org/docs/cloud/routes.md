@@ -4,7 +4,7 @@ Every HTTP route the **Gateway** serves. The gateway is the sole backend (`cloud
 
 ## App wiring & mounts
 
-The entry point builds the Hono app, applies CORS to `/api/*`, exposes a health check, then mounts each router `cloud/gateway/src/index.ts:17-44`:
+The entry point builds the Hono app, applies CORS to `/api/*`, exposes a health check, then mounts each router `cloud/gateway/src/index.ts:18-45`:
 
 | Mount | Router file | Section |
 |---|---|---|
@@ -17,19 +17,20 @@ The entry point builds the Hono app, applies CORS to `/api/*`, exposes a health 
 | `/api/inbound` | `routes/inbound.ts` | [Inbound broker](#inbound-webhook-broker--apiinbound) |
 | `/api/status` | `routes/status.ts` | [Status](#status--apistatus) |
 | `/api/issues` | `routes/issues.ts` | [Issues](#issues--apiissues) |
+| `/api/teams` | `routes/teams.ts` | [Teams](#teams--apiteams) |
 | `/api` (catch-all, **LOCAL_DEV only**) | `lib/pod-proxy.ts` | [Pod proxy](#local-dev-pod-proxy) |
 
-- **CORS** — applied to all `/api/*`: `origin:"*"`, methods `GET/POST/PUT/DELETE/OPTIONS`, headers `Content-Type`/`Authorization` `cloud/gateway/src/index.ts:19-26`.
-- **`GET /api/health`** → `{status:"ok"}`, no auth `cloud/gateway/src/index.ts:28`.
-- On boot the gateway self-heals its own Postgres schema (`ensureSchema()`) and starts the cluster-status refresher `cloud/gateway/src/index.ts:48-62`.
+- **CORS** — applied to all `/api/*`: `origin:"*"`, methods `GET/POST/PUT/DELETE/OPTIONS`, headers `Content-Type`/`Authorization` `cloud/gateway/src/index.ts:20-27`.
+- **`GET /api/health`** → `{status:"ok"}`, no auth `cloud/gateway/src/index.ts:29`.
+- On boot the gateway self-heals its own Postgres schema (`ensureSchema()`) and starts the cluster-status refresher `cloud/gateway/src/index.ts:50-64`.
 
 ## Auth models used across routes
 
 Three distinct authentication schemes appear below. Do not conflate them.
 
 1. **`authMiddleware`** (browser/user JWT) — `Authorization: Bearer <accessToken>`. Verifies a gateway-issued HS256 access token locally via `verifyAccessToken`; falls back to Zitadel introspection for legacy tokens; accepts the literal token `demo` only when `LOCAL_DEV=true`. Sets `c.get("user") = {id,email}` `cloud/gateway/src/middleware/auth.ts#authMiddleware`. Detail → [./auth.md](./auth.md).
-2. **Scoped pod JWTs** (`aud`-pinned, 365d) — minted by the gateway and injected into the pod's `user-env` secret so the pod can call back with no user request in flight. Verified per-route (not by `authMiddleware`); the userId is always the token subject, never a request field. Two audiences are injected: `compute` (self-idle / cron + webhook manifests) `cloud/gateway/src/lib/tokens.ts:89-121`, written as `LMTHING_COMPUTE_JWT` on pod create/ensure `cloud/gateway/src/lib/compute.ts#injectComputeEnv`, `cloud/gateway/src/lib/compute.ts:593-596`; and `backup` (backup-token mint) `cloud/gateway/src/lib/tokens.ts:56-87`, written as `LMTHING_BACKUP_JWT` by `PUT /api/backup/config` `cloud/gateway/src/routes/backup.ts:147-155`.
-3. **Provider signatures / opaque tokens** — Stripe's `stripe-signature` HMAC (`/api/stripe/webhook`), the signed `state` param (`aud:"backup-install"`, 10min) on the GitHub-App install callback `cloud/gateway/src/lib/tokens.ts:126-156`, and the long-lived `aud:"inbound"` `userToken` embedded in the public inbound URL `cloud/gateway/src/lib/tokens.ts:158-194`. No `Authorization` header. The inbound token is **not** injected into the pod — it is minted only by `GET /api/inbound/` and handed to the UI/external providers `cloud/gateway/src/routes/inbound.ts:54`.
+2. **Scoped pod JWTs** (`aud`-pinned, 365d) — minted by the gateway and injected into the pod's `user-env` secret so the pod can call back with no user request in flight. Verified per-route (not by `authMiddleware`); the userId is always the token subject, never a request field. Two audiences are injected: `compute` (self-idle / cron + webhook manifests) `cloud/gateway/src/lib/tokens.ts:146-178`, written as `LMTHING_COMPUTE_JWT` on pod create/ensure `cloud/gateway/src/lib/compute.ts#injectComputeEnv`, `cloud/gateway/src/lib/compute.ts:651-654`; and `backup` (backup-token mint) `cloud/gateway/src/lib/tokens.ts:113-144`, written as `LMTHING_BACKUP_JWT` by `PUT /api/backup/config` `cloud/gateway/src/routes/backup.ts:147-155`.
+3. **Provider signatures / opaque tokens** — Stripe's `stripe-signature` HMAC (`/api/stripe/webhook`), the signed `state` param (`aud:"backup-install"`, 10min) on the GitHub-App install callback `cloud/gateway/src/lib/tokens.ts:183-213`, and the long-lived `aud:"inbound"` `userToken` embedded in the public inbound URL `cloud/gateway/src/lib/tokens.ts:215-251`. No `Authorization` header. The inbound token is **not** injected into the pod — it is minted only by `GET /api/inbound/` and handed to the UI/external providers `cloud/gateway/src/routes/inbound.ts:55`.
 
 ## Complete route table
 
@@ -55,30 +56,45 @@ Three distinct authentication schemes appear below. Do not conflate them.
 | GET | `/api/billing/budget` | `billing.ts:161` | JWT | Remaining % per rolling window (1d/7d/30d), computed with master key |
 | GET | `/api/billing/checkout/status` | `billing.ts:205` | JWT | Poll a Stripe checkout session's `status`/`payment_status` (needs `?session_id`) |
 | POST | `/api/stripe/webhook` | `webhook.ts:9` | Stripe sig | Subscription created/updated/deleted → tier change + pod lifecycle |
-| GET | `/api/compute/version` | `compute.ts:180` | none | Latest built compute image tag (`COMPUTE_IMAGE_TAG`) |
-| POST | `/api/compute/self-idle` | `compute.ts:65` | compute JWT | Pod reports activity: `idle:true`→scale-to-zero, `idle:false`→heartbeat |
-| POST | `/api/compute/cron-manifest` | `compute.ts:89` | compute JWT | Pod publishes full cron schedule; gateway clamps to tier policy + stores |
-| POST | `/api/compute/webhook-manifest` | `compute.ts:142` | compute JWT | Pod publishes its registered inbound webhook bindings |
-| POST | `/api/compute/upgrade` | `compute.ts:186` | JWT | Rolling-restart the pod onto the latest compute image |
-| GET | `/api/compute/status` | `compute.ts:199` | JWT | Pod status `{compute,tier,pod,podConfig}` (all tiers) |
-| POST | `/api/compute/ensure` | `compute.ts:225` | JWT | Lazily provision/wake the pod; return connection + status |
-| POST | `/api/compute/wake` | `compute.ts:258` | JWT | Fire-and-forget scale 0→1 (Envoy activator); returns 202 |
-| POST | `/api/compute/wake-wait` | `compute.ts:277` | JWT | Blocking wake (≤8s); 200 ready / 202 not-yet |
-| GET | `/api/compute/env` | `compute.ts:291` | JWT | List the pod's env vars |
-| PUT | `/api/compute/env` | `compute.ts:306` | JWT | **Replace all** env vars (validated) → pod restart |
+| GET | `/api/compute/version` | `compute.ts:208` | none | Latest built compute image tag (`COMPUTE_IMAGE_TAG`) |
+| POST | `/api/compute/self-idle` | `compute.ts:93` | compute JWT | Pod reports activity: `idle:true`→scale-to-zero, `idle:false`→heartbeat |
+| POST | `/api/compute/cron-manifest` | `compute.ts:117` | compute JWT | Pod publishes full cron schedule; gateway clamps to tier policy + stores |
+| POST | `/api/compute/webhook-manifest` | `compute.ts:170` | compute JWT | Pod publishes its registered inbound webhook bindings |
+| POST | `/api/compute/upgrade` | `compute.ts:214` | JWT | Rolling-restart the pod onto the latest compute image |
+| GET | `/api/compute/status` | `compute.ts:227` | JWT | Pod status `{compute,tier,pod,podConfig}` (all tiers) |
+| POST | `/api/compute/ensure` | `compute.ts:253` | JWT | Lazily provision/wake the pod; return connection + status |
+| POST | `/api/compute/wake` | `compute.ts:286` | JWT | Fire-and-forget scale 0→1 (Envoy activator); returns 202 |
+| POST | `/api/compute/wake-wait` | `compute.ts:309` | JWT | Blocking wake (≤8s); 200 ready / 202 not-yet |
+| GET | `/api/compute/env` | `compute.ts:324` | JWT | List the pod's env vars |
+| PUT | `/api/compute/env` | `compute.ts:339` | JWT | **Replace all** env vars (validated) → pod restart |
 | GET | `/api/backup/install-url` | `backup.ts:31` | JWT | URL to start the GitHub-App backup install flow (503 if unconfigured) |
 | GET | `/api/backup/callback` | `backup.ts:43` | none (signed `state`) | GitHub post-install redirect → store installation id |
 | GET | `/api/backup/config` | `backup.ts:64` | JWT | Caller's backup config (never returns a token) |
 | PUT | `/api/backup/config` | `backup.ts:88` | JWT | Validate repo + save settings + inject backup config & scoped JWT into pod env |
 | POST | `/api/backup/token` | `backup.ts:167` | backup JWT | Pod mints a short-lived repo-scoped GitHub-App installation token |
-| GET | `/api/inbound/` | `inbound.ts:51` | JWT | Caller's public broker base URL + inbound token + published bindings |
-| POST | `/api/inbound/:userToken/:path` | `inbound.ts:113` | inbound token in URL | Public broker: verify token, rate-limit, wake pod, fire-and-forget forward (202) |
-| GET | `/api/inbound/:userToken/:path` | `inbound.ts:165` | inbound token in URL | Provider subscription-verification handshake (synchronous echo of pod response) |
+| GET | `/api/inbound/` | `inbound.ts:52` | JWT | Caller's public broker base URL + inbound token + published bindings |
+| POST | `/api/inbound/:userToken/:path` | `inbound.ts:114` | inbound token in URL | Public broker: verify token, rate-limit, wake pod, fire-and-forget forward (202) |
+| GET | `/api/inbound/:userToken/:path` | `inbound.ts:166` | inbound token in URL | Provider subscription-verification handshake (synchronous echo of pod response) |
 | GET | `/api/status/cluster` | `status.ts:27` | none (IP rate-limited) | Cached cluster status JSON (503 until warm) |
 | GET | `/api/status/compute-fleet` | `status.ts:37` | none (IP rate-limited) | Cached compute-fleet JSON |
 | GET | `/api/status/events` | `status.ts:47` | none (IP rate-limited) | Cached recent events JSON |
 | GET | `/api/status/stream` | `status.ts:57` | none (IP + SSE-limited) | SSE stream of cluster/fleet/events updates |
 | POST | `/api/issues` | `issues.ts:25` | JWT | File a bug-report GitHub issue + upload trace/screenshot artifacts (501 if unconfigured) |
+| POST | `/api/teams` | `teams.ts:110` | JWT | Create a team (creator becomes its first editor) + provision its Stripe/LiteLLM principals |
+| GET | `/api/teams` | `teams.ts:148` | JWT | Teams the caller is on + invites addressed to their email |
+| GET | `/api/teams/:teamId` | `teams.ts:172` | JWT + member | Team, roster and pending invites |
+| PUT | `/api/teams/:teamId` | `teams.ts:205` | JWT + **editor** | Rename the team |
+| POST | `/api/teams/:teamId/members` | `teams.ts:226` | JWT + **editor** | Add by email, or record an invite if that email has no account |
+| PUT | `/api/teams/:teamId/members/:userId` | `teams.ts:267` | JWT + **editor** | Change a member's role (409 if it would strand the team without an editor) |
+| DELETE | `/api/teams/:teamId/members/:userId` | `teams.ts:290` | JWT + **editor**, or self | Remove a member; leaving is always your own right |
+| DELETE | `/api/teams/:teamId/invites/:inviteId` | `teams.ts:312` | JWT + **editor** | Revoke a pending invite |
+| POST | `/api/teams/invites/:inviteId/accept` | `teams.ts:331` | JWT | Claim an invite addressed to the caller's email |
+| POST | `/api/teams/:teamId/token` | `teams.ts:353` | JWT + member | Mint the team-scoped token lmthing.team presents to the team's pod |
+| POST | `/api/teams/:teamId/compute/ensure` | `teams.ts:388` | JWT + member | Provision/wake the TEAM's pod (namespace `team-<id>`) |
+| GET | `/api/teams/:teamId/compute/status` | `teams.ts:405` | JWT + member | Team pod status `{compute,tier,pod,podConfig}` |
+| POST | `/api/teams/:teamId/compute/upgrade` | `teams.ts:426` | JWT + **editor** | Rolling-restart the team pod onto the latest compute image |
+| GET | `/api/teams/:teamId/compute/env` | `teams.ts:442` | JWT + **editor** | The team's env vars (its provider tokens — never readable by a viewer) |
+| PUT | `/api/teams/:teamId/compute/env` | `teams.ts:460` | JWT + **editor** | **Replace all** team env vars → restarts the pod for every member |
 | ALL | `/api/{sessions,spaces,state,events,asks,message,help,node}/*` | `pod-proxy.ts:35` | JWT (token or `?access_token`) | **LOCAL_DEV only** — proxy pod-served paths to the user's pod |
 
 ---
@@ -123,8 +139,8 @@ Router `cloud/gateway/src/routes/auth.ts`. The shared `provisionUser(userId,emai
 
 `POST /` verifies the `stripe-signature` HMAC against `STRIPE_WEBHOOK_SECRET` (400 on failure), then switches on event type `cloud/gateway/src/routes/webhook.ts:9-32`:
 
-- `customer.subscription.created` / `.updated` → resolve tier by price id (`getTierByPriceId`), `updateUserTier`, then idempotent `ensureUserPod` (handles upgrade/downgrade resizing) `cloud/gateway/src/routes/webhook.ts:33-74`.
-- `customer.subscription.deleted` → downgrade to free + `deleteUserPod` (full namespace teardown) `cloud/gateway/src/routes/webhook.ts:76-103`.
+- `customer.subscription.created` / `.updated` → resolve tier by price id (`getTierByPriceId`), `updateUserTier`, then idempotent `ensurePod` (handles upgrade/downgrade resizing) `cloud/gateway/src/routes/webhook.ts:33-74`.
+- `customer.subscription.deleted` → downgrade to free + `deletePod` (full namespace teardown) `cloud/gateway/src/routes/webhook.ts:76-103`.
 - Always returns `{received:true}` `cloud/gateway/src/routes/webhook.ts:109`.
 
 ## Compute — `/api/compute/*`
@@ -132,21 +148,21 @@ Router `cloud/gateway/src/routes/auth.ts`. The shared `provisionUser(userId,emai
 Router `cloud/gateway/src/routes/compute.ts`. Backed by the K8s client in `lib/compute.ts`. Two distinct auth regimes: pod-callback routes use the **compute JWT** (`computeUser()` extracts+verifies the `aud:"compute"` token → userId `cloud/gateway/src/routes/compute.ts#computeUser`); browser routes use `authMiddleware`. `resolveUserTier()` reads the tier from LiteLLM metadata, defaulting to `free` `cloud/gateway/src/routes/compute.ts#resolveUserTier`.
 
 Pod-callback routes (compute JWT — pod acts only on its own namespace):
-- **`POST /self-idle`** — body `{idle?}` (empty body ⇒ idle); `reportPodActivity` scales to zero or heartbeats `cloud/gateway/src/routes/compute.ts:65-82`.
-- **`POST /cron-manifest`** — body `{jobs:[{projectId,slug,cronExpr,everyMs,nextRunAt}]}`. Dedupes, clamps `everyMs` up to the tier's `minIntervalMs`, applies deterministic per-job jitter (≤5min), caps at `maxJobs`, then `replaceCronManifest` `cloud/gateway/src/routes/compute.ts:89-134`.
-- **`POST /webhook-manifest`** — body `{bindings:[{projectId,path,provider,agentRef}]}`; dedupes by `path` and `upsertWebhookBindings` so the inbound broker can resolve paths without asking the pod `cloud/gateway/src/routes/compute.ts:142-177`.
+- **`POST /self-idle`** — body `{idle?}` (empty body ⇒ idle); `reportPodActivity` scales to zero or heartbeats `cloud/gateway/src/routes/compute.ts:93-110`.
+- **`POST /cron-manifest`** — body `{jobs:[{projectId,slug,cronExpr,everyMs,nextRunAt}]}`. Dedupes, clamps `everyMs` up to the tier's `minIntervalMs`, applies deterministic per-job jitter (≤5min), caps at `maxJobs`, then `replaceCronManifest` `cloud/gateway/src/routes/compute.ts:117-162`.
+- **`POST /webhook-manifest`** — body `{bindings:[{projectId,path,provider,agentRef}]}`; dedupes by `path` and `upsertWebhookBindings` so the inbound broker can resolve paths without asking the pod `cloud/gateway/src/routes/compute.ts:170-205`.
 
 Public route (no middleware on the handler):
-- **`GET /version`** — `{tag: COMPUTE_IMAGE_TAG || null}` `cloud/gateway/src/routes/compute.ts:180-182`.
+- **`GET /version`** — `{tag: COMPUTE_IMAGE_TAG || null}` `cloud/gateway/src/routes/compute.ts:208-210`.
 
 Browser routes (`authMiddleware` applied per-handler, not router-wide):
-- **`POST /upgrade`** — `restartUserPod` (rolling) → `{ok:true}` `cloud/gateway/src/routes/compute.ts:186-195`.
-- **`GET /status`** — `{compute:true,tier,pod,podConfig}`; returns `compute:true` for **all tiers** (the pod may be scaled to zero) and never gates on tier — a K8s error degrades to `pod:{exists:false,ready:false,phase:"error"}` rather than a 403 `cloud/gateway/src/routes/compute.ts:197-221`.
-- **`POST /ensure`** — resolve tier, `ensureUserPod(user.id, tier.pod)`, return `{ok,tier,podConfig,connection,pod}` `cloud/gateway/src/routes/compute.ts:225-249`.
-- **`POST /wake`** — Envoy activator path; `wakeUserPod` fire-and-forget, 202 `{ok,waking:true}` `cloud/gateway/src/routes/compute.ts:258-269`.
-- **`POST /wake-wait`** — `wakeAndWaitUserPod(user.id, 8000)`; 200 if ready else 202 `cloud/gateway/src/routes/compute.ts:277-288`.
-- **`GET /env`** — `{vars}` from the pod's `user-env` secret `cloud/gateway/src/routes/compute.ts:291-301`.
-- **`PUT /env`** — body `{vars}`; validates keys against `/^[A-Za-z_][A-Za-z0-9_]*$/`, values must be strings, ≤100 vars; `setEnvVars` **replaces the whole secret** (clients must GET+merge first) and restarts the pod `cloud/gateway/src/routes/compute.ts:306-348`.
+- **`POST /upgrade`** — `restartPod` (rolling) → `{ok:true}` `cloud/gateway/src/routes/compute.ts:214-223`.
+- **`GET /status`** — `{compute:true,tier,pod,podConfig}`; returns `compute:true` for **all tiers** (the pod may be scaled to zero) and never gates on tier — a K8s error degrades to `pod:{exists:false,ready:false,phase:"error"}` rather than a 403 `cloud/gateway/src/routes/compute.ts:225-249`.
+- **`POST /ensure`** — resolve tier, `ensurePod(user.id, tier.pod)`, return `{ok,tier,podConfig,connection,pod}` `cloud/gateway/src/routes/compute.ts:253-277`.
+- **`POST /wake`** — Envoy activator path; `wakePod` fire-and-forget, 202 `{ok,waking:true}` `cloud/gateway/src/routes/compute.ts:286-297`.
+- **`POST /wake-wait`** — `wakeAndWaitPod(user.id, 8000)`; 200 if ready else 202 `cloud/gateway/src/routes/compute.ts:309-320`.
+- **`GET /env`** — `{vars}` from the pod's `user-env` secret `cloud/gateway/src/routes/compute.ts:324-334`.
+- **`PUT /env`** — body `{vars}`; validates keys against `/^[A-Za-z_][A-Za-z0-9_]*$/`, values must be strings, ≤100 vars; `setEnvVars` **replaces the whole secret** (clients must GET+merge first) and restarts the pod `cloud/gateway/src/routes/compute.ts:339-381`.
 
 ## Backup — `/api/backup/*`
 
@@ -162,9 +178,9 @@ Router `cloud/gateway/src/routes/backup.ts`. GitHub-App-based workspace backup; 
 
 Router `cloud/gateway/src/routes/inbound.ts`. The **inbound** half of the event pipeline: external providers POST to a per-user public URL; the gateway wakes the pod and forwards. The pod publishes its bindings via `POST /api/compute/webhook-manifest` (above); this router reads them back. Authoring model → the events-and-hooks skill; pod-side handling → [../cli-api/rest/webhooks.md](../cli-api/rest/webhooks.md).
 
-- **`GET /`** (JWT) — for the UI: `{baseUrl,token,bindings}` where `token` is a long-lived `aud:"inbound"` JWT and `baseUrl = <BASE_URL>/api/inbound/<token>` `cloud/gateway/src/routes/inbound.ts:51-65`.
-- **`POST /:userToken/:path`** — public broker. `verifyInboundToken` (the URL token IS the auth; 401 if bad), a per-user in-memory token-bucket rate-limit (429; capacity/refill env-tunable, fail-open) `cloud/gateway/src/routes/inbound.ts:74-105`, wakes the pod with a bounded wait, then **fire-and-forget** forwards the raw body + safe headers (`content-type` + `x-*`, plus `x-lmthing-inbound-url`) to `<podBase>/api/inbound/<path>` and returns 202 `cloud/gateway/src/routes/inbound.ts:113-157`.
-- **`GET /:userToken/:path`** — provider subscription-verification handshake (e.g. Meta/WhatsApp `hub.*`). Unlike POST this awaits the pod and relays its status/body verbatim so the challenge echoes back; 503 if pod unavailable, 502 on forward failure `cloud/gateway/src/routes/inbound.ts:165-206`.
+- **`GET /`** (JWT) — for the UI: `{baseUrl,token,bindings}` where `token` is a long-lived `aud:"inbound"` JWT and `baseUrl = <BASE_URL>/api/inbound/<token>` `cloud/gateway/src/routes/inbound.ts:52-66`.
+- **`POST /:userToken/:path`** — public broker. `verifyInboundToken` (the URL token IS the auth; 401 if bad), a per-user in-memory token-bucket rate-limit (429; capacity/refill env-tunable, fail-open) `cloud/gateway/src/routes/inbound.ts:75-106`, wakes the pod with a bounded wait, then **fire-and-forget** forwards the raw body + safe headers (`content-type` + `x-*`, plus `x-lmthing-inbound-url`) to `<podBase>/api/inbound/<path>` and returns 202 `cloud/gateway/src/routes/inbound.ts:114-158`.
+- **`GET /:userToken/:path`** — provider subscription-verification handshake (e.g. Meta/WhatsApp `hub.*`). Unlike POST this awaits the pod and relays its status/body verbatim so the challenge echoes back; 503 if pod unavailable, 502 on forward failure `cloud/gateway/src/routes/inbound.ts:166-207`.
 
 ## Status — `/api/status/*`
 
@@ -177,13 +193,28 @@ Router `cloud/gateway/src/routes/status.ts`; all routes IP-rate-limited (`status
 
 `authMiddleware` on the router `cloud/gateway/src/routes/issues.ts:14`. **`POST /`** files a bug-report GitHub issue: 501 if `!isIssuesConfigured()`; requires non-empty `title`+`message`; optionally uploads `trace` (ndjson) and `screenshot` (png) as artifacts, embeds them in the issue body, and returns the created issue. 502 on GitHub error `cloud/gateway/src/routes/issues.ts:25-97`. Repo targets are `GITHUB_ISSUES_REPO` (issues) and `GITHUB_BUGREPORT_REPO` (artifacts).
 
+## Teams — `/api/teams/*`
+
+Router `cloud/gateway/src/routes/teams.ts`, `authMiddleware` applied router-wide `cloud/gateway/src/routes/teams.ts:38`. These are **control-plane** routes taking a personal access token — they answer "which teams am I on". Reaching a team's pod is a separate step: `POST /:teamId/token` mints a team-scoped JWT (claims `team` + `role`, 1h TTL) that the edge routes to the team's namespace `cloud/gateway/src/lib/tokens.ts#signTeamToken`. Full model → [./teams.md](./teams.md).
+
+Every route resolves membership through `requireMember(c, teamId, minRole?)` `cloud/gateway/src/routes/teams.ts#requireMember`; a non-member gets **404** whether or not the team exists, so team ids are not probeable.
+
+- **`POST /`** — non-blank `name` ≤100 chars `cloud/gateway/src/routes/teams.ts:116-121`; writes the row (creator seated as first editor in one transaction `cloud/gateway/src/lib/db.ts#createTeam`), then best-effort `provisionTeam` creates the team's own Stripe customer (`metadata.team_id`) and free-tier LiteLLM user keyed `team-<id>` `cloud/gateway/src/routes/teams.ts#provisionTeam`.
+- **`GET /`** — `{teams:[{id,name,role}], invites:[{id,team_name,role,expires_at}]}`; invites are matched on the caller's session email `cloud/gateway/src/routes/teams.ts:148-170`.
+- **`POST /:teamId/members`** (editor) — `{email, role}`, role defaulting to `viewer`. If `zitadel.getUserByEmail` resolves the address they join immediately (`{status:"added"}`); otherwise a pending invite row is written (`{status:"invited"}`) `cloud/gateway/src/routes/teams.ts:226-265`. There is no mailer — invites are claimed on next login.
+- **`PUT|DELETE /:teamId/members/:userId`** (editor) — role change / removal, both refusing to leave a team without an editor (409) `cloud/gateway/src/lib/db.ts#updateTeamMemberRole`, `cloud/gateway/src/lib/db.ts#removeTeamMember`. Removing **yourself** needs only membership `cloud/gateway/src/routes/teams.ts:290-310`.
+- **`POST /invites/:inviteId/accept`** — not under `/:teamId`, since accepting is what makes you a member. Addressee, expiry and the single-use stamp are re-checked inside one transaction `cloud/gateway/src/lib/db.ts#acceptTeamInvite`; 403 when the invite isn't claimable by this account.
+- **`POST /:teamId/token`** (member) — `{access_token, expires_at, role}`; the role is read from the DB at mint time, never from the client `cloud/gateway/src/routes/teams.ts:353-367`.
+- **`/:teamId/compute/*`** — the team's pod, mirroring `/api/compute/*` but keyed on the team's principal and gated on membership `cloud/gateway/src/routes/teams.ts:388-502`. Still a *personal* token: these are control-plane operations about a team you belong to. `env` (both verbs) and `upgrade` are **editor-only** — env values are the team's provider credentials, and `PUT` replaces the whole secret and rolls the pod for every member.
+
 ## Local-dev pod proxy
 
-Mounted only when `LOCAL_DEV=true` `cloud/gateway/src/index.ts:42-44`. In production, Envoy Gateway (Lua + JWT extraction) handles this routing to the pod instead. The catch-all `podProxy.all("*")` serves only the pod-owned path prefixes — `/api/{sessions,spaces,state,events,asks,message,help,node}` — 404-ing anything else `cloud/gateway/src/lib/pod-proxy.ts:22-39`. It resolves the token (`?access_token` query first, else the `Authorization` header; `demo` accepted in LOCAL_DEV), maps to the user's pod URL (503 if not ready), and streams the proxied response `cloud/gateway/src/lib/pod-proxy.ts:41-68`. `attachWsProxy` additionally upgrades `wss://…/api/ws?access_token=<JWT>` to the pod's NodePort by piping raw TCP sockets `cloud/gateway/src/lib/pod-proxy.ts#attachWsProxy` (wired from `cloud/gateway/src/index.ts:58-60`). These pod-served endpoints are documented under [../cli-api/rest/README.md](../cli-api/rest/README.md).
+Mounted only when `LOCAL_DEV=true` `cloud/gateway/src/index.ts:44-46`. In production, Envoy Gateway (Lua + JWT extraction) handles this routing to the pod instead. The catch-all `podProxy.all("*")` serves only the pod-owned path prefixes — `/api/{sessions,spaces,state,events,asks,message,help,node}` — 404-ing anything else `cloud/gateway/src/lib/pod-proxy.ts:22-39`. It resolves the token (`?access_token` query first, else the `Authorization` header; `demo` accepted in LOCAL_DEV), maps to the user's pod URL (503 if not ready), and streams the proxied response `cloud/gateway/src/lib/pod-proxy.ts:41-68`. `attachWsProxy` additionally upgrades `wss://…/api/ws?access_token=<JWT>` to the pod's NodePort by piping raw TCP sockets `cloud/gateway/src/lib/pod-proxy.ts#attachWsProxy` (wired from `cloud/gateway/src/index.ts:60-62`). These pod-served endpoints are documented under [../cli-api/rest/README.md](../cli-api/rest/README.md).
 
 ## Cross-references
 
 - Token issuance/verification, Zitadel identity, SSO, middleware → [./auth.md](./auth.md)
+- Teams — the principal model, membership tables, the team-scoped token → [./teams.md](./teams.md)
 - Tiers, budget windows, Stripe products, LiteLLM provisioning → [./billing-and-tiers.md](./billing-and-tiers.md)
 - LiteLLM `/v1/*` OpenAI-compatible proxy → [./litellm.md](./litellm.md)
 - The pod's own REST API (the target of the inbound forward and the local-dev proxy) → [../cli-api/rest/README.md](../cli-api/rest/README.md)

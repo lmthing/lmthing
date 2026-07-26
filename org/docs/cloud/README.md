@@ -48,7 +48,7 @@ updates budget windows on tier change, and lists/revokes keys — all via the Li
 
 `cloud/gateway/src/index.ts` is a single Hono app: CORS on `/api/*` (`origin: "*"`,
 `GET/POST/PUT/DELETE/OPTIONS`, headers `Content-Type`/`Authorization` — `index.ts:19-26`), a
-`GET /api/health` liveness probe (`index.ts:28`), then nine mounted route modules
+`GET /api/health` liveness probe (`index.ts:28`), then ten mounted route modules
 (`index.ts:30-38`):
 
 | Mount | Module | Purpose | Doc |
@@ -62,6 +62,7 @@ updates budget windows on tier change, and lists/revokes keys — all via the Li
 | `/api/inbound` | `routes/inbound.ts` | inbound-webhook broker → dispatch to the user's pod | [routes.md](./routes.md) |
 | `/api/status` | `routes/status.ts` | cluster/fleet status SSE stream (rate-limited) | [routes.md](./routes.md) |
 | `/api/issues` | `routes/issues.ts` | file a GitHub bug-report issue + upload artifacts | [routes.md](./routes.md) |
+| `/api/teams` | `routes/teams.ts` | teams: membership, roles, invites, the team-scoped token, the team's pod | [teams.md](./teams.md) |
 
 In **local dev only** (`LOCAL_DEV === "true"`), the app additionally mounts `podProxy` on `/api`
 and attaches a WebSocket proxy to reach the user's minikube pod; in production Envoy Gateway does
@@ -86,6 +87,7 @@ them so a fresh DB self-heals. Current migrations (`cloud/migrations/`):
 - `006_user_cron_jobs.sql` — `user_cron_jobs` (externalized cron for scale-to-zero pods)
 - `007_connections.sql` — `connections`, **dropped again** by `009_drop_connections.sql` (BYO-token model, no gateway broker)
 - `008_webhook_bindings.sql` — `webhook_bindings` (inbound-webhook routing)
+- `010_teams.sql` — `teams`, `team_members`, `team_invites` (shared workspaces → [./teams.md](./teams.md))
 
 ## Stripe
 
@@ -119,6 +121,7 @@ scripts: `stripe:create-products`, `litellm:generate-models`, `litellm:resync-bu
 - [routes.md](./routes.md) — every gateway HTTP route + its auth scheme
 - [auth.md](./auth.md) — token types, Zitadel identity, GitHub OAuth, SSO
 - [billing-and-tiers.md](./billing-and-tiers.md) — tiers, budget windows, Stripe flows
+- [teams.md](./teams.md) — teams: the principal model, membership, roles, the team token
 - [litellm.md](./litellm.md) — the `/v1/*` LLM proxy, models, tier enforcement
 - [render.md](./render.md) — headless-Chromium render service + `webSearch`/`webFetch`
 - [../devops/infrastructure.md](../devops/infrastructure.md) — the K8s cluster this runs on

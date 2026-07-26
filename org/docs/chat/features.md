@@ -154,18 +154,18 @@ The `lmthing.settings` schema lives in the space's manifest → [../format/space
 
 ### 2. Render the schema form
 
-`SettingsSchemaForm` renders one `<Input>` per `schema.properties` entry, labelled by `title` (falling back to the key), placeholder from `description`, and masked when `format: 'password'`; `required[]` marks the mandatory fields (`sdk/org/libs/ui/src/studio/integrations/SettingsSchemaForm.tsx`, invoked at `IntegrationsTab.tsx:268-276`). Current values are prefilled from `GET {CLOUD}/api/compute/env` → `{vars}` (`IntegrationsTab.tsx:107-112`; gateway side `cloud/gateway/src/routes/compute.ts:291-296`). A schema with no properties renders "This integration has no configurable settings" (`IntegrationsTab.tsx:274-276`).
+`SettingsSchemaForm` renders one `<Input>` per `schema.properties` entry, labelled by `title` (falling back to the key), placeholder from `description`, and masked when `format: 'password'`; `required[]` marks the mandatory fields (`sdk/org/libs/ui/src/studio/integrations/SettingsSchemaForm.tsx`, invoked at `IntegrationsTab.tsx:268-276`). Current values are prefilled from `GET {CLOUD}/api/compute/env` → `{vars}` (`IntegrationsTab.tsx:107-112`; gateway side `cloud/gateway/src/routes/compute.ts:324-329`). A schema with no properties renders "This integration has no configurable settings" (`IntegrationsTab.tsx:274-276`).
 
 ### 3. Show the public inbound URL
 
-`GET {CLOUD}/api/inbound` returns `{ baseUrl, token, bindings[] }`, where `baseUrl` is the signed public broker URL and `bindings` are the webhook paths the pod has published (`cloud/gateway/src/routes/inbound.ts:51-62`). The tab filters bindings to the active project and displays `${baseUrl}/${binding.path}` with a Copy button (`IntegrationsTab.tsx:123-137,241,278-298`).
+`GET {CLOUD}/api/inbound` returns `{ baseUrl, token, bindings[] }`, where `baseUrl` is the signed public broker URL and `bindings` are the webhook paths the pod has published (`cloud/gateway/src/routes/inbound.ts:52-63`). The tab filters bindings to the active project and displays `${baseUrl}/${binding.path}` with a Copy button (`IntegrationsTab.tsx:123-137,241,278-298`).
 
 ### 4. Save → restart → auto-resume
 
 The save flow (`IntegrationsTab.tsx:182-219`):
 
 1. **GET-merge-PUT.** The gateway's `PUT /api/compute/env` **replaces the entire var set**, so the tab re-reads `GET {CLOUD}/api/compute/env` and overlays only this integration's keys before writing (`overlayEnvKeys` in `sdk/org/libs/ui/src/chat/app/auto-resume.ts#overlayEnvKeys`; call site `IntegrationsTab.tsx:191-199`). An absent field becomes `''` (an explicit unset), never a dropped key (`auto-resume.ts:18`).
-2. **The PUT restarts the pod.** The gateway writes the `user-env` K8s secret and then patches the `lmthing` deployment to force a rolling restart (`cloud/gateway/src/lib/compute.ts#setEnvVars`, "Trigger rolling restart so pods pick up the new env vars"; route at `cloud/gateway/src/routes/compute.ts:305-306`).
+2. **The PUT restarts the pod.** The gateway writes the `user-env` K8s secret and then patches the `lmthing` deployment to force a rolling restart (`cloud/gateway/src/lib/compute.ts#setEnvVars`, "Trigger rolling restart so pods pick up the new env vars"; route at `cloud/gateway/src/routes/compute.ts:338-339`).
 3. **Wait for the pod to come back.** `waitForPodReady` polls a probe every 1 s (90 s timeout, 1.5 s initial delay — the *old* pod still answers for a beat) (`auto-resume.ts:45-56`). The probe requires **both** that same-origin `GET /api/env` is OK **and** that the chat socket is `open`, so the follow-up message can never be dropped against a closed socket (`IntegrationsTab.tsx:145-155`).
 4. **Post exactly one resume nudge.** On success the tab calls `onConfigured(spaceId, resumeMessage(spaceId))` (`IntegrationsTab.tsx:157-161`), where the message is the stable string ``Integration "<spaceId>" is now configured — please continue.`` (`auto-resume.ts:60-62`). The chat shell echoes it into the transcript **and** sends it over the live socket as a `sendMessage` — so it is a **user** message, not a system message (`sdk/org/libs/ui/src/chat/app/AppShell.tsx:30-34`).
 5. **Refresh the badge.** The integrations list is refetched so the card flips to `configured` (`IntegrationsTab.tsx:163-171`).
@@ -216,5 +216,5 @@ Gateway (`dataPlaneOrigin('cloud')`):
 |---|---|---|
 | `POST /api/compute/ensure`, `GET /api/compute/status`, `GET /api/compute/version`, `POST /api/compute/upgrade` | `PodEnsureGate` | `sdk/org/apps/web/src/lib/gates.tsx#ensurePod,61,75,99` |
 | `GET`/`PUT /api/compute/env` | Integrations save + `SettingsDialog` Models/Environment tabs (GET-merge-PUT; PUT restarts the pod) | `cloud/gateway/src/routes/compute.ts:291,305` |
-| `GET /api/inbound` | public inbound webhook URLs (Integrations tab + `SettingsDialog` Triggers tab) | `cloud/gateway/src/routes/inbound.ts:51-62` |
+| `GET /api/inbound` | public inbound webhook URLs (Integrations tab + `SettingsDialog` Triggers tab) | `cloud/gateway/src/routes/inbound.ts:52-63` |
 | `POST /api/billing/portal`, `GET /api/backup/install-url`, `GET`/`PUT /api/backup/config` | `SettingsDialog` — Billing / Backup tabs | `cloud/gateway/src/routes/billing.ts:99`, `cloud/gateway/src/routes/backup.ts:31,64,88` |

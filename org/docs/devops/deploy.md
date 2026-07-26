@@ -144,7 +144,7 @@ Per the deploy-spa skill, the full checklist:
 2. Create `devops/argocd/core/<app>.yaml` (copy `com.yaml`, rename `com` → `<app>`), and add `- <app>.yaml` to `devops/argocd/core/kustomization.yaml`.
 3. Add HTTP + HTTPS listeners for `lmthing.<tld>` to `devops/argocd/envoy/cloud-gateway.yaml`.
 4. Add a `Certificate` for `lmthing.<tld>` to `devops/argocd/envoy/tls-certificates.yaml`.
-5. Add HTTP-redirect + HTTPS static routes to `devops/argocd/envoy/spa-routes.yaml`.
+5. Add HTTP-redirect + HTTPS static routes to `devops/argocd/envoy/spa-routes.yaml`. (A domain that also proxies `/api` into a compute pod gets its own `<app>-routes.yaml` + `<app>-policies.yaml` pair instead, registered in `devops/argocd/envoy/kustomization.yaml:5-22` — `team-routes.yaml`/`team-policies.yaml` are the most recent example.)
 6. Add a path filter + build-matrix entry to `.github/workflows/build-images.yml` — the push `paths` list `.github/workflows/build-images.yml:10-35`, the `filters` block `.github/workflows/build-images.yml:57-132`, the matching `<APP>: ${{ steps.changes.outputs.<app> }}` env var `.github/workflows/build-images.yml:140-155`, and the `all_images` list `.github/workflows/build-images.yml:168-182`. (`org` — the docs SPA — is the most recent example of all four edits.)
 7. Point the DNS A record for `lmthing.<tld>` → the Azure VM IP `4.223.83.5`.
 

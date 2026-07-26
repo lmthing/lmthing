@@ -277,7 +277,7 @@ load the assertion-tracking debug WASM variant, whose `dispose()` throws a descr
 ## 7. A session on disk
 
 The runtime root is `LMTHING_ROOT`, defaulting to `<cwd>/.lmthing` (`bin.ts:209-213`). On the compute
-pod the container's `WORKDIR` is `/data` (a mounted volume, `cloud/gateway/src/lib/compute.ts:243`), so
+pod the container's `WORKDIR` is `/data` (a mounted volume, `cloud/gateway/src/lib/compute.ts:296`), so
 the root is **`/data/.lmthing`** (`devops/argocd/compute/Dockerfile`, "Runtime root" comment +
 `WORKDIR /data`).
 

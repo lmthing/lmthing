@@ -5,9 +5,10 @@ import { signInboundToken, verifyInboundToken } from "../lib/tokens.js";
 import { listWebhookBindings } from "../lib/db.js";
 import {
   getPodInternalBaseUrl,
-  wakeUserPod,
+  wakePod,
   resolvePodConfig,
   waitForPodReady,
+  parsePrincipalKey,
 } from "../lib/compute.js";
 import type { Env } from "../types.js";
 
@@ -126,8 +127,8 @@ inbound.post("/:userToken/:path", async (c) => {
 
   try {
     const pod = await resolvePodConfig(userId);
-    await wakeUserPod(userId, pod);
-    await waitForPodReady(userId, INBOUND_WAKE_WAIT_MS);
+    await wakePod(parsePrincipalKey(userId), pod);
+    await waitForPodReady(parsePrincipalKey(userId), INBOUND_WAKE_WAIT_MS);
   } catch (err) {
     console.error(`[inbound] wake failed for ${userId}:`, err);
     // Still attempt the forward below — a warm pod wake failure shouldn't
@@ -138,7 +139,7 @@ inbound.post("/:userToken/:path", async (c) => {
   const headers = forwardHeaders(c.req.raw.headers);
   headers.set("x-lmthing-inbound-url", inboundUrl(userToken, path));
 
-  const podBase = await getPodInternalBaseUrl(userId);
+  const podBase = await getPodInternalBaseUrl(parsePrincipalKey(userId));
   if (!podBase) {
     console.warn(`[inbound] no pod base URL for ${userId}, dropping event for ${path}`);
   } else {
@@ -178,13 +179,13 @@ inbound.get("/:userToken/:path", async (c) => {
 
   try {
     const pod = await resolvePodConfig(userId);
-    await wakeUserPod(userId, pod);
-    await waitForPodReady(userId, INBOUND_WAKE_WAIT_MS);
+    await wakePod(parsePrincipalKey(userId), pod);
+    await waitForPodReady(parsePrincipalKey(userId), INBOUND_WAKE_WAIT_MS);
   } catch (err) {
     console.error(`[inbound] wake failed for ${userId}:`, err);
   }
 
-  const podBase = await getPodInternalBaseUrl(userId);
+  const podBase = await getPodInternalBaseUrl(parsePrincipalKey(userId));
   if (!podBase) {
     return c.json({ error: "pod unavailable" }, 503);
   }

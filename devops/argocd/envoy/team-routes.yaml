@@ -1,0 +1,97 @@
+# ── lmthing.team ─────────────────────────────────────────────────────────────
+#
+# A team's workspace. Unlike the other product SPAs, lmthing.team has a data
+# plane: /api is proxied into the TEAM's compute pod (namespace `team-<id>`),
+# selected from the `team` claim of the team-scoped JWT. See team-policies.yaml
+# for the JWT validation and the Lua that picks the upstream, and
+# org/docs/cloud/teams.md for the token model.
+#
+# HTTP -> HTTPS redirect
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: team-http-redirect
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: team-http
+  hostnames:
+    - lmthing.team
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+
+---
+# /api/* -> the team's pod (JWT-authenticated, Lua-routed by the `team` claim)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: team-api-proxy
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: team-https
+  hostnames:
+    - lmthing.team
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      filters:
+        # No path rewrite: the pod server serves routes UNDER /api
+        # (/api/projects, /api/sessions, /api/ws, /api/team/…), so keep the prefix.
+        # `rewrite-host-from-header` and `dynamic-user-backend` are cluster
+        # singletons declared once in computer-policies.yaml — they are
+        # domain-agnostic and referenced by name from every per-pod route.
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: HTTPRouteFilter
+            name: rewrite-host-from-header
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: dynamic-user-backend
+          weight: 1
+
+---
+# /* -> Static SPA fallback (the team frontend)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: team-static
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: team-https
+  hostnames:
+    - lmthing.team
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: team
+          namespace: lmthing
+          port: 80
+          weight: 1

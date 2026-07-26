@@ -1,19 +1,24 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth.js";
 import {
-  getUserPodStatus,
+  getPodStatus,
   getEnvVars,
   setEnvVars,
-  ensureUserPod,
-  wakeUserPod,
-  wakeAndWaitUserPod,
-  restartUserPod,
+  ensurePod,
+  wakePod,
+  wakeAndWaitPod,
+  restartPod,
   reportPodActivity,
+  userPrincipal,
+  teamPrincipal,
+  parsePrincipalKey,
+  principalKey as principalKeyOf,
+  type PodPrincipal,
   COMPUTE_IMAGE_TAG,
 } from "../lib/compute.js";
 import * as litellm from "../lib/litellm.js";
 import { getTierByName } from "../lib/tiers.js";
-import { verifyComputeToken } from "../lib/tokens.js";
+import { verifyComputeToken, verifyTeamToken } from "../lib/tokens.js";
 import {
   replaceCronManifest,
   type CronManifestJob,
@@ -36,7 +41,11 @@ async function resolveUserTier(userId: string): Promise<string> {
 
 // ─── Pod → gateway autonomous calls (compute-JWT authed, NOT authMiddleware) ───
 
-/** Extract + verify the pod's scoped compute JWT → its userId, or null. */
+/**
+ * Extract + verify the pod's scoped compute JWT → its principal key, or null.
+ * A team pod's token carries `team-<id>`, so the manifests and activity reports
+ * it publishes land under the team's own rows.
+ */
 async function computeUser(c: {
   req: { header: (n: string) => string | undefined };
 }): Promise<string | null> {
@@ -44,6 +53,25 @@ async function computeUser(c: {
   if (!header?.startsWith("Bearer ")) return null;
   const v = await verifyComputeToken(header.slice(7));
   return v?.userId ?? null;
+}
+
+/**
+ * Which pod a wake request is for. The Envoy activator forwards whatever token
+ * the original caller presented: on lmthing.team that is a team token, whose
+ * `team` claim names the pod to wake; everywhere else it is a personal token and
+ * the pod is the caller's own. The signed claim IS the authorization — the same
+ * trust model the personal path already uses — so there is no DB re-check on a
+ * path that must return immediately.
+ */
+async function resolveWakePrincipal(c: {
+  req: { header: (n: string) => string | undefined };
+}): Promise<PodPrincipal | null> {
+  const header = c.req.header("Authorization");
+  if (!header?.startsWith("Bearer ")) return null;
+  const token = header.slice(7);
+  const team = await verifyTeamToken(token);
+  if (team) return teamPrincipal(team.teamId);
+  return null;
 }
 
 // Deterministic per-job jitter window so many users' same-minute jobs (e.g. a
@@ -73,7 +101,7 @@ compute.post("/self-idle", async (c) => {
   }
   const idle = body.idle !== false; // default true — a bare POST means "I'm idle"
   try {
-    const outcome = await reportPodActivity(userId, idle);
+    const outcome = await reportPodActivity(parsePrincipalKey(userId), idle);
     return c.json({ ok: true, outcome });
   } catch (err) {
     console.error(`self-idle failed for ${userId}:`, err);
@@ -186,7 +214,7 @@ compute.get("/version", (c) => {
 compute.post("/upgrade", authMiddleware, async (c) => {
   const user = c.get("user");
   try {
-    await restartUserPod(user.id);
+    await restartPod(userPrincipal(user.id));
     return c.json({ ok: true });
   } catch (err) {
     console.error(`Failed to restart pod for ${user.id}:`, err);
@@ -202,7 +230,7 @@ compute.get("/status", authMiddleware, async (c) => {
   const tier = getTierByName(tierName);
 
   try {
-    const pod = await getUserPodStatus(user.id);
+    const pod = await getPodStatus(userPrincipal(user.id));
     return c.json({
       compute: true,
       tier: tierName,
@@ -232,9 +260,9 @@ compute.post("/ensure", authMiddleware, async (c) => {
   }
 
   try {
-    const connection = await ensureUserPod(user.id, tier.pod);
+    const connection = await ensurePod(userPrincipal(user.id), tier.pod);
     // Return status so the client knows whether to poll for readiness
-    const status = await getUserPodStatus(user.id);
+    const status = await getPodStatus(userPrincipal(user.id));
     return c.json({
       ok: true,
       tier: tierName,
@@ -257,13 +285,17 @@ compute.post("/ensure", authMiddleware, async (c) => {
 // pod. Idempotent + cheap, so every retry in the wake window is safe.
 compute.post("/wake", authMiddleware, async (c) => {
   const user = c.get("user");
-  const tierName = await resolveUserTier(user.id);
+  // On lmthing.team the forwarded token is a team token — wake the TEAM's pod,
+  // not the member's own. A team token also satisfies authMiddleware (it carries
+  // sub+email), so the team claim has to be what decides.
+  const principal = (await resolveWakePrincipal(c)) ?? userPrincipal(user.id);
+  const tierName = await resolveUserTier(principalKeyOf(principal));
   const tier = getTierByName(tierName) ?? getTierByName("free")!;
   try {
-    await wakeUserPod(user.id, tier.pod);
+    await wakePod(principal, tier.pod);
     return c.json({ ok: true, waking: true }, 202);
   } catch (err) {
-    console.error(`[activator] wake failed for ${user.id}:`, err);
+    console.error(`[activator] wake failed for ${principalKeyOf(principal)}:`, err);
     return c.json({ error: "wake failed" }, 500);
   }
 });
@@ -276,13 +308,14 @@ compute.post("/wake", authMiddleware, async (c) => {
 // HTML). A warm pod short-circuits via the ready cache (no k8s / LiteLLM cost).
 compute.post("/wake-wait", authMiddleware, async (c) => {
   const user = c.get("user");
+  const principal = (await resolveWakePrincipal(c)) ?? userPrincipal(user.id);
   try {
     // 8s bound: under both the ~9s Envoy httpCall timeout and the ~15s ingress
     // timeout, so this route always returns before either fires.
-    const ready = await wakeAndWaitUserPod(user.id, 8000);
+    const ready = await wakeAndWaitPod(principal, 8000);
     return c.json({ ok: true, ready }, ready ? 200 : 202);
   } catch (err) {
-    console.error(`[wake-wait] failed for ${user.id}:`, err);
+    console.error(`[wake-wait] failed for ${principalKeyOf(principal)}:`, err);
     return c.json({ error: "wake-wait failed" }, 500);
   }
 });
@@ -292,7 +325,7 @@ compute.get("/env", authMiddleware, async (c) => {
   const user = c.get("user");
 
   try {
-    const vars = await getEnvVars(user.id);
+    const vars = await getEnvVars(userPrincipal(user.id));
     return c.json({ vars });
   } catch (err) {
     console.error(`Failed to get env vars for ${user.id}:`, err);
@@ -339,7 +372,7 @@ compute.put("/env", authMiddleware, async (c) => {
   }
 
   try {
-    await setEnvVars(user.id, validated);
+    await setEnvVars(userPrincipal(user.id), validated);
     return c.json({ ok: true });
   } catch (err) {
     console.error(`Failed to set env vars for ${user.id}:`, err);

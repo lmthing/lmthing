@@ -415,7 +415,7 @@ The platform does not close it either: the cluster runs Calico and does enforce 
 the only policy in the repo is a render-service **Ingress** rule
 `devops/argocd/core/render.yaml:89-112`, and pod provisioning creates a namespace, pull secret, PVC,
 env secret, Deployment and Service — no `NetworkPolicy`, no egress restriction
-`cloud/gateway/src/lib/compute.ts#createUserPod`.
+`cloud/gateway/src/lib/compute.ts#createPod`.
 
 ---
 

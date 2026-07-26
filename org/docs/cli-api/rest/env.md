@@ -73,7 +73,7 @@ The chat project-settings drawer edits this file directly as raw text (Env tab: 
 
 ## Gateway: `GET /api/compute/env`
 
-`cloud/gateway/src/routes/compute.ts:290-301` — JWT-authed (`authMiddleware`), no tier gate in
+`cloud/gateway/src/routes/compute.ts:323-334` — JWT-authed (`authMiddleware`), no tier gate in
 code. Returns the decoded k8s `user-env` Secret for the caller's namespace:
 
 ```json
@@ -84,13 +84,13 @@ The secret is base64-decoded key-by-key; a missing Secret yields `{}` `cloud/gat
 
 ## Gateway: `PUT /api/compute/env`
 
-`cloud/gateway/src/routes/compute.ts:305-348`. Body `{ vars: Record<string,string> }`.
+`cloud/gateway/src/routes/compute.ts:338-381`. Body `{ vars: Record<string,string> }`.
 Validation, all fail-loud with `400`:
 
-- `vars` must be a non-array object `cloud/gateway/src/routes/compute.ts:316-319`
+- `vars` must be a non-array object `cloud/gateway/src/routes/compute.ts:349-352`
 - every key must match `/^[A-Za-z_][A-Za-z0-9_]*$/` `cloud/gateway/src/routes/compute.ts#KEY_RE,322-330`
-- every value must be a string `cloud/gateway/src/routes/compute.ts:331-333`
-- at most **100** variables `cloud/gateway/src/routes/compute.ts:337-339`
+- every value must be a string `cloud/gateway/src/routes/compute.ts:364-366`
+- at most **100** variables `cloud/gateway/src/routes/compute.ts:370-372`
 
 Then `setEnvVars(userId, validated)` `cloud/gateway/src/lib/compute.ts#setEnvVars`:
 
@@ -99,7 +99,7 @@ Then `setEnvVars(userId, validated)` `cloud/gateway/src/lib/compute.ts#setEnvVar
    deleted** `cloud/gateway/src/lib/compute.ts#envSecret,507-523`.
 2. **Rolling restart** — merge-patch the `lmthing` Deployment with a
    `kubectl.kubernetes.io/restartedAt: <ISO now>` annotation, so the pod comes back with the
-   new env `cloud/gateway/src/lib/compute.ts:524-540`.
+   new env `cloud/gateway/src/lib/compute.ts:582-598`.
 
 > Saving here **always restarts the pod**. That is the difference from `PUT /api/env`, which
 > applies live.
@@ -109,7 +109,7 @@ Then `setEnvVars(userId, validated)` `cloud/gateway/src/lib/compute.ts#setEnvVar
 read and write their pod env. Neither handler calls `resolveUserTier`/`getTierByName` (the tier
 helpers the file *does* use, for `/status`, `/ensure` and the cron policy), and the sibling
 `/status` route carries the comment "All tiers now have compute access"
-`cloud/gateway/src/routes/compute.ts:197-198`. An older `cloud/CLAUDE.md` claimed these routes
+`cloud/gateway/src/routes/compute.ts:225-226`. An older `cloud/CLAUDE.md` claimed these routes
 "require pro/max tier"; that claim is gone from the current file and was never true of the code.
 
 ---

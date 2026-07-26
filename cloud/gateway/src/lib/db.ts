@@ -170,6 +170,50 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (user_id, path)
     )
   `;
+  // Teams — shared workspaces with their own pod, tier and credentials. Only
+  // membership lives here; tier truth stays in LiteLLM metadata for the
+  // `team-<id>` principal. Mirror of cloud/migrations/010_teams.sql.
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.teams (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      name text NOT NULL,
+      created_by text NOT NULL,
+      stripe_customer_id text UNIQUE,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.team_members (
+      team_id uuid NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
+      user_id text NOT NULL,
+      email text NOT NULL,
+      role text NOT NULL CHECK (role IN ('viewer', 'editor')),
+      invited_by text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (team_id, user_id)
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_team_members_user
+      ON public.team_members (user_id)
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.team_invites (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      team_id uuid NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
+      email text NOT NULL,
+      role text NOT NULL CHECK (role IN ('viewer', 'editor')),
+      invited_by text NOT NULL,
+      expires_at timestamptz NOT NULL DEFAULT now() + interval '14 days',
+      accepted_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_team_invites_pending
+      ON public.team_invites (team_id, email) WHERE accepted_at IS NULL
+  `;
 }
 
 export interface BackupConfig {
@@ -440,4 +484,305 @@ export async function listWebhookBindings(
   return await sql<WebhookBindingRow[]>`
     SELECT * FROM webhook_bindings WHERE user_id = ${userId}
   `;
+}
+
+// ─── Teams (teams, team_members, team_invites) ────────────────────────────────
+
+export type TeamRole = "viewer" | "editor";
+
+export interface Team {
+  id: string;
+  name: string;
+  created_by: string;
+  stripe_customer_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TeamMember {
+  team_id: string;
+  user_id: string;
+  email: string;
+  role: TeamRole;
+  invited_by: string | null;
+  created_at: string;
+}
+
+/** A team as seen by one member — the row plus that member's own role. */
+export interface TeamWithRole extends Team {
+  role: TeamRole;
+}
+
+export interface TeamInvite {
+  id: string;
+  team_id: string;
+  email: string;
+  role: TeamRole;
+  invited_by: string;
+  expires_at: string;
+  accepted_at: string | null;
+  created_at: string;
+}
+
+/** An invite joined to its team's name, for the "pending invites" list. */
+export interface TeamInviteWithTeam extends TeamInvite {
+  team_name: string;
+}
+
+/**
+ * Create a team and seat its creator as the first editor, in one transaction —
+ * a team with no editor could never be configured again.
+ */
+export async function createTeam(
+  name: string,
+  createdBy: string,
+  creatorEmail: string,
+  stripeCustomerId: string | null,
+): Promise<Team> {
+  return await sql.begin(async (tx) => {
+    const [team] = await tx<Team[]>`
+      INSERT INTO teams (name, created_by, stripe_customer_id)
+      VALUES (${name}, ${createdBy}, ${stripeCustomerId})
+      RETURNING *
+    `;
+    await tx`
+      INSERT INTO team_members (team_id, user_id, email, role)
+      VALUES (${team!.id}, ${createdBy}, ${creatorEmail}, 'editor')
+    `;
+    return team!;
+  });
+}
+
+export async function getTeam(teamId: string): Promise<Team | null> {
+  const rows = await sql<Team[]>`
+    SELECT * FROM teams WHERE id = ${teamId} LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function setTeamName(teamId: string, name: string): Promise<void> {
+  await sql`
+    UPDATE teams SET name = ${name}, updated_at = now() WHERE id = ${teamId}
+  `;
+}
+
+export async function setTeamStripeCustomer(
+  teamId: string,
+  customerId: string,
+): Promise<void> {
+  await sql`
+    UPDATE teams SET stripe_customer_id = ${customerId}, updated_at = now()
+    WHERE id = ${teamId}
+  `;
+}
+
+export async function deleteTeam(teamId: string): Promise<void> {
+  // team_members / team_invites cascade.
+  await sql`DELETE FROM teams WHERE id = ${teamId}`;
+}
+
+/** Every team this user belongs to, with their own role in each. */
+export async function listTeamsForUser(userId: string): Promise<TeamWithRole[]> {
+  return await sql<TeamWithRole[]>`
+    SELECT t.*, m.role
+    FROM teams t
+    JOIN team_members m ON m.team_id = t.id
+    WHERE m.user_id = ${userId}
+    ORDER BY t.created_at ASC
+  `;
+}
+
+/** This user's membership row, or null if they are not on the team. */
+export async function getTeamMembership(
+  teamId: string,
+  userId: string,
+): Promise<TeamMember | null> {
+  const rows = await sql<TeamMember[]>`
+    SELECT * FROM team_members
+    WHERE team_id = ${teamId} AND user_id = ${userId}
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function listTeamMembers(teamId: string): Promise<TeamMember[]> {
+  return await sql<TeamMember[]>`
+    SELECT * FROM team_members WHERE team_id = ${teamId}
+    ORDER BY created_at ASC
+  `;
+}
+
+/** Add (or re-add) a member. Idempotent on (team, user): updates the role. */
+export async function upsertTeamMember(
+  teamId: string,
+  userId: string,
+  email: string,
+  role: TeamRole,
+  invitedBy: string | null,
+): Promise<void> {
+  await sql`
+    INSERT INTO team_members (team_id, user_id, email, role, invited_by)
+    VALUES (${teamId}, ${userId}, ${email}, ${role}, ${invitedBy})
+    ON CONFLICT (team_id, user_id) DO UPDATE
+      SET role = EXCLUDED.role, email = EXCLUDED.email
+  `;
+}
+
+/**
+ * Change a member's role, refusing to demote the team's last editor — a team
+ * with only viewers can never be configured or billed again. Returns false when
+ * the change was refused for that reason.
+ */
+export async function updateTeamMemberRole(
+  teamId: string,
+  userId: string,
+  role: TeamRole,
+): Promise<boolean> {
+  return await sql.begin(async (tx) => {
+    const [row] = await tx<{ count: string }[]>`
+      SELECT count(*) AS count FROM team_members
+      WHERE team_id = ${teamId} AND role = 'editor' AND user_id <> ${userId}
+      FOR UPDATE
+    `;
+    if (role === "viewer" && Number(row?.count ?? 0) === 0) return false;
+    await tx`
+      UPDATE team_members SET role = ${role}
+      WHERE team_id = ${teamId} AND user_id = ${userId}
+    `;
+    return true;
+  });
+}
+
+/** Remove a member, refusing to remove the team's last editor (see above). */
+export async function removeTeamMember(
+  teamId: string,
+  userId: string,
+): Promise<boolean> {
+  return await sql.begin(async (tx) => {
+    const [row] = await tx<{ count: string }[]>`
+      SELECT count(*) AS count FROM team_members
+      WHERE team_id = ${teamId} AND role = 'editor' AND user_id <> ${userId}
+      FOR UPDATE
+    `;
+    const [target] = await tx<TeamMember[]>`
+      SELECT * FROM team_members
+      WHERE team_id = ${teamId} AND user_id = ${userId}
+      LIMIT 1
+    `;
+    if (!target) return false;
+    if (target.role === "editor" && Number(row?.count ?? 0) === 0) return false;
+    await tx`
+      DELETE FROM team_members WHERE team_id = ${teamId} AND user_id = ${userId}
+    `;
+    return true;
+  });
+}
+
+/** How many editors a team has (used to guard the last-editor rule in routes). */
+export async function countTeamEditors(teamId: string): Promise<number> {
+  const [row] = await sql<{ count: string }[]>`
+    SELECT count(*) AS count FROM team_members
+    WHERE team_id = ${teamId} AND role = 'editor'
+  `;
+  return Number(row?.count ?? 0);
+}
+
+/** Create (or refresh) a pending invite for an email that has no account yet. */
+export async function upsertTeamInvite(
+  teamId: string,
+  email: string,
+  role: TeamRole,
+  invitedBy: string,
+): Promise<TeamInvite> {
+  const [invite] = await sql<TeamInvite[]>`
+    INSERT INTO team_invites (team_id, email, role, invited_by)
+    VALUES (${teamId}, ${email.toLowerCase()}, ${role}, ${invitedBy})
+    ON CONFLICT (team_id, email) WHERE accepted_at IS NULL DO UPDATE
+      SET role = EXCLUDED.role,
+          invited_by = EXCLUDED.invited_by,
+          expires_at = now() + interval '14 days'
+    RETURNING *
+  `;
+  return invite!;
+}
+
+export async function getTeamInvite(
+  inviteId: string,
+): Promise<TeamInvite | null> {
+  const rows = await sql<TeamInvite[]>`
+    SELECT * FROM team_invites WHERE id = ${inviteId} LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+/** Pending, unexpired invites addressed to this email. */
+export async function listPendingInvitesForEmail(
+  email: string,
+): Promise<TeamInviteWithTeam[]> {
+  return await sql<TeamInviteWithTeam[]>`
+    SELECT i.*, t.name AS team_name
+    FROM team_invites i
+    JOIN teams t ON t.id = i.team_id
+    WHERE i.email = ${email.toLowerCase()}
+      AND i.accepted_at IS NULL
+      AND i.expires_at > now()
+    ORDER BY i.created_at ASC
+  `;
+}
+
+export async function listTeamInvites(
+  teamId: string,
+): Promise<TeamInvite[]> {
+  return await sql<TeamInvite[]>`
+    SELECT * FROM team_invites
+    WHERE team_id = ${teamId} AND accepted_at IS NULL AND expires_at > now()
+    ORDER BY created_at ASC
+  `;
+}
+
+/**
+ * Accept an invite: seat the member and stamp the invite, atomically, so a
+ * double-click can't produce a half-applied accept. Re-checks expiry and
+ * addressee inside the transaction. Returns false if the invite is no longer
+ * claimable by this email.
+ */
+export async function acceptTeamInvite(
+  inviteId: string,
+  userId: string,
+  email: string,
+): Promise<boolean> {
+  return await sql.begin(async (tx) => {
+    const [invite] = await tx<TeamInvite[]>`
+      SELECT * FROM team_invites
+      WHERE id = ${inviteId}
+        AND accepted_at IS NULL
+        AND expires_at > now()
+        AND email = ${email.toLowerCase()}
+      FOR UPDATE
+    `;
+    if (!invite) return false;
+    await tx`
+      INSERT INTO team_members (team_id, user_id, email, role, invited_by)
+      VALUES (${invite.team_id}, ${userId}, ${email}, ${invite.role}, ${invite.invited_by})
+      ON CONFLICT (team_id, user_id) DO UPDATE SET role = EXCLUDED.role
+    `;
+    await tx`
+      UPDATE team_invites SET accepted_at = now() WHERE id = ${inviteId}
+    `;
+    return true;
+  });
+}
+
+export async function revokeTeamInvite(inviteId: string): Promise<void> {
+  await sql`DELETE FROM team_invites WHERE id = ${inviteId}`;
+}
+
+/** Find the team that owns a Stripe customer (subscription webhook lookup). */
+export async function getTeamByStripeCustomer(
+  customerId: string,
+): Promise<Team | null> {
+  const rows = await sql<Team[]>`
+    SELECT * FROM teams WHERE stripe_customer_id = ${customerId} LIMIT 1
+  `;
+  return rows[0] ?? null;
 }

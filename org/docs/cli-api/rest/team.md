@@ -128,10 +128,12 @@ Registered only in team mode `sdk/org/libs/cli/src/server/serve.ts:209-217`:
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| GET | `/api/team/channels` | member | List channels, seeding `#general` on first read `sdk/org/libs/cli/src/server/team-channels.ts#ensureDefaultChannel` |
+| GET | `/api/team/channels` | member | List channels `sdk/org/libs/cli/src/server/routes/team-channels.ts#handleListChannels` |
 | POST | `/api/team/channels` | **editor** | Create a channel (`{name}`); the id is the slugified name |
 | GET | `/api/team/channels/:channelId/messages` | member | History, newest last; `?limit=` (≤200) and `?before=<messageId>` page backwards |
-| POST | `/api/team/channels/:channelId/messages` | member | Post `{text, threadId?}` |
+| POST | `/api/team/channels/:channelId/messages` | member | Post `{text, threadId?}`; **404** if the channel does not exist `sdk/org/libs/cli/src/server/routes/team-channels.ts#handlePostMessage` |
+
+A fresh team is seeded with `#general` `sdk/org/libs/cli/src/server/team-channels.ts#ensureDefaultChannel`. The trigger is the channels file not existing yet, and **every** entry point above seeds before it acts — listing, creating, and posting. Keying it off an empty list instead let whichever route ran first decide: creating a channel before anyone listed wrote the file without `#general`, and the team never got one. Because the trigger is file absence, a team that deliberately removes every channel stays empty rather than having `#general` reappear underneath it.
 
 `WS /api/team/ws` is a single per-pod hub: every connected member receives every
 channel event and the client filters by the channel it is showing

@@ -20,7 +20,6 @@ COPY org/package.json            org/
 COPY social/package.json         social/
 COPY space/package.json          space/
 COPY store/package.json          store/
-COPY team/package.json           team/
 COPY sdk/org/libs/auth/package.json         sdk/org/libs/auth/
 COPY sdk/org/libs/config/package.json       sdk/org/libs/config/
 COPY sdk/org/libs/css/package.json          sdk/org/libs/css/

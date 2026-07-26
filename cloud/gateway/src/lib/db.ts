@@ -639,12 +639,15 @@ export async function updateTeamMemberRole(
   role: TeamRole,
 ): Promise<boolean> {
   return await sql.begin(async (tx) => {
-    const [row] = await tx<{ count: string }[]>`
-      SELECT count(*) AS count FROM team_members
+    // Select the ROWS and count them here. `count(*) … FOR UPDATE` is rejected
+    // by Postgres ("FOR UPDATE is not allowed with aggregate functions"), and a
+    // guard that always throws is a guard that never guards.
+    const others = await tx<{ user_id: string }[]>`
+      SELECT user_id FROM team_members
       WHERE team_id = ${teamId} AND role = 'editor' AND user_id <> ${userId}
       FOR UPDATE
     `;
-    if (role === "viewer" && Number(row?.count ?? 0) === 0) return false;
+    if (role === "viewer" && others.length === 0) return false;
     await tx`
       UPDATE team_members SET role = ${role}
       WHERE team_id = ${teamId} AND user_id = ${userId}
@@ -659,8 +662,9 @@ export async function removeTeamMember(
   userId: string,
 ): Promise<boolean> {
   return await sql.begin(async (tx) => {
-    const [row] = await tx<{ count: string }[]>`
-      SELECT count(*) AS count FROM team_members
+    // Rows, not count(*) — see updateTeamMemberRole.
+    const others = await tx<{ user_id: string }[]>`
+      SELECT user_id FROM team_members
       WHERE team_id = ${teamId} AND role = 'editor' AND user_id <> ${userId}
       FOR UPDATE
     `;
@@ -670,7 +674,7 @@ export async function removeTeamMember(
       LIMIT 1
     `;
     if (!target) return false;
-    if (target.role === "editor" && Number(row?.count ?? 0) === 0) return false;
+    if (target.role === "editor" && others.length === 0) return false;
     await tx`
       DELETE FROM team_members WHERE team_id = ${teamId} AND user_id = ${userId}
     `;

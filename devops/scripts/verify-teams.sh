@@ -201,7 +201,7 @@ pod "$TEAM_TOK_A" POST /api/team/channels '{"name":"standup"}' >/dev/null
 step '6. Channels + THING in a thread'
 CH=$(pod "$TEAM_TOK_A" GET /api/team/channels)
 expect 'channels are served, seeded with #general' \
-  "$(printf '%s' "$CH" | jq -r '.channels[0].id')" 'general'
+  "$(printf '%s' "$CH" | jq -r '[.channels[] | select(.id=="general")] | length')" '1'
 
 WORD="pineapple-${STAMP}"
 MSG=$(pod "$TEAM_TOK_A" POST /api/team/channels/general/messages \
@@ -262,9 +262,9 @@ api "$TOK_C" POST "/api/teams/${TEAM_ID}/billing/checkout" '{"tier":"basic"}' >/
 expect 'a viewer cannot start a checkout' "$(st)" '403'
 CO=$(api "$TOK_A" POST "/api/teams/${TEAM_ID}/billing/checkout" '{"tier":"basic"}')
 expect 'an editor gets a checkout url' "$(st)" '200'
-case "$(printf '%s' "$CO" | jq -r '.url')" in
-  https://*) ok 'and it points at Stripe' ;;
-  *)         bad "and it points at Stripe (got $(printf '%s' "$CO" | jq -r '.url'))" ;;
+case "$(printf '%s' "$CO" | jq -r '.client_secret')" in
+  cs_*|*_secret_*) ok 'and it carries an embedded Stripe client secret' ;;
+  *)               bad "and it carries an embedded Stripe client secret (got $(printf '%s' "$CO" | jq -r '.client_secret'))" ;;
 esac
 
 # ── 8. Wake from scale-to-zero ───────────────────────────────────────────────

@@ -1,0 +1,57 @@
+name: Native target
+
+# Hard gate: the React Native target of @lmthing/ui must resolve, transform and render.
+#
+# The Metro harness (sdk/org/libs/ui/metro/) builds the REAL native module graph for ios and
+# android and asserts what only a native build can see: that Metro picked each *.native fork and
+# not its web sibling, that no web-only module (react-dom, Monaco, xterm) leaked in, that no shared
+# file imports a stylesheet, and that the primitives and overlays actually mount through the React
+# Native renderer. None of this is visible to the jsdom suite or to tsc — a jsdom test always has
+# isWeb true, so a broken native graph used to reach a device before it reached anyone's attention.
+#
+# No simulator, no Xcode/Android SDK, no Expo: Metro arrives with react-native, which is already in
+# the tree. ~20-35s per platform cold, a few seconds warm.
+#
+# Rationale and the four traps worth knowing before editing the harness:
+# sdk/org/libs/ui/metro/README.md
+
+on:
+  pull_request:
+    paths:
+      - 'sdk/org/libs/ui/**'
+      - 'sdk/org/libs/css/**'
+      - 'sdk/org/libs/state/**'
+      - 'sdk/org/libs/auth/**'
+      - '.github/workflows/native-target.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'sdk/org/libs/ui/**'
+      - 'sdk/org/libs/css/**'
+      - 'sdk/org/libs/state/**'
+      - 'sdk/org/libs/auth/**'
+      - '.github/workflows/native-target.yml'
+
+jobs:
+  metro-graph:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+      - name: Install
+        working-directory: sdk/org
+        run: pnpm install --frozen-lockfile
+      # Metro's file map crawls every watchFolder and opens an inotify watch per directory. The
+      # runner's default (8192 on ubuntu-latest) is well under what sdk/org's node_modules needs,
+      # and the failure is an opaque ENOSPC from node:internal/fs/watchers rather than anything
+      # naming the real cause.
+      - name: Raise the inotify watch limit
+        run: sudo sysctl -w fs.inotify.max_user_watches=524288
+      - name: Metro resolution gate + native render suites (ios + android)
+        working-directory: sdk/org
+        run: pnpm --filter @lmthing/ui test:native

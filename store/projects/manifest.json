@@ -2807,6 +2807,438 @@
         "tests/functions.test.mjs",
         "tests/hooks.test.mjs"
       ]
+    },
+    {
+      "id": "utility-dispatcher",
+      "title": "Dispatcher",
+      "description": "Routes what the other utility spaces find — deadline alerts, validation violations, digests — to the messaging channel you choose.",
+      "icon": "📮",
+      "tags": [
+        "utility",
+        "automation"
+      ],
+      "kind": "utility",
+      "settings": null,
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "collectNewRows",
+          "summary": "Select the rows a rule has not delivered yet — the watermark filter. Pure, never throws.",
+          "signature": "collectNewRows(rows: Record<string, unknown>[] | null | undefined, lastSeenCreatedAt: string | null | undefined, statusFilter: string | null | undefined,): Record<string, unknown>[]"
+        },
+        {
+          "name": "computeBatchKey",
+          "summary": "Stable identity for one delivered batch — pure, never throws.",
+          "signature": "computeBatchKey(ruleId: unknown, lastSeenCreatedAt: unknown, itemCount: unknown): string"
+        },
+        {
+          "name": "discoverQueueTables",
+          "summary": "The cross-space queue registry, as data — which utility queue tables exist in THIS project and",
+          "signature": "discoverQueueTables(tables: unknown,):"
+        },
+        {
+          "name": "renderDigest",
+          "summary": "Render one batch of queue rows as a deterministic markdown digest. Pure, never throws.",
+          "signature": "renderDigest(sourceLabel: unknown, entries: Record<string, unknown>[] | null | undefined, recipe: { titleColumn?: unknown; detailColumns?: unknown } | null | undefined,): string"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "dispatcher",
+          "actions": [
+            "bind",
+            "dispatch",
+            "rules",
+            "review"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/dispatcher/charter.md",
+        "agents/dispatcher/instruct.md",
+        "functions/collectNewRows.ts",
+        "functions/computeBatchKey.ts",
+        "functions/discoverQueueTables.ts",
+        "functions/renderDigest.ts",
+        "hooks/daily-dispatch.ts",
+        "knowledge/dispatcher/channels.md",
+        "knowledge/dispatcher/routing.md",
+        "package.json",
+        "tasklists/bind/01-discover.md",
+        "tasklists/bind/02-persist.md",
+        "tasklists/bind/03-report.md",
+        "tasklists/bind/index.md",
+        "tasklists/dispatch/01-load.md",
+        "tasklists/dispatch/02-collect.md",
+        "tasklists/dispatch/03-deliver.md",
+        "tasklists/dispatch/04-report.md",
+        "tasklists/dispatch/index.md",
+        "tests/functions.test.mjs",
+        "tests/hooks.test.mjs"
+      ]
+    },
+    {
+      "id": "utility-insights",
+      "title": "Insights",
+      "description": "Answers questions about your app's data from the real rows, and records a weekly digest of what changed.",
+      "icon": "📊",
+      "tags": [
+        "utility",
+        "analytics"
+      ],
+      "kind": "utility",
+      "settings": null,
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "detectOutliers",
+          "summary": "Textbook Tukey fences over one numeric column — pure, deterministic, never throws.",
+          "signature": "detectOutliers(rows: Record<string, unknown>[] | null | undefined, column: string,):"
+        },
+        {
+          "name": "formatReportMarkdown",
+          "summary": "Render a digest report as markdown — pure, deterministic, never throws.",
+          "signature": "formatReportMarkdown(profile: unknown, highlights: unknown, periodLabel: unknown): string"
+        },
+        {
+          "name": "profileTables",
+          "summary": "Profile a project's tables from a schema listing plus sampled rows — pure, never throws.",
+          "signature": "profileTables(tables: unknown, samples: Record<string, Record<string, unknown>[]> | null | undefined,):"
+        },
+        {
+          "name": "summarizeNumericColumn",
+          "summary": "Descriptive statistics for one column of one table's rows — pure, deterministic, never throws.",
+          "signature": "summarizeNumericColumn(rows: Record<string, unknown>[] | null | undefined, column: string,):"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "analyst",
+          "actions": [
+            "digest",
+            "ask"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/analyst/charter.md",
+        "agents/analyst/instruct.md",
+        "functions/detectOutliers.ts",
+        "functions/formatReportMarkdown.ts",
+        "functions/profileTables.ts",
+        "functions/summarizeNumericColumn.ts",
+        "hooks/weekly-digest.ts",
+        "knowledge/insights/answering.md",
+        "knowledge/insights/digesting.md",
+        "package.json",
+        "tasklists/digest/01-gate.md",
+        "tasklists/digest/02-inventory.md",
+        "tasklists/digest/03-analyze.md",
+        "tasklists/digest/04-compose.md",
+        "tasklists/digest/05-record.md",
+        "tasklists/digest/06-report.md",
+        "tasklists/digest/index.md",
+        "tests/functions.test.mjs",
+        "tests/hooks.test.mjs"
+      ]
+    },
+    {
+      "id": "utility-intake",
+      "title": "Intake",
+      "description": "A universal inbox: anything dropped into intake_items gets routed into your real tables by rules you confirm.",
+      "icon": "📬",
+      "tags": [
+        "utility",
+        "data-in"
+      ],
+      "kind": "utility",
+      "settings": null,
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "applyIntakeMapping",
+          "summary": "Project a payload onto a target row using a declarative mapping — pure, never throws.",
+          "signature": "applyIntakeMapping(mapping: unknown, payload: unknown,):"
+        },
+        {
+          "name": "computeIntakeKey",
+          "summary": "Stable identity for one intake delivery — pure, never throws.",
+          "signature": "computeIntakeKey(source: unknown, payloadJson: unknown): string"
+        },
+        {
+          "name": "matchIntakeRule",
+          "summary": "Pick the first ACTIVE rule whose matcher matches a payload — pure, never throws.",
+          "signature": "matchIntakeRule(rules: Record<string, unknown>[] | null | undefined, payload: unknown,):"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "triager",
+          "actions": [
+            "triage",
+            "rules",
+            "review"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/triager/charter.md",
+        "agents/triager/instruct.md",
+        "functions/applyIntakeMapping.ts",
+        "functions/computeIntakeKey.ts",
+        "functions/matchIntakeRule.ts",
+        "hooks/triage-on-insert.ts",
+        "knowledge/intake/routing.md",
+        "knowledge/intake/sources.md",
+        "package.json",
+        "tasklists/triage/01-load.md",
+        "tasklists/triage/02-route.md",
+        "tasklists/triage/03-mark.md",
+        "tasklists/triage/04-report.md",
+        "tasklists/triage/index.md",
+        "tests/functions.test.mjs",
+        "tests/hooks.test.mjs"
+      ]
+    },
+    {
+      "id": "utility-janitor",
+      "title": "Janitor",
+      "description": "Finds duplicates, messy values and orphaned rows across your app's tables and queues each one as a proposal you approve before anything is changed.",
+      "icon": "🧹",
+      "tags": [
+        "utility",
+        "data-quality"
+      ],
+      "kind": "utility",
+      "settings": null,
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "computeFindingKey",
+          "summary": "Stable identity for one janitor finding — pure, never throws.",
+          "signature": "computeFindingKey(targetTable: unknown, rowId: unknown, kind: unknown, detail: unknown): string"
+        },
+        {
+          "name": "findDuplicateGroups",
+          "summary": "Group rows that share the same normalized natural key — pure, never throws.",
+          "signature": "findDuplicateGroups(rows: Record<string, unknown>[] | null | undefined, keyColumns: string[] | null | undefined,):"
+        },
+        {
+          "name": "findOrphanRows",
+          "summary": "Find rows whose foreign key points at a parent that does not exist — pure, never throws.",
+          "signature": "findOrphanRows(rows: Record<string, unknown>[] | null | undefined, fkColumn: string, parentIds: (string | number)"
+        },
+        {
+          "name": "normalizeCellValue",
+          "summary": "Canonicalize ONE cell value, conservatively — pure, never throws.",
+          "signature": "normalizeCellValue(kind: string, value: unknown,):"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "janitor",
+          "actions": [
+            "scan",
+            "apply",
+            "review"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/janitor/charter.md",
+        "agents/janitor/instruct.md",
+        "functions/computeFindingKey.ts",
+        "functions/findDuplicateGroups.ts",
+        "functions/findOrphanRows.ts",
+        "functions/normalizeCellValue.ts",
+        "hooks/daily-scan.ts",
+        "knowledge/janitor/applying.md",
+        "knowledge/janitor/scanning.md",
+        "package.json",
+        "tasklists/apply/01-load.md",
+        "tasklists/apply/02-apply.md",
+        "tasklists/apply/03-mark.md",
+        "tasklists/apply/04-report.md",
+        "tasklists/apply/index.md",
+        "tasklists/scan/01-inventory.md",
+        "tasklists/scan/02-analyze.md",
+        "tasklists/scan/03-record.md",
+        "tasklists/scan/04-report.md",
+        "tasklists/scan/index.md",
+        "tests/functions.test.mjs",
+        "tests/hooks.test.mjs"
+      ]
+    },
+    {
+      "id": "utility-ledger",
+      "title": "Ledger",
+      "description": "Finds the money columns in your app's tables, closes each calendar month into a report row, and flags anything over budget.",
+      "icon": "💰",
+      "tags": [
+        "utility",
+        "finance"
+      ],
+      "kind": "utility",
+      "settings": null,
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "computeReportKey",
+          "summary": "Stable identity for one monthly close — pure, never throws.",
+          "signature": "computeReportKey(bindingId: unknown, periodStart: unknown): string"
+        },
+        {
+          "name": "discoverAmountColumns",
+          "summary": "Discover money columns — an (amount, date, category) column set per table — pure, never throws.",
+          "signature": "discoverAmountColumns(tables: unknown, samples: Record<string, Record<string, unknown>[]> | null | undefined,):"
+        },
+        {
+          "name": "previousMonthRange",
+          "summary": "The previous UTC calendar month as a half-open range — pure, deterministic, never throws.",
+          "signature": "previousMonthRange(nowIso: unknown,):"
+        },
+        {
+          "name": "summarizePeriod",
+          "summary": "Sum one bound column set over one calendar period — pure, deterministic, never throws.",
+          "signature": "summarizePeriod(rows: Record<string, unknown>[] | null | undefined, amountColumn: string, dateColumn: string | null | undefined, categoryColumn: string | null | undefined, periodStartIso: string, periodEndIso: string,):"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "bookkeeper",
+          "actions": [
+            "bind",
+            "close",
+            "budgets",
+            "review"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/bookkeeper/charter.md",
+        "agents/bookkeeper/instruct.md",
+        "functions/computeReportKey.ts",
+        "functions/discoverAmountColumns.ts",
+        "functions/previousMonthRange.ts",
+        "functions/summarizePeriod.ts",
+        "hooks/monthly-close.ts",
+        "knowledge/ledger/binding.md",
+        "knowledge/ledger/closing.md",
+        "package.json",
+        "tasklists/bind/01-inventory.md",
+        "tasklists/bind/02-propose.md",
+        "tasklists/bind/03-persist.md",
+        "tasklists/bind/04-report.md",
+        "tasklists/bind/index.md",
+        "tasklists/close/01-gate.md",
+        "tasklists/close/02-load.md",
+        "tasklists/close/03-summarize.md",
+        "tasklists/close/04-record.md",
+        "tasklists/close/05-report.md",
+        "tasklists/close/index.md"
+      ]
+    },
+    {
+      "id": "utility-planner",
+      "title": "Planner",
+      "description": "Binds the date columns scattered across your app's tables into one agenda you can read day by day.",
+      "icon": "🗓️",
+      "tags": [
+        "utility",
+        "planning"
+      ],
+      "kind": "utility",
+      "settings": null,
+      "events": {},
+      "inbound": [],
+      "functions": [],
+      "agents": [
+        {
+          "slug": "scheduler",
+          "actions": [
+            "bind",
+            "agenda"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/scheduler/charter.md",
+        "agents/scheduler/instruct.md",
+        "package.json"
+      ]
+    },
+    {
+      "id": "utility-validator",
+      "title": "Validator",
+      "description": "Turns your app's implicit data contracts into explicit rules and checks them daily, queueing every violation for review.",
+      "icon": "✅",
+      "tags": [
+        "utility",
+        "data-quality"
+      ],
+      "kind": "utility",
+      "settings": null,
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "checkRule",
+          "summary": "Evaluate ONE rule against ONE row — pure, no I/O, never throws.",
+          "signature": "checkRule(rule: { column?: string; kind?: string; config?: Record<string, unknown> } | null | undefined, row: Record<string, unknown> | null | undefined, refIds?: (string | number)"
+        },
+        {
+          "name": "computeViolationKey",
+          "summary": "Stable identity for one violation — pure, never throws.",
+          "signature": "computeViolationKey(ruleId: unknown, targetTable: unknown, rowId: unknown): string"
+        },
+        {
+          "name": "suggestRules",
+          "summary": "Propose data-contract rules from observed evidence — pure, conservative, never throws.",
+          "signature": "suggestRules(tables: unknown, samples: Record<string, Record<string, unknown>[]> | null | undefined,):"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "inspector",
+          "actions": [
+            "bind",
+            "check",
+            "review"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/inspector/charter.md",
+        "agents/inspector/instruct.md",
+        "functions/checkRule.ts",
+        "functions/computeViolationKey.ts",
+        "functions/suggestRules.ts",
+        "hooks/daily-check.ts",
+        "knowledge/validator/rules.md",
+        "knowledge/validator/sweeping.md",
+        "package.json",
+        "tasklists/bind/01-inventory.md",
+        "tasklists/bind/02-suggest.md",
+        "tasklists/bind/03-persist.md",
+        "tasklists/bind/04-report.md",
+        "tasklists/bind/index.md",
+        "tasklists/check/01-load.md",
+        "tasklists/check/02-scan.md",
+        "tasklists/check/03-record.md",
+        "tasklists/check/index.md"
+      ]
     }
   ]
 }

@@ -1,0 +1,12 @@
+{
+  "name": "utility-insights",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "utility",
+    "title": "Insights",
+    "tags": ["utility", "analytics"],
+    "icon": "📊",
+    "description": "Answers questions about your app's data from the real rows, and records a weekly digest of what changed."
+  }
+}

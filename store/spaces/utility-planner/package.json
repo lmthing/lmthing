@@ -1,0 +1,12 @@
+{
+  "name": "utility-planner",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "utility",
+    "title": "Planner",
+    "tags": ["utility", "planning"],
+    "icon": "🗓️",
+    "description": "Binds the date columns scattered across your app's tables into one agenda you can read day by day."
+  }
+}

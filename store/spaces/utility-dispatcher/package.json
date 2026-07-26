@@ -1,0 +1,12 @@
+{
+  "name": "utility-dispatcher",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "utility",
+    "title": "Dispatcher",
+    "tags": ["utility", "automation"],
+    "icon": "📮",
+    "description": "Routes what the other utility spaces find — deadline alerts, validation violations, digests — to the messaging channel you choose."
+  }
+}

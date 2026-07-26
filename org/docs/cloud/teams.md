@@ -165,6 +165,34 @@ active — deleting the row would orphan a live subscription that nothing would
 then downgrade or cancel. It tears down the pod *before* the row, so a failure
 leaves a team that can be retried rather than a running namespace nothing owns.
 
+## Verifying it end to end
+
+Most of the model is unit-tested, but three things only a live deployment can
+prove: that the edge routes a team token to the team's pod and refuses a
+personal one, that a viewer really is read-only *inside* the workspace, and that
+THING remembers a channel thread across two different members.
+
+`devops/scripts/verify-teams.sh` walks exactly that, against a real deployment:
+it registers two accounts, creates a team, adds one as a viewer, mints both
+team tokens and asserts their claims, provisions the pod, then checks the role
+matrix through the edge, posts an `@thing` mention as one member and a follow-up
+in the same thread as the *other*, and asserts the answer still contains the
+word only the first message mentioned. It finishes by scaling the team pod to
+zero and confirming the activator wakes it.
+
+```bash
+GATEWAY_JWT_SECRET=$(…from the lmthing-secrets k8s secret…) \
+  ./devops/scripts/verify-teams.sh
+```
+
+It mints its own session JWTs because password login is disabled in production
+(`.issues/zitadel-password-login-disabled.md`). Set `SKIP_WAKE=1` to skip the
+step that needs cluster access.
+
+The edge Lua itself is checked without a cluster by
+`devops/scripts/test-team-lua.py`, which runs the real routing script against a
+stubbed request handle.
+
 ## Cross-references
 
 - Token shapes and the middleware → [./auth.md](./auth.md)

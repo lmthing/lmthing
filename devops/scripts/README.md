@@ -38,3 +38,13 @@ the key is fine. `cluster-env.sh` keeps the invocation in a bash array instead.
 with zsh's `no matches found` before the script ever runs. Write `-o 'jsonpath={.items[*].name}'`.
 
 What lives in which namespace, the routing model, per-user pods → [org/docs/devops](https://lmthing.org/devops).
+
+## Feature verification
+
+- `test-team-lua.py` — runs the lmthing.team Envoy routing Lua against a stubbed
+  request handle, so a regression in the routing or the fail-closed checks is
+  caught before deploy. Needs `pip install lupa pyyaml`.
+- `verify-teams.sh` — end-to-end Teams check against a live deployment: team
+  creation, invites, team-token claims, edge routing (a personal token must be
+  refused), the viewer/editor matrix inside the workspace, THING's memory across
+  a channel thread, and the wake-from-zero path. Needs `GATEWAY_JWT_SECRET`.

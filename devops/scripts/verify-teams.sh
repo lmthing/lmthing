@@ -44,7 +44,14 @@ mint() {
   ' "$1" "$2" "$GATEWAY_JWT_SECRET"
 }
 
-# api <token> <method> <path> [body] → body on stdout, status in $STATUS
+# Every call records its status in a FILE, not a variable. `X=$(api ...)` runs
+# api in a subshell, where a `STATUS=` assignment dies with the subshell — so the
+# following assertion would silently grade the PREVIOUS call's status.
+STATUS_FILE="$(mktemp)"
+trap 'rm -f "$STATUS_FILE"' EXIT
+st() { cat "$STATUS_FILE"; }
+
+# api <token> <method> <path> [body] → body on stdout, status via st()
 api() {
   local token="$1" method="$2" path="$3" body="${4:-}" out
   if [ -n "$body" ]; then
@@ -54,7 +61,7 @@ api() {
     out=$(curl -sS -w '\n%{http_code}' -X "$method" "${BASE_URL}${path}" \
       -H "authorization: Bearer $token")
   fi
-  STATUS="${out##*$'\n'}"
+  printf '%s' "${out##*$'\n'}" > "$STATUS_FILE"
   printf '%s' "${out%$'\n'*}"
 }
 
@@ -68,7 +75,7 @@ pod() {
     out=$(curl -sS -w '\n%{http_code}' -X "$method" "${TEAM_URL}${path}" \
       -H "authorization: Bearer $token")
   fi
-  STATUS="${out##*$'\n'}"
+  printf '%s' "${out##*$'\n'}" > "$STATUS_FILE"
   printf '%s' "${out%$'\n'*}"
 }
 
@@ -106,7 +113,7 @@ expect 'an unknown email becomes a pending invite' "$(printf '%s' "$INV" | jq -r
 INVITE_ID=$(printf '%s' "$INV" | jq -r '.invite_id')
 
 api "$TOK_B" GET /api/teams >/dev/null
-expect 'B can list teams' "$STATUS" '200'
+expect 'B can list teams' "$(st)" '200'
 
 # ── 2b. That invite is claimable once the person actually signs up ───────────
 # There is no mailer: an invite is claimed on next login, so this is the whole
@@ -121,10 +128,10 @@ expect 'C sees the invitation waiting' \
   "$(printf '%s' "$PENDING" | jq -r --arg i "$INVITE_ID" '[.invites[]? | select(.id==$i)] | length')" '1'
 
 api "$TOK_B" POST "/api/teams/invites/${INVITE_ID}/accept" >/dev/null
-expect "someone else's invite is not claimable" "$STATUS" '403'
+expect "someone else's invite is not claimable" "$(st)" '403'
 
 ACC=$(api "$TOK_C" POST "/api/teams/invites/${INVITE_ID}/accept")
-expect 'C claims the invitation' "$STATUS" '200'
+expect 'C claims the invitation' "$(st)" '200'
 expect 'and lands in the right team' "$(printf '%s' "$ACC" | jq -r '.team_id')" "$TEAM_ID"
 
 ROSTER=$(api "$TOK_A" GET "/api/teams/${TEAM_ID}")
@@ -149,46 +156,46 @@ expect "A's token says editor"       "$(claim "$TEAM_TOK_A" .role)" 'editor'
 expect "B's token says viewer"       "$(claim "$TEAM_TOK_B" .role)" 'viewer'
 
 api "$TOK_B" GET "/api/teams/${TEAM_ID}/compute/env" >/dev/null
-expect 'a viewer cannot read the team credentials' "$STATUS" '403'
+expect 'a viewer cannot read the team credentials' "$(st)" '403'
 
 # ── 4. The pod, and the edge ─────────────────────────────────────────────────
 step '4. Team pod + edge routing'
 api "$TOK_A" POST "/api/teams/${TEAM_ID}/compute/ensure" >/dev/null
-expect 'the team pod provisions' "$STATUS" '200'
+expect 'the team pod provisions' "$(st)" '200'
 
 for _ in $(seq 1 40); do
   pod "$TEAM_TOK_A" GET /api/projects >/dev/null
-  [ "$STATUS" = '200' ] && break
+  [ "$(st)" = '200' ] && break
   sleep 3          # cold boot, or Envoy's waking response — retry
 done
-expect 'a team token reaches the team pod' "$STATUS" '200'
+expect 'a team token reaches the team pod' "$(st)" '200'
 
 pod "$TOK_A" GET /api/projects >/dev/null
-expect 'a PERSONAL token is refused at lmthing.team' "$STATUS" '401'
+expect 'a PERSONAL token is refused at lmthing.team' "$(st)" '401'
 
 # ── 5. The role matrix, inside the workspace ─────────────────────────────────
 step '5. Viewer vs editor inside the workspace'
 pod "$TEAM_TOK_B" GET /api/projects >/dev/null
-expect 'a viewer reads the projects' "$STATUS" '200'
+expect 'a viewer reads the projects' "$(st)" '200'
 
 pod "$TEAM_TOK_B" PUT /api/env '{"content":"HACKED=1"}' >/dev/null
-expect 'a viewer cannot write the pod env' "$STATUS" '403'
+expect 'a viewer cannot write the pod env' "$(st)" '403'
 
 pod "$TEAM_TOK_B" POST /api/projects '{"name":"viewer-made-this"}' >/dev/null
-expect 'a viewer cannot create a project' "$STATUS" '403'
+expect 'a viewer cannot create a project' "$(st)" '403'
 
 pod "$TEAM_TOK_A" POST /api/projects '{"name":"team-project"}' >/dev/null
-[ "$STATUS" = '200' ] || [ "$STATUS" = '201' ] \
+[ "$(st)" = '200' ] || [ "$(st)" = '201' ] \
   && ok 'an editor creates a project' \
-  || bad "an editor creates a project (got $STATUS)"
+  || bad "an editor creates a project (got $(st))"
 
 # Creating a channel is configuring the team, so it is an editor's act; talking
 # in one is every member's. This is the seam between the two roles in the chat.
 pod "$TEAM_TOK_B" POST /api/team/channels '{"name":"viewer-channel"}' >/dev/null
-expect 'a viewer cannot create a channel' "$STATUS" '403'
+expect 'a viewer cannot create a channel' "$(st)" '403'
 pod "$TEAM_TOK_A" POST /api/team/channels '{"name":"standup"}' >/dev/null
-[ "$STATUS" = '200' ] || [ "$STATUS" = '201' ] \
-  && ok 'an editor creates a channel' || bad "an editor creates a channel (got $STATUS)"
+[ "$(st)" = '200' ] || [ "$(st)" = '201' ] \
+  && ok 'an editor creates a channel' || bad "an editor creates a channel (got $(st))"
 
 # ── 6. Channels, and THING's memory across members ───────────────────────────
 step '6. Channels + THING in a thread'
@@ -200,7 +207,7 @@ WORD="pineapple-${STAMP}"
 MSG=$(pod "$TEAM_TOK_A" POST /api/team/channels/general/messages \
   "{\"text\":\"@thing please remember the word ${WORD}\"}")
 ROOT=$(printf '%s' "$MSG" | jq -r '.message.id')
-expect 'A posts a mention' "$STATUS" '201'
+expect 'A posts a mention' "$(st)" '201'
 
 # THING answers out-of-band; poll the transcript for its reply.
 for _ in $(seq 1 60); do
@@ -214,7 +221,7 @@ done
 # The VIEWER replies in the same thread — same session, so THING has the context.
 pod "$TEAM_TOK_B" POST /api/team/channels/general/messages \
   "{\"text\":\"@thing what word did you just remember?\",\"threadId\":\"${ROOT}\"}" >/dev/null
-expect 'a viewer may talk in a channel' "$STATUS" '201'
+expect 'a viewer may talk in a channel' "$(st)" '201'
 
 for _ in $(seq 1 60); do
   HIST=$(pod "$TEAM_TOK_A" GET /api/team/channels/general/messages)
@@ -230,31 +237,31 @@ esac
 # ── 7. Promotion takes effect on the next mint ───────────────────────────────
 step '7. Role change'
 api "$TOK_A" PUT "/api/teams/${TEAM_ID}/members/${USER_B}" '{"role":"editor"}' >/dev/null
-expect 'A promotes B to editor' "$STATUS" '200'
+expect 'A promotes B to editor' "$(st)" '200'
 TEAM_TOK_B2=$(api "$TOK_B" POST "/api/teams/${TEAM_ID}/token" | jq -r '.access_token')
 expect "B's re-minted token says editor" "$(claim "$TEAM_TOK_B2" .role)" 'editor'
 pod "$TEAM_TOK_B2" POST /api/projects '{"name":"now-an-editor"}' >/dev/null
-[ "$STATUS" = '200' ] || [ "$STATUS" = '201' ] \
-  && ok 'B can now write' || bad "B can now write (got $STATUS)"
+[ "$(st)" = '200' ] || [ "$(st)" = '201' ] \
+  && ok 'B can now write' || bad "B can now write (got $(st))"
 
 api "$TOK_A" PUT "/api/teams/${TEAM_ID}/members/${USER_A}" '{"role":"viewer"}' >/dev/null
-[ "$STATUS" = '200' ] && ok 'A may step down while B is an editor' \
-  || bad "A may step down while B is an editor (got $STATUS)"
+[ "$(st)" = '200' ] && ok 'A may step down while B is an editor' \
+  || bad "A may step down while B is an editor (got $(st))"
 api "$TOK_B" PUT "/api/teams/${TEAM_ID}/members/${USER_B}" '{"role":"viewer"}' >/dev/null
-expect 'the LAST editor cannot be demoted' "$STATUS" '409'
+expect 'the LAST editor cannot be demoted' "$(st)" '409'
 api "$TOK_B" PUT "/api/teams/${TEAM_ID}/members/${USER_A}" '{"role":"editor"}' >/dev/null
 
 # ── 7b. The team pays for itself ─────────────────────────────────────────────
 # A team's budget is its own LiteLLM principal (team-<id>), never a member's.
 step '7b. Billing'
 USAGE=$(api "$TOK_A" GET "/api/teams/${TEAM_ID}/billing/usage")
-expect 'a member can read the team usage' "$STATUS" '200'
+expect 'a member can read the team usage' "$(st)" '200'
 expect 'a fresh team is on the free tier' "$(printf '%s' "$USAGE" | jq -r '.tier')" 'free'
 
 api "$TOK_C" POST "/api/teams/${TEAM_ID}/billing/checkout" '{"tier":"basic"}' >/dev/null
-expect 'a viewer cannot start a checkout' "$STATUS" '403'
+expect 'a viewer cannot start a checkout' "$(st)" '403'
 CO=$(api "$TOK_A" POST "/api/teams/${TEAM_ID}/billing/checkout" '{"tier":"basic"}')
-expect 'an editor gets a checkout url' "$STATUS" '200'
+expect 'an editor gets a checkout url' "$(st)" '200'
 case "$(printf '%s' "$CO" | jq -r '.url')" in
   https://*) ok 'and it points at Stripe' ;;
   *)         bad "and it points at Stripe (got $(printf '%s' "$CO" | jq -r '.url'))" ;;
@@ -269,10 +276,10 @@ if [ -x "$(dirname "${BASH_SOURCE[0]}")/cluster-kubectl.sh" ] && [ "${SKIP_WAKE:
   sleep 5
   for _ in $(seq 1 40); do
     pod "$TEAM_TOK_A" GET /api/projects >/dev/null
-    [ "$STATUS" = '200' ] && break
+    [ "$(st)" = '200' ] && break
     sleep 3
   done
-  expect 'the activator wakes the team pod' "$STATUS" '200'
+  expect 'the activator wakes the team pod' "$(st)" '200'
 fi
 
 # ── 9. Teardown ──────────────────────────────────────────────────────────────
@@ -281,11 +288,11 @@ fi
 if [ "${KEEP_TEAM:-}" != '1' ]; then
   step '9. Deleting the team'
   api "$TOK_C" DELETE "/api/teams/${TEAM_ID}" >/dev/null
-  expect 'a viewer cannot delete the team' "$STATUS" '403'
+  expect 'a viewer cannot delete the team' "$(st)" '403'
   api "$TOK_A" DELETE "/api/teams/${TEAM_ID}" >/dev/null
-  expect 'an editor deletes it' "$STATUS" '200'
+  expect 'an editor deletes it' "$(st)" '200'
   api "$TOK_A" GET "/api/teams/${TEAM_ID}" >/dev/null
-  expect 'and it is gone' "$STATUS" '404'
+  expect 'and it is gone' "$(st)" '404'
 else
   step "9. Teardown skipped — team ${TEAM_ID} left running"
 fi

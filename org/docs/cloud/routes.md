@@ -95,6 +95,10 @@ Three distinct authentication schemes appear below. Do not conflate them.
 | POST | `/api/teams/:teamId/compute/upgrade` | `teams.ts:426` | JWT + **editor** | Rolling-restart the team pod onto the latest compute image |
 | GET | `/api/teams/:teamId/compute/env` | `teams.ts:442` | JWT + **editor** | The team's env vars (its provider tokens — never readable by a viewer) |
 | PUT | `/api/teams/:teamId/compute/env` | `teams.ts:460` | JWT + **editor** | **Replace all** team env vars → restarts the pod for every member |
+| POST | `/api/teams/:teamId/billing/checkout` | `teams.ts:534` | JWT + **editor** | Stripe embedded Checkout for the TEAM's own subscription |
+| POST | `/api/teams/:teamId/billing/portal` | `teams.ts:572` | JWT + **editor** | Stripe Customer Portal for the team |
+| GET | `/api/teams/:teamId/billing/usage` | `teams.ts:596` | JWT + member | The team's tier, spend and budget windows |
+| DELETE | `/api/teams/:teamId` | `teams.ts:638` | JWT + **editor** | Delete the team (409 while a subscription is active) |
 | ALL | `/api/{sessions,spaces,state,events,asks,message,help,node}/*` | `pod-proxy.ts:35` | JWT (token or `?access_token`) | **LOCAL_DEV only** — proxy pod-served paths to the user's pod |
 
 ---
@@ -205,6 +209,8 @@ Every route resolves membership through `requireMember(c, teamId, minRole?)` `cl
 - **`PUT|DELETE /:teamId/members/:userId`** (editor) — role change / removal, both refusing to leave a team without an editor (409) `cloud/gateway/src/lib/db.ts#updateTeamMemberRole`, `cloud/gateway/src/lib/db.ts#removeTeamMember`. Removing **yourself** needs only membership `cloud/gateway/src/routes/teams.ts:290-310`.
 - **`POST /invites/:inviteId/accept`** — not under `/:teamId`, since accepting is what makes you a member. Addressee, expiry and the single-use stamp are re-checked inside one transaction `cloud/gateway/src/lib/db.ts#acceptTeamInvite`; 403 when the invite isn't claimable by this account.
 - **`POST /:teamId/token`** (member) — `{access_token, expires_at, role}`; the role is read from the DB at mint time, never from the client `cloud/gateway/src/routes/teams.ts:353-367`.
+- **`/:teamId/billing/*`** (editor, except `usage`) — the team pays for itself. Checkout writes `team_id` and **no** `user_id` into `subscription_data.metadata` `cloud/gateway/src/routes/teams.ts:534-574`, which is what keeps the Stripe webhook's team and user branches disjoint. `usage` reads the team's own LiteLLM principal, so every member can see what the team is spending even though only an editor can change it.
+- **`DELETE /:teamId`** (editor) — refuses with **409** while the team has an active Stripe subscription, since deleting the row would orphan it; then tears down the pod BEFORE the row, so a failure leaves a retryable team rather than a namespace nothing owns `cloud/gateway/src/routes/teams.ts:638-683`.
 - **`/:teamId/compute/*`** — the team's pod, mirroring `/api/compute/*` but keyed on the team's principal and gated on membership `cloud/gateway/src/routes/teams.ts:388-502`. Still a *personal* token: these are control-plane operations about a team you belong to. `env` (both verbs) and `upgrade` are **editor-only** — env values are the team's provider credentials, and `PUT` replaces the whole secret and rolls the pod for every member.
 
 ## Local-dev pod proxy

@@ -219,9 +219,16 @@ const session = await stripe.checkout.sessions.create({
 });
 ```
 
-`subscription_data.metadata.user_id` is the **only** link the webhook has back to the user
-(`cloud/gateway/src/routes/webhook.ts:L37`) — a subscription created outside this flow (e.g. by
-hand in the Stripe dashboard) carries no `user_id` and is skipped with a warning (`:L39-L42`).
+`subscription_data.metadata` is the **only** link the webhook has back to who is paying.
+`subscriptionPrincipal` reads `team_id` first and `user_id` second, resolving the subscription to
+a **principal** — a team or a user `cloud/gateway/src/routes/webhook.ts#subscriptionPrincipal`,
+`cloud/gateway/src/routes/webhook.ts:20-26`. A team's checkout writes `team_id` and *no*
+`user_id` (`cloud/gateway/src/routes/teams.ts#ensureTeamCustomer`), which is what keeps the two
+disjoint: nothing a team buys can be applied to a member's own pod. Everything downstream — the
+LiteLLM tier update, the pod resize, the teardown on cancellation — is keyed on that principal,
+so both kinds flow through one code path. A subscription created outside these flows (e.g. by
+hand in the Stripe dashboard) carries neither id and is skipped with a warning
+(`cloud/gateway/src/routes/webhook.ts:61`). Team billing in full → [./teams.md](./teams.md).
 
 Frontend: `com/src/routes/pricing.tsx` renders `plans` and navigates to `/checkout?tier=<id>`;
 `com/src/routes/checkout.tsx#CheckoutForm` mounts `<EmbeddedCheckout>` with

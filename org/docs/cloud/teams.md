@@ -136,6 +136,35 @@ makes you a member, so it cannot sit behind `requireMember`. The invite id is th
 the addressee, expiry and single-use stamp are all re-checked inside one transaction so a
 double-click can't half-apply it `cloud/gateway/src/lib/db.ts#acceptTeamInvite`.
 
+## Billing
+
+A team pays for itself. Its Stripe customer and its LiteLLM principal are both
+the team's own, so a subscription bought for a team never touches a member's
+card, and the budget it buys is spent by the team's pod rather than by whoever
+happens to be typing.
+
+`POST /:teamId/billing/checkout` (editor) creates an embedded Checkout session
+against the team's customer, with `subscription_data.metadata = {team_id, tier}`
+— **`team_id` and no `user_id`** `cloud/gateway/src/routes/teams.ts#ensureTeamCustomer`.
+That is the whole mechanism that keeps team and personal billing apart: the
+Stripe webhook resolves a subscription to a principal by looking for `team_id`
+first and `user_id` second `cloud/gateway/src/routes/webhook.ts#subscriptionPrincipal`,
+and everything downstream — the LiteLLM tier update, the pod resize, the
+teardown on cancellation — is keyed on that principal, so both kinds flow
+through one code path `cloud/gateway/src/routes/webhook.ts:54-94`.
+
+`GET /:teamId/billing/usage` is readable by **any member**: what the team is
+spending is the team's business, even though only an editor can change the plan.
+
+Cancelling a team's subscription downgrades it to free and deletes its pod
+`cloud/gateway/src/routes/webhook.ts:96-125`; the next member to open the team
+re-provisions it on the free tier, exactly as a user's pod does.
+
+`DELETE /:teamId` (editor) refuses with **409** while a subscription is still
+active — deleting the row would orphan a live subscription that nothing would
+then downgrade or cancel. It tears down the pod *before* the row, so a failure
+leaves a team that can be retried rather than a running namespace nothing owns.
+
 ## Cross-references
 
 - Token shapes and the middleware → [./auth.md](./auth.md)

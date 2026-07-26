@@ -13,6 +13,7 @@ import {
   getEnvVars,
   setEnvVars,
   restartPod,
+  deletePod,
   teamPrincipal,
 } from "../lib/compute.js";
 import { getTierByName } from "../lib/tiers.js";
@@ -501,6 +502,178 @@ teams.put("/:teamId/compute/env", async (c) => {
     console.error(`[teams] set env failed for team ${teamId}:`, err);
     return c.json({ error: "Failed to update env vars" }, 500);
   }
+});
+
+// ── Billing ──────────────────────────────────────────────────────────────────
+//
+// A team pays for itself. Its Stripe customer and its LiteLLM principal are the
+// team's own, so a subscription bought here never touches a member's card and
+// the budget it buys is spent by the team's pod, not by whoever is typing.
+//
+// The subscription carries `team_id` (and NOT `user_id`) in its metadata, which
+// is what keeps the webhook's two branches disjoint — see routes/webhook.ts.
+
+const BASE_URL = process.env.BASE_URL ?? "";
+
+/** The team's Stripe customer, created lazily if provisioning missed it. */
+async function ensureTeamCustomer(
+  team: db.Team,
+  actorEmail: string,
+): Promise<string> {
+  if (team.stripe_customer_id) return team.stripe_customer_id;
+  const customer = await stripe.customers.create({
+    email: actorEmail,
+    name: team.name,
+    metadata: { team_id: team.id },
+  });
+  await db.setTeamStripeCustomer(team.id, customer.id);
+  return customer.id;
+}
+
+// POST /:teamId/billing/checkout — buy or change the TEAM's subscription
+teams.post("/:teamId/billing/checkout", async (c) => {
+  const teamId = c.req.param("teamId");
+  const membership = await requireMember(c, teamId, "editor");
+  if (isResponse(membership)) return membership;
+
+  const body = await c.req
+    .json<{ tier?: string; return_url?: string }>()
+    .catch(() => ({ tier: undefined, return_url: undefined }));
+  const tierName = body.tier ?? "";
+  const targetTier = TIERS[tierName];
+  if (!targetTier?.stripePriceId) {
+    return c.json({ error: `Invalid tier: ${tierName}` }, 400);
+  }
+
+  const team = await db.getTeam(teamId);
+  if (!team) return c.json({ error: "Team not found" }, 404);
+
+  try {
+    const customerId = await ensureTeamCustomer(team, c.get("user").email);
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      ui_mode: "embedded",
+      line_items: [{ price: targetTier.stripePriceId, quantity: 1 }],
+      return_url:
+        body.return_url || `${BASE_URL}/checkout?session_id={CHECKOUT_SESSION_ID}`,
+      // `team_id` and no `user_id`: the webhook branches on exactly this.
+      subscription_data: { metadata: { team_id: teamId, tier: tierName } },
+    });
+    return c.json({ client_secret: session.client_secret });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[teams/billing/checkout]", message);
+    return c.json({ error: message }, 500);
+  }
+});
+
+// POST /:teamId/billing/portal — manage the team's subscription
+teams.post("/:teamId/billing/portal", async (c) => {
+  const teamId = c.req.param("teamId");
+  const membership = await requireMember(c, teamId, "editor");
+  if (isResponse(membership)) return membership;
+
+  const team = await db.getTeam(teamId);
+  if (!team) return c.json({ error: "Team not found" }, 404);
+
+  try {
+    const customerId = await ensureTeamCustomer(team, c.get("user").email);
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: BASE_URL,
+    });
+    return c.json({ url: session.url });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[teams/billing/portal]", message);
+    return c.json({ error: message }, 500);
+  }
+});
+
+// GET /:teamId/billing/usage — the team's tier, spend and budget windows.
+// Every member may see what the team is spending; only an editor can change it.
+teams.get("/:teamId/billing/usage", async (c) => {
+  const teamId = c.req.param("teamId");
+  const membership = await requireMember(c, teamId);
+  if (isResponse(membership)) return membership;
+
+  const buildBudgets = (tierName: string, litellmWindows?: unknown[]) => {
+    const tier = getTierByName(tierName) ?? TIERS.free;
+    const byDuration = new Map<string, number>();
+    for (const w of litellmWindows ?? []) {
+      const rec = w as { budget_duration?: string; spend?: number };
+      if (rec.budget_duration && typeof rec.spend === "number") {
+        byDuration.set(rec.budget_duration, rec.spend);
+      }
+    }
+    return tier.budgetLimits.map((b) => ({
+      duration: b.duration,
+      max_budget: b.maxBudget,
+      spend: byDuration.get(b.duration) ?? null,
+    }));
+  };
+
+  try {
+    const info = await litellm.getUserInfo(teamPrincipalKey(teamId));
+    const userInfo = info.user_info ?? {};
+    const tierName = userInfo.metadata?.tier || "free";
+    return c.json({
+      tier: tierName,
+      spend: userInfo.spend || 0,
+      budgets: buildBudgets(tierName, userInfo.budget_limits),
+      models: userInfo.models || TIERS.free.models,
+    });
+  } catch {
+    return c.json({
+      tier: "free",
+      spend: 0,
+      budgets: buildBudgets("free"),
+      models: TIERS.free.models,
+    });
+  }
+});
+
+// DELETE /:teamId — tear the team down entirely
+teams.delete("/:teamId", async (c) => {
+  const teamId = c.req.param("teamId");
+  const membership = await requireMember(c, teamId, "editor");
+  if (isResponse(membership)) return membership;
+
+  const team = await db.getTeam(teamId);
+  if (!team) return c.json({ error: "Team not found" }, 404);
+
+  // Refuse while money is still moving: deleting the row would orphan a live
+  // Stripe subscription that nothing would then downgrade or cancel.
+  if (team.stripe_customer_id) {
+    try {
+      const subs = await stripe.subscriptions.list({
+        customer: team.stripe_customer_id,
+        status: "active",
+        limit: 1,
+      });
+      if (subs.data.length > 0) {
+        return c.json(
+          { error: "Cancel the team's subscription before deleting it" },
+          409,
+        );
+      }
+    } catch (err) {
+      console.error(`[teams] could not check subscriptions for ${teamId}:`, err);
+      return c.json({ error: "Could not verify the team's subscription" }, 502);
+    }
+  }
+
+  // The pod first: if this fails the team row survives and can be retried,
+  // whereas a deleted row would strand a running namespace nothing owns.
+  try {
+    await deletePod(teamPrincipal(teamId));
+  } catch (err) {
+    console.error(`[teams] could not delete pod for ${teamId}:`, err);
+    return c.json({ error: "Could not delete the team workspace" }, 500);
+  }
+  await db.deleteTeam(teamId);
+  return c.json({ deleted: teamId });
 });
 
 export default teams;

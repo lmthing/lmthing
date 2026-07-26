@@ -2738,6 +2738,77 @@
       ]
     },
     {
+      "id": "utility-auditor",
+      "title": "Auditor",
+      "description": "Snapshots your app's tables daily and keeps an append-only log of every row that was added, changed or removed.",
+      "icon": "📜",
+      "tags": [
+        "utility",
+        "audit"
+      ],
+      "kind": "utility",
+      "settings": null,
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "computeChangeKey",
+          "summary": "Stable identity for one audit_log entry — pure, never throws.",
+          "signature": "computeChangeKey(targetTable: unknown, rowId: unknown, change: unknown, sweepAt: unknown): string"
+        },
+        {
+          "name": "diffRows",
+          "summary": "Column-level diff between two versions of a row — pure, never throws.",
+          "signature": "diffRows(before: unknown, after: unknown,):"
+        },
+        {
+          "name": "hashRow",
+          "summary": "Content hash of one row — pure, deterministic, never throws.",
+          "signature": "hashRow(row: unknown): string"
+        },
+        {
+          "name": "stableStringify",
+          "summary": "Deterministic JSON serialization — pure, never throws.",
+          "signature": "stableStringify(value: unknown): string"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "auditor",
+          "actions": [
+            "bind",
+            "sweep",
+            "report",
+            "revert-draft"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/auditor/charter.md",
+        "agents/auditor/instruct.md",
+        "functions/computeChangeKey.ts",
+        "functions/diffRows.ts",
+        "functions/hashRow.ts",
+        "functions/stableStringify.ts",
+        "hooks/daily-sweep.ts",
+        "knowledge/auditor/reverting.md",
+        "knowledge/auditor/sweeping.md",
+        "package.json",
+        "tasklists/bind/01-inventory.md",
+        "tasklists/bind/02-persist.md",
+        "tasklists/bind/03-report.md",
+        "tasklists/bind/index.md",
+        "tasklists/sweep/01-load.md",
+        "tasklists/sweep/02-diff.md",
+        "tasklists/sweep/03-record.md",
+        "tasklists/sweep/04-report.md",
+        "tasklists/sweep/index.md",
+        "tests/functions.test.mjs",
+        "tests/hooks.test.mjs"
+      ]
+    },
+    {
       "id": "utility-deadlines",
       "title": "Deadlines",
       "description": "Watches date columns across your app's tables and records approaching deadlines as alerts, on a daily sweep.",
@@ -2877,6 +2948,71 @@
         "tasklists/dispatch/index.md",
         "tests/functions.test.mjs",
         "tests/hooks.test.mjs"
+      ]
+    },
+    {
+      "id": "utility-importer",
+      "title": "Importer",
+      "description": "Turns a pasted CSV or JSON into real rows: parse, map columns, dry-run, then insert with dedupe.",
+      "icon": "📥",
+      "tags": [
+        "utility",
+        "data-in"
+      ],
+      "kind": "utility",
+      "settings": null,
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "coerceRowToTarget",
+          "summary": "Project one source row onto the target's columns and type-check it — pure, never throws.",
+          "signature": "coerceRowToTarget(row: Record<string, unknown> | null | undefined, mapping: { source: string; target: string | null }[] | null | undefined, columnHints?: Record<string, string> | null,):"
+        },
+        {
+          "name": "computeImportRowKey",
+          "summary": "Stable dedupe identity for one imported row — pure, never throws.",
+          "signature": "computeImportRowKey(targetTable: unknown, row: Record<string, unknown> | null | undefined, keyColumns: unknown,): string"
+        },
+        {
+          "name": "parseCsvRows",
+          "summary": "RFC-4180-shaped CSV parser with delimiter auto-detection — pure, never throws.",
+          "signature": "parseCsvRows(text: unknown):"
+        },
+        {
+          "name": "parseJsonRows",
+          "summary": "Extract a row array from a JSON document — pure, never throws.",
+          "signature": "parseJsonRows(text: unknown):"
+        },
+        {
+          "name": "proposeColumnMapping",
+          "summary": "Propose source-header → target-column pairings by name similarity — pure, never throws.",
+          "signature": "proposeColumnMapping(sourceHeaders: unknown, targetColumns: unknown,):"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "importer",
+          "actions": [
+            "import",
+            "history"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/importer/charter.md",
+        "agents/importer/instruct.md",
+        "functions/coerceRowToTarget.ts",
+        "functions/computeImportRowKey.ts",
+        "functions/parseCsvRows.ts",
+        "functions/parseJsonRows.ts",
+        "functions/proposeColumnMapping.ts",
+        "knowledge/importer/flow.md",
+        "knowledge/importer/parsing.md",
+        "package.json",
+        "tests/functions.test.mjs",
+        "tests/space.test.mjs"
       ]
     },
     {
@@ -3145,7 +3281,9 @@
         "tasklists/close/03-summarize.md",
         "tasklists/close/04-record.md",
         "tasklists/close/05-report.md",
-        "tasklists/close/index.md"
+        "tasklists/close/index.md",
+        "tests/functions.test.mjs",
+        "tests/hooks.test.mjs"
       ]
     },
     {
@@ -3161,7 +3299,23 @@
       "settings": null,
       "events": {},
       "inbound": [],
-      "functions": [],
+      "functions": [
+        {
+          "name": "buildAgendaEntries",
+          "summary": "Turn bindings + their tables' rows into flat agenda entries — pure, deterministic via `fromIso`.",
+          "signature": "buildAgendaEntries(bindings: unknown, rowsByTable: Record<string, Record<string, unknown>[]> | null | undefined, fromIso: string, days: number,):"
+        },
+        {
+          "name": "discoverScheduleColumns",
+          "summary": "Classify schedule-bearing columns from a schema listing plus sampled rows — pure, never throws.",
+          "signature": "discoverScheduleColumns(tables: unknown, samples: Record<string, Record<string, unknown>[]> | null | undefined,):"
+        },
+        {
+          "name": "groupEntriesByDay",
+          "summary": "Group flat agenda entries into days — pure, never throws, order-preserving.",
+          "signature": "groupEntriesByDay(entries: unknown,):"
+        }
+      ],
       "agents": [
         {
           "slug": "scheduler",
@@ -3175,7 +3329,19 @@
         "README.md",
         "agents/scheduler/charter.md",
         "agents/scheduler/instruct.md",
-        "package.json"
+        "functions/buildAgendaEntries.ts",
+        "functions/discoverScheduleColumns.ts",
+        "functions/groupEntriesByDay.ts",
+        "knowledge/planner/agenda.md",
+        "knowledge/planner/binding.md",
+        "package.json",
+        "tasklists/bind/01-inventory.md",
+        "tasklists/bind/02-propose.md",
+        "tasklists/bind/03-persist.md",
+        "tasklists/bind/04-report.md",
+        "tasklists/bind/index.md",
+        "tests/functions.test.mjs",
+        "tests/space.test.mjs"
       ]
     },
     {
@@ -3237,7 +3403,10 @@
         "tasklists/check/01-load.md",
         "tasklists/check/02-scan.md",
         "tasklists/check/03-record.md",
-        "tasklists/check/index.md"
+        "tasklists/check/04-report.md",
+        "tasklists/check/index.md",
+        "tests/functions.test.mjs",
+        "tests/hooks.test.mjs"
       ]
     }
   ]

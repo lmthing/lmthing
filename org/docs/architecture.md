@@ -76,7 +76,7 @@ graph TD
 | **lmthing.store** | `store/` SPA | Catalog of project-app templates + integration spaces → [product-spas/README.md](./product-spas/README.md) |
 | **lmthing.space** | `space/` SPA | Space deploy / agent publish surface → [product-spas/README.md](./product-spas/README.md) |
 | **lmthing.social** | `social/` SPA | Public agent surface → [product-spas/README.md](./product-spas/README.md) |
-| **lmthing.team** | `team/` SPA | Private agent-collaboration surface → [product-spas/README.md](./product-spas/README.md) |
+| **lmthing.team** | unified app `/team` + team pod | A team's shared workspace: channels, projects, members → [cloud/teams.md](./cloud/teams.md), [cli-api/rest/team.md](./cli-api/rest/team.md) |
 | **lmthing.blog** | `blog/` SPA | Personalized AI-news surface → [product-spas/README.md](./product-spas/README.md) |
 | **lmthing.casa** | `casa/` SPA | Home Assistant surface → [product-spas/README.md](./product-spas/README.md) |
 | **lmthing.cloud** | `cloud/` gateway + litellm | The backend (below) → [cloud/README.md](./cloud/README.md) |

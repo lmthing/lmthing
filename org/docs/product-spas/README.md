@@ -183,21 +183,18 @@ Routes (`space/src/routeTree.gen.ts`), all space-scoped routes nested under `/$s
 - **Terminal** — the admin terminal opens a `wss://<appHost>/ws?token=…&spaceId=…` WebSocket for a
   live PTY session (`space/src/routes/$spaceSlug/admin/terminal.tsx:88`).
 
-## Scaffold SPAs — `social` `team` `blog` `casa`
+## Scaffold SPAs — `social` `blog` `casa`
 
 These have real TanStack route trees but placeholder page bodies (each renders a
 `<CozyThingText>` title or a stub `<h1>`); no backend calls or feature logic yet. Documented so the
 route inventory is complete. A `rg` for `fetch(`, `@lmthing/state`, `@lmthing/auth`, `useAuth` and
-`VITE_CLOUD_URL` across `social/src team/src blog/src casa/src` returns **zero hits** — the four
+`VITE_CLOUD_URL` across `social/src blog/src casa/src` returns **zero hits** — the three
 SPAs are 6–8 source files each (route stubs plus `__root.tsx`/`main.tsx`), so there is no VFS, no
 auth, and no gateway call anywhere in them.
 
 - **`social`** (lmthing.social) — routes `/`, `/explore`, `/explore/$explorationId`,
   `/profile/$username` (`social/src/routeTree.gen.ts`). Home renders the `lmthing.social` title
   (`social/src/routes/index.tsx`); `/explore` is a stub list (`social/src/routes/explore/index.tsx`).
-- **`team`** (lmthing.team) — routes `/`, `/create`, `/room/$roomId`, `/room/$roomId/members`,
-  `/room/$roomId/settings` (`team/src/routeTree.gen.ts`); all stub pages
-  (`team/src/routes/index.tsx`, `team/src/routes/create.tsx`).
 - **`blog`** (lmthing.blog) — routes `/`, `/post/$slug`, `/tag/$tag` (`blog/src/routeTree.gen.ts`);
   stub pages (`blog/src/routes/index.tsx`, `blog/src/routes/post/$slug.tsx`).
 - **`casa`** (lmthing.casa) — routes `/`, `/notifications`, `/profile`, `/settings`
@@ -205,7 +202,7 @@ auth, and no gateway call anywhere in them.
   `casa/src/routes/settings.tsx`).
 
 **The unbuilt product visions live in `<domain>/IDEAS.md`.** Each scaffold's original pitch — `social`'s
-shared-VFS "hive mind", `team`'s private room context, `blog`'s RSS/web-search agent, `casa`'s Home
+shared-VFS "hive mind", `blog`'s RSS/web-search agent, `casa`'s Home
 Assistant bridge and SLM fine-tuning, plus their pricing models and mermaid route trees — is preserved
 there, explicitly marked as unimplemented and non-authoritative. None of it is backed by code, and the
 routes it draws do not match the generated ones. Each `<domain>/README.md` describes only what the

@@ -24,7 +24,6 @@ on:
       - 'store/**'
       - 'org/**'
       - 'space/**'
-      - 'team/**'
       - 'blog/**'
       - 'casa/**'
       - 'automation/app/**'
@@ -130,7 +129,6 @@ jobs:
               - 'sdk/org/**'
             team:
               - *root
-              - 'team/**'
               - 'sdk/org'
               - 'sdk/org/**'
             blog:
@@ -200,7 +198,7 @@ jobs:
             {"image": "store",    "dockerfile": "store/Dockerfile",                "context": ".",             "manifest": "devops/argocd/core/store.yaml",                "changed": changed("store")},
             {"image": "org",      "dockerfile": "org/Dockerfile",                  "context": ".",             "manifest": "devops/argocd/core/org.yaml",                  "changed": changed("org")},
             {"image": "space",    "dockerfile": "space/Dockerfile",                "context": ".",             "manifest": "devops/argocd/core/space.yaml",                "changed": changed("space")},
-            {"image": "team",     "dockerfile": "team/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/team.yaml",                 "changed": changed("team")},
+            {"image": "team",     "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/team.yaml",                 "changed": changed("team")},
             {"image": "blog",     "dockerfile": "blog/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/blog.yaml",                 "changed": changed("blog")},
             {"image": "casa",     "dockerfile": "casa/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/casa.yaml",                 "changed": changed("casa")},
             {"image": "scenario-dash", "dockerfile": "automation/app/Dockerfile",  "context": ".",             "manifest": "devops/argocd/core/scenario-dash.yaml",        "changed": changed("scenariodash")},

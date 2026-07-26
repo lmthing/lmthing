@@ -46,9 +46,10 @@ Four jobs, in order:
 | compute | `devops/argocd/compute/Dockerfile` | `sdk/org` | `devops/argocd/core/compute-pod-template.yaml` |
 | studio | `sdk/org/apps/web/Dockerfile` | `.` | `devops/argocd/core/studio.yaml` |
 | chat | `sdk/org/apps/web/Dockerfile` | `.` | `devops/argocd/core/chat.yaml` |
-| com/social/store/org/space/team/blog/casa | `<app>/Dockerfile` | `.` | `devops/argocd/core/<app>.yaml` |
+| team | `sdk/org/apps/web/Dockerfile` | `.` | `devops/argocd/core/team.yaml` |
+| com/social/store/org/space/blog/casa | `<app>/Dockerfile` | `.` | `devops/argocd/core/<app>.yaml` |
 
-(from the `all_images` list `.github/workflows/build-images.yml:168-182` — 13 images: gateway, computer, compute, studio, chat and the eight product SPAs, `org` included). Studio, computer, and chat share one Dockerfile (`sdk/org/apps/web/Dockerfile`) and one build context (repo root `.`) — the same unified SPA image, deployed as three Deployments for three domains.
+(from the `all_images` list `.github/workflows/build-images.yml:168-182` — 13 images: gateway, computer, compute, studio, chat and the eight product SPAs, `org` included). Studio, computer, chat and team share one Dockerfile (`sdk/org/apps/web/Dockerfile`) and one build context (repo root `.`) — the same unified SPA image, deployed as four Deployments for four domains. (`team` used to have its own scaffold SPA; that directory is gone and lmthing.team is now a surface of the unified app.)
 
 **2. `build`** — matrix job over the detected images (`fail-fast: false`) `.github/workflows/build-images.yml:191-200`:
 - Azure login (`AZURE_CREDENTIALS` secret) → `az acr login --name lmthingacr` `.github/workflows/build-images.yml:211-217`.
@@ -135,7 +136,7 @@ cd devops/ansible && make argocd-sync APP=lmthing-core
 
 For an existing SPA the deploy is fully automatic: push a source change to `main`, `build-images.yml` detects it, builds+pushes `lmthingacr.azurecr.io/<app>:<sha>`, commits the tag into `devops/argocd/core/<app>.yaml`, and ArgoCD rolls it out.
 
-Studio/computer/chat share the unified image (`sdk/org/apps/web/Dockerfile`, context `.`) but are three separate `Deployment`+`Service` pairs (distinct domains, different Envoy routing) — `devops/argocd/core/chat.yaml` is the pattern: `Deployment` (nginx, port 80, `imagePullSecrets: [acr-pull-secret]`) + `Service` `devops/argocd/core/chat.yaml:1-42`. The other SPAs (`com`/`social`/`store`/`org`/`space`/`team`/`blog`/`casa`) each have their own `<app>/Dockerfile` + `<app>/nginx.conf`.
+Studio/computer/chat share the unified image (`sdk/org/apps/web/Dockerfile`, context `.`) but are three separate `Deployment`+`Service` pairs (distinct domains, different Envoy routing) — `devops/argocd/core/chat.yaml` is the pattern: `Deployment` (nginx, port 80, `imagePullSecrets: [acr-pull-secret]`) + `Service` `devops/argocd/core/chat.yaml:1-42`. The other SPAs (`com`/`social`/`store`/`org`/`space`/`blog`/`casa`) each have their own `<app>/Dockerfile` + `<app>/nginx.conf`.
 
 ### Adding a new static SPA
 
@@ -154,7 +155,7 @@ Per the deploy-spa skill, the full checklist:
 
 `.etc/scripts/check-domains.sh` walks the lmthing.\* domains and checks, per domain, **DNS** A records, **TLS** cert SANs (via `openssl s_client`), and **HTTPS** response codes (200 = deployed, 404 = not yet, 000 = TLS/timeout failure) `.etc/scripts/check-domains.sh:59-109`. For `lmthing.computer` it additionally asserts the WebContainer cross-origin isolation headers (`Cross-Origin-Embedder-Policy` credentialless/require-corp, `Cross-Origin-Opener-Policy` same-origin) `.etc/scripts/check-domains.sh:164-177`, and for `lmthing.cloud` it probes `/api/auth/me` and `/v1/models` expecting `401` unauthenticated `.etc/scripts/check-domains.sh:27-30,189-199`. Requires `dig`, `curl`, `openssl`, `gh` `.etc/scripts/check-domains.sh:51-56`. Exit code = error count `.etc/scripts/check-domains.sh:213`.
 
-**The hosting model it checks against:** *every* lmthing.\* domain — including `studio`, `chat`, `com`, `store`, `team`, `social` and `space` — is a K8s Deployment in the `lmthing` namespace pulling an ACR image (`devops/argocd/core/{studio,chat,com,store,team,social,space}.yaml`, listed in `devops/argocd/core/kustomization.yaml:4-23`), fronted by Envoy on the Kubespray cluster, and its DNS A record points at the single VM IP `4.223.83.5`. **No SPA is on GitHub Pages** and there are no `dispatch-<app>.yml` workflows (the repo's workflows are `build-images.yml`, `design-tokens.yml`, `pr-decline.yml`, `stale.yml`) — so any Pages-IP / `gh api repos/<repo>/pages` / dispatch-workflow assertion the script still makes (`.etc/scripts/check-domains.sh:7-19,111-151`) will fail against the live deployment regardless of cluster health. The DNS/TLS/HTTPS, COEP/COOP and `/api/*` 401 checks are the parts worth reading.
+**The hosting model it checks against:** *every* lmthing.\* domain — including `studio`, `chat`, `team`, `com`, `store`, `social` and `space` — is a K8s Deployment in the `lmthing` namespace pulling an ACR image (`devops/argocd/core/{studio,chat,com,store,team,social,space}.yaml`, listed in `devops/argocd/core/kustomization.yaml:4-23`), fronted by Envoy on the Kubespray cluster, and its DNS A record points at the single VM IP `4.223.83.5`. **No SPA is on GitHub Pages** and there are no `dispatch-<app>.yml` workflows (the repo's workflows are `build-images.yml`, `design-tokens.yml`, `pr-decline.yml`, `stale.yml`) — so any Pages-IP / `gh api repos/<repo>/pages` / dispatch-workflow assertion the script still makes (`.etc/scripts/check-domains.sh:7-19,111-151`) will fail against the live deployment regardless of cluster health. The DNS/TLS/HTTPS, COEP/COOP and `/api/*` 401 checks are the parts worth reading.
 
 For a quick post-deploy check from the cluster, the Ansible Makefile also exposes `make status` (pods in `lmthing`/`gateway`/`argocd`), `make routes` (Gateways/HTTPRoutes/Certificates), and `make logs-gateway|logs-litellm|logs-argocd` `devops/ansible/Makefile:60-78`.
 

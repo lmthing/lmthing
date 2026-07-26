@@ -81,7 +81,7 @@ applied at `:94`) — these hold raw values by design:
 
   ```
   sdk/org/libs/css/src  sdk/org/libs/ui/src  sdk/org/apps/web/src
-  com/src  social/src  team/src  store/src  space/src  blog/src  casa/src
+  com/src  social/src  store/src  space/src  blog/src  casa/src
   org/src
   ```
 

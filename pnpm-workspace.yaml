@@ -5,7 +5,6 @@ packages:
   - space
   - social
   - store
-  - team
   - cloud
   - org
   - sdk/org/libs/*

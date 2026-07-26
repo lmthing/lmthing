@@ -50,6 +50,8 @@ services:
     emoji: 🚀
     color: "34" # blue
 
+  # Served by the unified app (sdk/org/apps/web), like studio/chat/computer —
+  # there is no team/ directory to `cd` into.
   - name: team
     type: vite
     domain: lmthing.team

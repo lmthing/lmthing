@@ -22,9 +22,7 @@ Reference implementation: [`utility-deadlines/`](./utility-deadlines/).
 | 🗓️ `utility-planner` | One cross-table agenda over bound date columns | `planner_bindings` | none (on demand) |
 | 📥 `utility-importer` | CSV/JSON → mapped, dry-run, deduped rows | `import_jobs` | none (never unattended) |
 | 🔍 `utility-enricher` | Researches blank cells and fills them only after you approve the sourced value | `enrich_tasks` | none (research spends budget) |
-
-> Designed but **not implemented**: `utility-archivist` (retention candidates, snapshots, PII
-> visibility). Its specification is in `STORE_GENERIC_SPACES.md` at the repo root.
+| 🗄️ `utility-archivist` | Weekly snapshots, retention *candidates*, and a PII scan — never deletes | `archive_policies`, `archive_snapshots`, `archive_reports` | daily 05:30 (Sunday gate) |
 
 ## How they compose
 

@@ -2738,6 +2738,89 @@
       ]
     },
     {
+      "id": "utility-archivist",
+      "title": "Archivist",
+      "description": "Takes weekly snapshots of your tables, names the rows old enough to archive, and reports where personal data lives — without ever deleting anything.",
+      "icon": "🗄️",
+      "tags": [
+        "utility",
+        "governance"
+      ],
+      "kind": "utility",
+      "settings": null,
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "buildTableSnapshot",
+          "summary": "Serialize one table's rows into a byte-identical snapshot — pure, never throws.",
+          "signature": "buildTableSnapshot(rows: Record<string, unknown>[] | null | undefined,):"
+        },
+        {
+          "name": "computeArchiveKey",
+          "summary": "Stable identity for one snapshot or one report — pure, never throws.",
+          "signature": "computeArchiveKey(kind: unknown, targetTable: unknown, dayIso: unknown): string"
+        },
+        {
+          "name": "findRetentionCandidates",
+          "summary": "Name the rows old enough to archive — pure, deterministic via injected `now`, never throws.",
+          "signature": "findRetentionCandidates(rows: Record<string, unknown>[] | null | undefined, dateColumn: string, keepDays: number, nowIso: string,):"
+        },
+        {
+          "name": "scanPiiInRows",
+          "summary": "Locate personal data by SHAPE, per column — pure, never throws.",
+          "signature": "scanPiiInRows(rows: Record<string, unknown>[] | null | undefined,):"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "archivist",
+          "actions": [
+            "bind",
+            "snapshot",
+            "retention-scan",
+            "pii-scan",
+            "review"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/archivist/charter.md",
+        "agents/archivist/instruct.md",
+        "functions/buildTableSnapshot.ts",
+        "functions/computeArchiveKey.ts",
+        "functions/findRetentionCandidates.ts",
+        "functions/scanPiiInRows.ts",
+        "hooks/weekly-snapshot.ts",
+        "knowledge/archivist/pii.md",
+        "knowledge/archivist/policies.md",
+        "package.json",
+        "tasklists/bind/01-inventory.md",
+        "tasklists/bind/02-propose.md",
+        "tasklists/bind/03-persist.md",
+        "tasklists/bind/04-report.md",
+        "tasklists/bind/index.md",
+        "tasklists/pii-scan/01-inventory.md",
+        "tasklists/pii-scan/02-scan.md",
+        "tasklists/pii-scan/03-record.md",
+        "tasklists/pii-scan/04-report.md",
+        "tasklists/pii-scan/index.md",
+        "tasklists/retention-scan/01-load.md",
+        "tasklists/retention-scan/02-scan.md",
+        "tasklists/retention-scan/03-record.md",
+        "tasklists/retention-scan/04-report.md",
+        "tasklists/retention-scan/index.md",
+        "tasklists/snapshot/01-gate.md",
+        "tasklists/snapshot/02-load.md",
+        "tasklists/snapshot/03-capture.md",
+        "tasklists/snapshot/04-report.md",
+        "tasklists/snapshot/index.md",
+        "tests/functions.test.mjs",
+        "tests/hooks.test.mjs"
+      ]
+    },
+    {
       "id": "utility-auditor",
       "title": "Auditor",
       "description": "Snapshots your app's tables daily and keeps an append-only log of every row that was added, changed or removed.",

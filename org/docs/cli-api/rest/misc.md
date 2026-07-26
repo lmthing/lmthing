@@ -6,6 +6,7 @@ own, plus the two route helpers and the request-dispatch tail. See
 
 | Route | Handler | Module |
 |---|---|---|
+| `GET /api/health` | inline (anonymous) | `server/serve.ts` |
 | `GET /api/prices/azure` | `handlePricesAzure` | `routes/prices.ts` |
 | `POST /api/restart` | inline (anonymous) | `server/serve.ts` |
 | `POST /api/keepalive` | inline (anonymous) | `server/serve.ts` |
@@ -15,9 +16,15 @@ own, plus the two route helpers and the request-dispatch tail. See
 | `POST /api/restore` | `handleRestore` | `routes/backup.ts` |
 | `POST /api/report-bug` | `handleReportBug` | `routes/report-bug.ts` |
 
-All eight are registered in the one route table built by `startSessionServer` `sdk/org/libs/cli/src/server/serve.ts:134-211`.
+All nine are registered in the one route table built by `startSessionServer` `sdk/org/libs/cli/src/server/serve.ts:134-211`.
 
 ---
+
+## `GET /api/health` — the liveness probe target
+
+Answers `200 {ok:true}` and nothing else `sdk/org/libs/cli/src/server/serve.ts#startSessionServer`. Reaching the handler is itself the proof — the server is listening and dispatching.
+
+It is the **only** path a team pod serves without a caller identity `sdk/org/libs/cli/src/server/team-guard.ts#PUBLIC_PATHS`, and that is why it exists. The gateway points the K8s `startupProbe` here `cloud/gateway/src/lib/compute.ts:312-318`; the kubelet probes from inside the cluster rather than through Envoy, so it carries none of the identity headers a team pod gates its routes on. Probing any other route returns 401, the startup probe never passes, and the pod crash-loops. Because it discloses nothing, granting the whole cluster anonymous access to it costs nothing.
 
 ## `GET /api/prices/azure` — model price table
 

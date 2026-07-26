@@ -367,8 +367,9 @@ whose `log()` writes turn-loop chatter to the server console rather than the bro
 (`sdk/org/libs/cli/src/rpc/server.ts#WebRenderHost.log`). Use it for what the trace can't show: process boot,
 emitter/hook load failures, worker-entry resolution, OOM.
 
-- The pod is scaled to zero when idle; a `GET /api/sessions` is the K8s startup probe
-  (`compute.ts:253-260`), so it is also the cheapest liveness check.
+- The pod is scaled to zero when idle; a `GET /api/health` is the K8s startup probe
+  (`compute.ts:312-318`), so it is also the cheapest liveness check — it takes no identity and
+  answers `{ok:true}` (`sdk/org/libs/cli/src/server/team-guard.ts#PUBLIC_PATHS`).
 - To run a fixed image on one test pod (there is no ArgoCD auto-roll for `user-*` namespaces):
   `kubectl set image deployment/lmthing compute=lmthingacr.azurecr.io/compute:<7-char-sha> -n user-<id>`
   then `kubectl rollout status …` — the old pod serves until the new one is ready

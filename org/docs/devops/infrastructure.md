@@ -401,7 +401,12 @@ at ~60% of the memory limit so V8 GCs before the cgroup OOMs `compute.ts:107-113
   `gateway-activator` cluster is injected into xDS by the `activator-patch.yaml` EnvoyPatchPolicy
   pointing at `gateway.lmthing.svc.cluster.local` `devops/argocd/envoy/activator-patch.yaml:17-47`.
 - A `startupProbe` (not readiness) gates only the boot window, so a busy single-threaded Node
-  event loop can't get yanked from Service endpoints mid-session `compute.ts:306-312`.
+  event loop can't get yanked from Service endpoints mid-session `compute.ts:312-318`.
+- The probe targets **`GET /api/health`**, which the pod answers without any caller identity
+  `sdk/org/libs/cli/src/server/team-guard.ts#PUBLIC_PATHS`. That is load-bearing on a team pod:
+  the kubelet probes from inside the cluster, not through Envoy, so it carries none of the
+  identity headers a team pod gates every other route on — probing a gated route returns 401,
+  the startup probe never passes, and the pod crash-loops `compute.ts:312-318`.
 
 Pods are therefore **never always-on and never Pro-only**: every tier — `free` included — gets a
 pod, it is created on first use rather than at subscription time, and it is scaled to zero (not

@@ -8,7 +8,13 @@ packages:
   - cloud
   - org
   - sdk/org/libs/*
-  - sdk/org/apps/*
+  # Only apps/web. The root workspace exists to build the SPA images, and every
+  # root-context Dockerfile stages the workspace manifests BY NAME — apps/mobile
+  # is never among them. Globbing apps/* pulls the Expo app into this lockfile
+  # while leaving it out of the build context, so `--frozen-lockfile` can never
+  # be satisfied in both places at once. sdk/org has its own workspace, which is
+  # where apps/mobile belongs.
+  - sdk/org/apps/web
   - automation/app
 
 catalog:

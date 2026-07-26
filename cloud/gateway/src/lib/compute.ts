@@ -303,8 +303,13 @@ function deployment(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_CONFIG) {
               // pod out of the Service endpoints mid-session → Envoy "connection
               // refused" 503s under the pod's own load. A startup probe can't do
               // that. Generous timeout/threshold so a slow cold boot isn't failed.
+              //
+              // The target must answer an ANONYMOUS caller: the kubelet probes
+              // from inside the cluster, not through Envoy, so it carries no
+              // identity headers. A team pod gates every other route on those
+              // headers, so probing anything else 401s and the pod crash-loops.
               startupProbe: {
-                httpGet: { path: "/api/sessions", port: 8080 },
+                httpGet: { path: "/api/health", port: 8080 },
                 initialDelaySeconds: 0, // probe immediately — a warm-cached image
                 // + burst CPU can listen sub-second; don't make the probe the floor.
                 periodSeconds: 1, // poll every 1s so a booted pod is routable ~1s sooner
@@ -785,7 +790,7 @@ export async function ensurePod(
                   // single-threaded pod out of the Service under its own load.
                   readinessProbe: null,
                   startupProbe: {
-                    httpGet: { path: "/api/sessions", port: 8080 },
+                    httpGet: { path: "/api/health", port: 8080 },
                     initialDelaySeconds: 0,
                     periodSeconds: 1,
                     timeoutSeconds: 5,

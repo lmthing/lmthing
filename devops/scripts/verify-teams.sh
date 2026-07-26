@@ -82,8 +82,8 @@ step '1. Test accounts'
 STAMP="$(date +%s)"
 EMAIL_A="${EMAIL_A:-teams-a-${STAMP}@example.com}"
 EMAIL_B="${EMAIL_B:-teams-b-${STAMP}@example.com}"
-USER_A="${USER_A:-$(register "$EMAIL_A" "verify-teams-pw-1")}"
-USER_B="${USER_B:-$(register "$EMAIL_B" "verify-teams-pw-2")}"
+USER_A="${USER_A:-$(register "$EMAIL_A" "VerifyTeams-Pw1!")}"
+USER_B="${USER_B:-$(register "$EMAIL_B" "VerifyTeams-Pw2!")}"
 [ -n "$USER_A" ] && [ -n "$USER_B" ] || { echo "could not create test users" >&2; exit 1; }
 TOK_A=$(mint "$USER_A" "$EMAIL_A")
 TOK_B=$(mint "$USER_B" "$EMAIL_B")

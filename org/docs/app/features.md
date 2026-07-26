@@ -323,7 +323,7 @@ before the throw so a failed reconcile leaks nothing `sdk/org/libs/cli/src/app/b
 the api runtime is created (`getApiRuntime` awaits `getProjectDb` and builds nothing without it)
 `sdk/org/libs/cli/src/server/session-manager.ts:669-702`, and serving comes last. In the running
 server, all of steps 4–7 are deliberately pushed **off the readiness path** — the HTTP server is
-already listening, so the K8s startup probe (`GET /api/sessions`) is never blocked by a synchronous
+already listening, so the K8s startup probe (`GET /api/health`) is never blocked by a synchronous
 `better-sqlite3` open or an overdue cron hook that runs a full agent turn
 `sdk/org/libs/cli/src/server/serve.ts:422-441`.
 

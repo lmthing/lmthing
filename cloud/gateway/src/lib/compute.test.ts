@@ -121,6 +121,15 @@ describe("createPod — user principal (regression: unchanged shape)", () => {
     const env = sent("/deployments")!.body.spec.template.spec.containers[0].env;
     expect(env.map((e: any) => e.name)).not.toContain("LMTHING_TEAM_MODE");
   });
+
+  // A team pod gates every route on the identity headers Envoy projects, but the
+  // kubelet probes from inside the cluster with no headers at all. Probing a
+  // gated route 401s, the startup probe never passes, and the pod crash-loops.
+  // /api/health is the one path served without a caller — see team-guard.ts.
+  it("probes a path an anonymous in-cluster caller can reach", () => {
+    const probe = sent("/deployments")!.body.spec.template.spec.containers[0].startupProbe;
+    expect(probe.httpGet.path).toBe("/api/health");
+  });
 });
 
 describe("createPod — team principal", () => {

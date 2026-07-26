@@ -70,7 +70,10 @@ export async function getUserByEmail(
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({
-      queries: [{ emailQuery: { email, method: "TEXT_QUERY_METHOD_EQUALS" } }],
+      // The v2 search field is `emailAddress`. Naming it `email` is not an error
+      // Zitadel reports — it ignores the unknown field and matches nothing, so
+      // the lookup silently claims an existing user has no account.
+      queries: [{ emailQuery: { emailAddress: email, method: "TEXT_QUERY_METHOD_EQUALS" } }],
     }),
   });
   if (!res.ok) throw new Error(`User not found: ${email}`);
@@ -244,7 +247,10 @@ export async function resolveIdpIntent(
       Authorization: `Bearer ${serviceToken}`,
     },
     body: JSON.stringify({
-      queries: [{ emailQuery: { email, method: "TEXT_QUERY_METHOD_EQUALS" } }],
+      // The v2 search field is `emailAddress`. Naming it `email` is not an error
+      // Zitadel reports — it ignores the unknown field and matches nothing, so
+      // the lookup silently claims an existing user has no account.
+      queries: [{ emailQuery: { emailAddress: email, method: "TEXT_QUERY_METHOD_EQUALS" } }],
     }),
   });
 

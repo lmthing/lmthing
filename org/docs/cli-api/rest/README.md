@@ -29,13 +29,15 @@ Two shared helpers back nearly every module: `readBody(req)` and `sendJson(res, 
 
 ## Auth & gating conventions
 
-**The pod server has no authentication of its own.** There is no token check and no auth middleware in `router.ts` or `serve.ts` — the request handler goes straight from activity tracking to `router.dispatch` `sdk/org/libs/cli/src/server/serve.ts:L343-L370`. The pod is protected by its network position (one pod per user namespace, behind the gateway/Envoy edge). Exactly three routes touch auth, and all three **relay or verify**, never mint:
+**A personal pod has no authentication of its own.** There is no token check and no auth middleware in `router.ts` or `serve.ts` — the request handler goes straight from the team guard (inert outside team mode, below) to `router.dispatch` `sdk/org/libs/cli/src/server/serve.ts:L343-L370`. The pod is protected by its network position (one pod per user namespace, behind the gateway/Envoy edge). Exactly three routes touch auth, and all three **relay or verify**, never mint:
 
 | Route | What it does with auth |
 |---|---|
 | `GET /api/budget` | Relays the caller's `Authorization` header to the gateway's `/api/billing/budget`; **no header ⇒ 404** `sdk/org/libs/cli/src/server/routes/budget.ts#handleBudget` |
 | `POST /api/report-bug` | Relays the caller's `Authorization` header to the gateway's issue broker `sdk/org/libs/cli/src/server/routes/report-bug.ts:L48`, `sdk/org/libs/cli/src/server/report-bug.ts:L38` |
 | `POST /api/inbound/:path` | Per-provider **HMAC signature verification** (401 on failure) — this is the one endpoint reachable from the public internet `sdk/org/libs/cli/src/server/routes/webhooks.ts:L191`, `L288` |
+
+**A TEAM pod is different**: it is reached by every member of the team, so it reads the caller's identity and role from headers Envoy projects out of the validated team token, and gates mutating routes on the role `sdk/org/libs/cli/src/server/team-guard.ts#guardRequest`. It also serves the team's channels. All of it is inactive unless `LMTHING_TEAM_MODE=1` `sdk/org/libs/cli/src/server/team-guard.ts#isTeamMode` — full detail → [./team.md](./team.md).
 
 Other gates that change whether a route *exists* or what it returns:
 
@@ -100,6 +102,10 @@ Registration order, as built in `sdk/org/libs/cli/src/server/serve.ts:L134-L326`
 | GET | `/api/hooks` | Pod-global hook list across every project + installed space | `createHooksListHandler` `routes/hooks.ts:L495-L533` | [hooks](./hooks.md) |
 | POST | `/api/projects/:projectId/hooks/:slug/disabled` | Write the `.data/hooks-state.json` disable overlay + republish | `createHookDisableHandler` `routes/hooks.ts:L542-L575` | [hooks](./hooks.md) |
 | POST | `/api/inbound/:path` | External webhook ingress (verify → preflight → dedupe → emit/run) | `createInboundHandler` `routes/webhooks.ts:L111-L200` | [webhooks](./webhooks.md) |
+| GET | `/api/team/channels` | **Team pods only** — list channels, seeding `#general` | `handleListChannels` `routes/team-channels.ts#handleListChannels` | [team](./team.md) |
+| POST | `/api/team/channels` | **Team pods only, editor** — create a channel | `handleCreateChannel` `routes/team-channels.ts#handleCreateChannel` | [team](./team.md) |
+| GET | `/api/team/channels/:channelId/messages` | **Team pods only** — history (`?limit`, `?before`) | `handleListMessages` `routes/team-channels.ts#handleListMessages` | [team](./team.md) |
+| POST | `/api/team/channels/:channelId/messages` | **Team pods only** — post `{text, threadId?}`; an `@thing` mention is answered in-thread | `handlePostMessage` `routes/team-channels.ts#handlePostMessage` | [team](./team.md) |
 | GET | `/api/projects/:projectId/app/build` | Build status → `{built, stale, assetManifest}` | `handleBuildStatus` `routes/app-admin.ts:L414-L433` | [apps](./apps.md) |
 | POST | `/api/projects/:projectId/app/build` | Force a page rebuild | `handleRebuild` `routes/app-admin.ts:L435` | [apps](./apps.md) |
 | POST | `/api/projects/:projectId/app/check` | **Authoritative** verdict — typecheck THEN bundle → `{ok, built, routes, errors}` | `handleAppCheck` `routes/app-admin.ts#handleAppCheck` | [apps](./apps.md) |
@@ -191,4 +197,4 @@ curl -s -XDELETE localhost:8080/api/sessions/<id>
 
 ## Sub-docs
 
-[apps](./apps.md) · [projects](./projects.md) · [sessions](./sessions.md) · [spaces](./spaces.md) · [store-spaces](./store-spaces.md) · [hooks](./hooks.md) · [env](./env.md) · [fs](./fs.md) · [uploads](./uploads.md) · [budget](./budget.md) · [webhooks](./webhooks.md) · [misc](./misc.md)
+[apps](./apps.md) · [projects](./projects.md) · [sessions](./sessions.md) · [spaces](./spaces.md) · [store-spaces](./store-spaces.md) · [hooks](./hooks.md) · [env](./env.md) · [fs](./fs.md) · [uploads](./uploads.md) · [budget](./budget.md) · [webhooks](./webhooks.md) · [team](./team.md) · [misc](./misc.md)

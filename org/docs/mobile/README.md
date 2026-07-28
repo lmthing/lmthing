@@ -52,6 +52,32 @@ targets honour it.
   `index.native.tsx` sibling). Shared code imports icons from there, never
   directly.
 
+## Home — the landing surface
+
+The signed-in app opens on **Home**, not on chat: a dashboard that shows the three things a person
+moves between — conversations, projects, teams — so "where was I?" is answered by looking rather
+than by navigating (`sdk/org/libs/ui/src/dashboard/DashboardHome.tsx`). A tab bar switches Home and
+Chat and hands off to the teams surface
+(`sdk/org/libs/ui/src/elements/nav/bottom-nav/index.tsx`).
+
+It is ONE component for both targets. `apps/mobile` renders it as a tab
+(`sdk/org/apps/mobile/App.tsx`) and the web app as the `/home` route
+(`sdk/org/apps/web/src/routes/home/index.tsx`); navigation is supplied as props, so the surface
+itself cannot tell a tab switch from a router push. The tab bar is likewise responsive rather than
+forked — it renders below the `md` breakpoint and disappears above it, where the sidebar already
+does that job.
+
+Three facts shape the data layer (`sdk/org/libs/ui/src/dashboard/use-dashboard-data.ts`):
+
+- **Teams come from the GATEWAY**, projects and conversations from the **pod** — two origins, so the
+  three sources settle INDEPENDENTLY. An unreachable gateway must not blank a user's conversations.
+- **Conversation titles come from `GET /api/projects/:id/sessions`**, not the cross-project session
+  ledger. The ledger spans projects in one call and looks like the obvious source, but its `title`
+  is usually empty: a device run rendered every row as "Untitled conversation" while the chat
+  sidebar showed real names for the same sessions.
+- **Teams carry no unread badge.** Unread state lives on each team's own pod, so an honest badge
+  would mean waking every team's pod on every visit to Home.
+
 ## Boot order
 
 `App.tsx` holds the tree back until `hydrateAuth()` resolves. `getSession()` is

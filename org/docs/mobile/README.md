@@ -267,6 +267,33 @@ Still **not** proven on a device, and stated as a gap rather than implied:
   it is listed as a gap rather than done because nothing has driven that surface
   on a device since.
 
+## Opening a project app
+
+A project app is a separately built web bundle the pod serves at `/app/<projectId>/`, so on both
+targets it is an embedded document rather than a mounted component
+(`sdk/org/libs/ui/src/elements/content/app-view/view.tsx`, `view.native.tsx` for the `WebView`).
+
+Two things about that element are load-bearing and neither is obvious:
+
+- **The entry is deliberately unforked.** `libs/ui`'s `./elements/*` export maps to `index.tsx`,
+  which names the WEB file, so a consumer reaching a forked element through that subpath gets the
+  web half and Metro never applies its platform extension — `apps/mobile` tried to mount an
+  `<iframe>`. A `react-native` export condition does not fix it: Metro does not fall through a
+  conditional array when the first pattern has no file, which breaks every element that has no
+  fork. The fork therefore sits one level in, behind a relative specifier, which is where platform
+  resolution works and why every existing fork (imported relatively from inside the package) had
+  never hit this.
+- **The bundle must not read `process`.** `buildProjectPages` sets `platform: 'browser'`, which
+  governs resolution and not globals; React and Tamagui read `process.env.*` at module scope, so
+  without an esbuild `define` every project app threw `ReferenceError: process is not defined`
+  before rendering anything (`sdk/org/libs/cli/src/app/build/pages.ts`). That failed in any
+  browser, not only in a WebView.
+
+A TEAM app opens in the rail beside the conversation, pinned there by THING when it finishes
+building. A PERSONAL app has no conversation to sit beside, so it opens full screen from the
+project on Home (`sdk/org/apps/mobile/src/AppScreen.tsx`) — before that, `DashboardHome`'s
+`onOpenProject` was never passed and tapping a project did nothing at all.
+
 ## Pointing a device build somewhere other than production
 
 A React Native bundle has no origin, so every control-plane host is a literal in

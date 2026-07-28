@@ -64,7 +64,7 @@ Client → server messages accepted by the pod's agent socket: `sendMessage` (wi
 
 ### Transcript
 
-`ChatView` groups blocks into user messages and assistant turns (`sdk/org/libs/ui/src/chat/app/ChatView.tsx#groupBlocks`), renders the header (title, session cost, follow toggle, connection dot, trace loader, Inspect, Report bug, theme toggle, restart) and the message list, and pins `<LiveActivity/>` above the composer (`ChatView.tsx:175-289`). `handleSend` echoes the message into the transcript (`noteUserMessage`) and pushes it over the socket — unless a budget window is exhausted, in which case the send is refused outright (`ChatView.tsx:117-123`).
+`ChatView` groups blocks into user messages and assistant turns (`sdk/org/libs/ui/src/chat/app/ChatView.tsx#groupBlocks`), renders the header (title, session cost, follow toggle, connection dot, trace loader, Inspect, Report bug, theme toggle, restart) and the message list, with the single live `<StatusLine/>` sentence under the header title (`ChatView.tsx:206-289`). `handleSend` echoes the message into the transcript (`noteUserMessage`) and pushes it over the socket — unless a budget window is exhausted, in which case the send is refused outright (`ChatView.tsx:117-123`).
 
 The header title is whatever the agent set via `setSessionMeta` (a `session_meta` trace event), falling back to `<space/project> · <Agent>` (`ChatView.tsx:157-173`).
 
@@ -101,7 +101,7 @@ The header's ⏻ button POSTs `/api/restart`, then polls `GET /api/env` every 80
 
 ### Inspect, live activity, replay, deep links
 
-- `LiveActivity` lists in-flight sub-agent nodes (fork / delegate / tasklist / task) above the composer; it reads `model.nodes` only and writes nothing to the transcript (`ChatView.tsx:269-272`).
+- `StatusLine` is the chat's whole account of in-flight sub-agent work: ONE sentence under the title (the current running fork / delegate / tasklist / task, else THING's own line). It reads `model.nodes` only and writes nothing to the transcript (`sdk/org/libs/ui/src/chat/app/StatusLine.tsx#StatusLine`).
 - `DevPanel` (execution tree + inspector) opens on `Alt+I` or `?inspect=1` (`sdk/org/libs/ui/src/chat/app/AppShell.tsx:41-44,69-75`).
 - URL state is deep-linkable: `?node=`, `?tab=`, `?follow=0` are read into the store on boot (`applyUrlToState`) and written back via `history.replaceState` from a store subscription (`sdk/org/libs/ui/src/chat/app/url-state.ts:6-30`).
 - The document title reflects run state (`⟳ N running` / `✓ done` / `⏵ replay`) (`AppShell.tsx:58-66`).

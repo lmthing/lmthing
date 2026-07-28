@@ -69,6 +69,6 @@ Every same-origin pod call carries the gateway JWT from `@lmthing/auth` as `Auth
 
 - **[routes.md](./routes.md)** — the (tiny) route tree, the URL/query state it deep-links (`?node=`, `?tab=`, `?follow=0`, `?inspect=1`), and the surrounding gates.
 - **[features.md](./features.md)** — the feature → endpoint table: projects & conversations, live streaming, attachments & voice, `@` completions, cost & budget, restart, bug report, consent cards, replay, and the **Integrations** settings tab (pod `GET /api/projects/:id/integrations` + gateway `GET/PUT /api/compute/env` + gateway `GET /api/inbound`, with the save → pod-restart → auto-resume flow).
-- **[views.md](./views.md)** — the component map under `sdk/org/libs/ui/src/chat/` (ChatShell, AppShell, Sidebar, ChatView, Composer, Message, LiveActivity, DevPanel, ProjectSettings, IntegrationsTab, ConsentCard, replay).
+- **[views.md](./views.md)** — the component map under `sdk/org/libs/ui/src/chat/` (ChatShell, AppShell, Sidebar, ChatView, Composer, Message, StatusLine, DevPanel, ProjectSettings, IntegrationsTab, ConsentCard, replay).
 - **[../cli-api/rest/](../cli-api/rest/README.md)** — the pod endpoints behind all of it.
 - **[../README.md](../README.md)** — the documentation hub.

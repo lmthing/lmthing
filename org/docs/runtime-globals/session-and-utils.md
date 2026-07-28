@@ -174,21 +174,23 @@ NDJSON trace file — it only streams to subscribers (the session hub → the cl
 purely live UX (contrast `session_meta`, which the server ingests and persists) →
 [../runtime/sessions.md](../runtime/sessions.md).
 
-**Consumers (chat UI) — two distinct sinks by scope.** Only the `session`-scope
-event feeds the header: `feedLive` lifts its `text` into the store's single
-`activity` string — THING's one main "currently doing" line — and ignores a
+**Consumers (chat UI) — two sinks by scope, ONE line on screen.** Only the
+`session`-scope event feeds the store: `feedLive` lifts its `text` into the single
+`activity` string — THING's own "currently doing" line — and ignores a
 non-`session` scope here `sdk/org/libs/ui/src/chat/store/session-slice.ts:82-86,126`.
 A `fork`/`delegate`-scope event is instead applied by the model reducer, which writes
 it onto that work node's `ExecNode.activity` field (an empty `text` clears it, falling
 back to the `//`-comment narration) `sdk/org/libs/ui/src/chat/store/model.ts:138-147`,
-`sdk/org/libs/ui/src/chat/store/model.ts:65-69`. The header renders **only** the main
-session line under the conversation title, not a nested list
-`sdk/org/libs/ui/src/chat/app/ChatView.tsx:187-197`; `setDone` (turn idle) and
-`resetSession` clear it `sdk/org/libs/ui/src/chat/store/session-slice.ts:135`,
-`sdk/org/libs/ui/src/chat/store/session-slice.ts:168`. The sub-activity surfaces in
-the **existing** `LiveActivity`/`WorkBlock` sub-agent panel, not the header: a running
-node's `WorkBlock` shows `node.activity` when set, overriding the `//`-comment
-`narrationOf` heuristic `sdk/org/libs/ui/src/chat/app/WorkBlock.tsx:67` →
+`sdk/org/libs/ui/src/chat/store/model.ts:65-69`. `setDone` (turn idle) and
+`resetSession` clear the store one `sdk/org/libs/ui/src/chat/store/session-slice.ts:135`,
+`sdk/org/libs/ui/src/chat/store/session-slice.ts:168`.
+
+Both sinks render into the **same single sentence** under the conversation title —
+never a nested list, and nothing above the composer. A running sub-agent's
+`node.activity` wins over THING's line (THING is suspended while it delegates, so its
+line is stale), and it in turn overrides the `//`-comment `narrationOf` heuristic
+`sdk/org/libs/ui/src/chat/app/StatusLine.tsx#StatusLine` ·
+`sdk/org/libs/ui/src/chat/app/node-meta.ts#currentWorkSentence` →
 [../chat/views.md](../chat/views.md).
 
 ---

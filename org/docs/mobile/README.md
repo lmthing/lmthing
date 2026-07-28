@@ -59,6 +59,34 @@ targets honour it.
   the dimension props, so the seam cannot tell a bad unit from a good one); a
   surface that must centre on both states `flex: 1` as well, which is inert on
   web in a block parent (`sdk/org/libs/ui/src/components/auth/login-screen/index.tsx#LoginScreen`).
+- **`display: 'inline-flex'`** — the same instruction as `flex` for everything
+  Yoga can express, and React Native accepts only `flex`/`none`/`contents`. It
+  was reaching Yoga verbatim AND, by not being literally `'flex'`, skipping the
+  direction default above — so every multi-child `Button` stacked its icon above
+  its label on a device (that value is in `Button`'s base style), along with 20
+  other shared sites. Normalised in `nativeSafeProps`.
+- **Overflow does not scroll.** Yoga clips a subtree that exceeds its parent —
+  silently, with no gesture to reach the rest. A `Box` with `overflow: 'auto'` is
+  a scrolling region in a browser and unreachable content on a phone, which is
+  what the team transcript was: one screenful of a conversation and no way past
+  it. `Prim.Scroll` is the primitive that means "this scrolls", forked to an RN
+  `ScrollView` (`sdk/org/libs/ui/src/elements/primitives/scroll/index.native.tsx`).
+  Its `stickToEnd` prop is a prop and not a caller-side effect because the two
+  targets pin to the bottom at different MOMENTS: the DOM has laid out by the
+  time an effect runs, a `ScrollView` has not, so it must be told on
+  `onContentSizeChange` — an effect there scrolls to the end of the content it
+  knew about, which for a freshly-opened transcript is about half of it.
+- **A synthesised press event is EMPTY.** `onClick` is mapped to `onPress` with
+  `{}` — there is no DOM node or mouse behind a native press — so a shared
+  handler may use the fact that it fired and nothing else
+  (`sdk/org/libs/ui/src/elements/primitives/_native.tsx#toPressHandler`). The team
+  composer read `e.target.value` to re-sync its `@` picker and threw on the first
+  tap, before a character could be typed. Read a ref or state instead.
+- **`onLongPress`** is forwarded by the seam but existed in no prop type, so it
+  could not be used from shared code — which pushes a touch-only affordance
+  towards a forked surface. It is now on the shared prop surface
+  (`sdk/org/libs/ui/src/elements/primitives/_tamagui.tsx#GestureProps`), inert on
+  web, and it is what offers "reply in thread" on a phone.
 - **Icons** — `lucide-react` emits raw DOM `<svg>`/`<path>`, which React Native
   has no host component for; `@tamagui/lucide-icons-2` draws the same glyphs
   through `react-native-svg`, which in turn drags React Native into a web bundle.
@@ -205,7 +233,51 @@ Still **not** proven on a device, and stated as a gap rather than implied:
   (`sdk/org/apps/mobile/app.json` declares the scheme);
 - the Android back gesture dismissing an overlay
   (`sdk/org/libs/ui/src/platform/keyboard.native.ts`);
-- transcript **scrolling**. The chat transcript is a `Box`, not a `ScrollView`,
-  so the DOM `scrollIntoView` auto-follow is inert on native and deliberately
-  degrades rather than throwing
-  (`sdk/org/libs/ui/src/chat/app/ChatView.tsx`). Porting it is its own change.
+- the **chat** transcript's scrolling. `Prim.Scroll` now exists and the TEAM
+  transcript uses it, but `chat/` was not moved onto it in the same change and is
+  still a `Box`, so its content is still clipped past one screenful on a device
+  (`sdk/org/libs/ui/src/chat/app/ChatView.tsx`). It is the same one-line swap;
+  it is listed as a gap rather than done because nothing has driven that surface
+  on a device since.
+
+## Pointing a device build somewhere other than production
+
+A React Native bundle has no origin, so every control-plane host is a literal in
+the source — and until this change three files each held their own copy of
+`https://lmthing.cloud`, while the shared UI derived the gateway from
+`window.location`, which does not exist here and fell through to the production
+constant with no way to say otherwise. A device build could be pointed at a local
+POD and still asked PRODUCTION every question the gateway answers.
+
+The hosts now come from one place, all overridable, all defaulting to production
+(`sdk/org/apps/mobile/src/hosts.ts`):
+
+| Variable | What it points at |
+|---|---|
+| `EXPO_PUBLIC_API_BASE` | the compute pod (`sdk/org/libs/ui/src/platform/api-base.native.ts#apiBase`) |
+| `EXPO_PUBLIC_CLOUD_BASE` | the gateway — including the shared UI's own calls (`sdk/org/libs/ui/src/platform/api-base.native.ts#cloudBaseOverride`) |
+| `EXPO_PUBLIC_TEAM_BASE` | a team's pod (`sdk/org/apps/mobile/src/hosts.ts`) |
+| `EXPO_PUBLIC_TEST_SESSION` | seeds an already-minted session, since interactive SSO is still a gap |
+
+`babel-preset-expo` inlines these at BUNDLE time, so changing them needs a Metro
+restart, not an APK rebuild. With `adb reverse tcp:<port> tcp:<port>` a
+`http://localhost:<port>` value reaches the host machine.
+
+## The team surface on a phone
+
+Driven end-to-end on the emulator, 2026-07-28, against a real team-mode pod
+behind a local rig that plays Envoy and the gateway (a team pod trusts identity
+headers and cannot fabricate them, by design — so something outside the repo has
+to inject them). Verified: the channel list and drawer, sending a message,
+grouped runs under one header, opening a thread and replying in it, the reply
+summary appearing back in the channel, and the keyboard no longer covering the
+composer.
+
+Threads follow **Slack's rule**: a message with no replies shows nothing under
+it, and the action to start one is revealed by the message being acted on — a
+hover toolbar on web, a long press on a phone
+(`sdk/org/libs/ui/src/team/messages.tsx#MessageActions`). A permanent "Reply in
+thread" under every message turns a channel into a column of the same offer
+repeated after everything anyone said. Once a thread exists it gets Slack's
+summary bar instead: participant faces, the reply count, and when the last one
+arrived (`sdk/org/libs/ui/src/team/messages.tsx#ThreadSummary`).

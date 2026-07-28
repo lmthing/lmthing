@@ -44,6 +44,21 @@ targets honour it.
   points (`sdk/org/libs/ui/src/theme/tamagui.config.ts`); web keeps the em
   strings. This is the fourth of the config's `isWeb` branches, alongside colour
   tokens, themes and the animation driver.
+- **Numeric-only style props** — `letterSpacing`, `fontSize`, the border widths
+  and radii, `opacity`, `flex` and the gaps are cast straight to a `Double` by
+  Android's view manager, so a CSS string there is a red-screen crash that takes
+  the whole tree with it, not a value the platform ignores. `nativeSafeProps`
+  converts a bare or `px` number, leaves a `$`-token for the config to resolve,
+  and drops anything font- or viewport-relative
+  (`sdk/org/libs/ui/src/elements/primitives/_native.tsx#NUMERIC_ONLY_STYLE_PROPS`).
+  Dropping is deliberate and matches `isNativeLineHeight`: the surface then gets
+  the platform default, which is what it would have got had it said nothing.
+- **`100vh`** — there is no viewport unit on native, so a box centred on web with
+  `minHeight: 100vh` takes its content's height instead and its contents sit at
+  the top of the screen. It is not translated (a percentage string is legal for
+  the dimension props, so the seam cannot tell a bad unit from a good one); a
+  surface that must centre on both states `flex: 1` as well, which is inert on
+  web in a block parent (`sdk/org/libs/ui/src/components/auth/login-screen/index.tsx#LoginScreen`).
 - **Icons** — `lucide-react` emits raw DOM `<svg>`/`<path>`, which React Native
   has no host component for; `@tamagui/lucide-icons-2` draws the same glyphs
   through `react-native-svg`, which in turn drags React Native into a web bundle.
@@ -135,7 +150,16 @@ The limits are as important as the coverage:
   `letterSpacing`, the dimension props) are a crash, not a fallback, when they
   arrive as strings — an unresolved `$`-token reaches the view manager verbatim.
   Asserted over the mounted tree in
-  `sdk/org/libs/ui/metro/suites/chat-shell.tsx`.
+  `sdk/org/libs/ui/metro/suites/chat-shell.tsx` and, for the whole numeric-only
+  class, in `sdk/org/libs/ui/metro/suites/native-style-units.tsx`.
+
+  This hazard was written here before anything enforced it, and a surface hit it
+  anyway: `LoginScreen` passed `letterSpacing={'-0.02em' as unknown as number}`,
+  `RCTText` threw `java.lang.String cannot be cast to java.lang.Double`, and the
+  app booted to a blank white page. Naming a trap in a doc does not close it —
+  `nativeSafeProps` closes it now
+  (`sdk/org/libs/ui/src/elements/primitives/_native.tsx#nativeSafeProps`), and the
+  suite fails without that guard.
 
 ## Device verification
 
@@ -149,8 +173,31 @@ Verified on an Android emulator (`Small_Phone_API_33`, Expo Go) against the
 - a message typed on the device reaches the pod, runs a turn, and the agent's
   reply streams back into the transcript.
 
+A second run on the same emulator, 2026-07-28, built a **dev client** rather than
+using Expo Go — `expo-notifications` is a native module, so Expo Go cannot load
+it. That build is what proved the two things below, neither of which any gate
+could see:
+
+- `expo-notifications` must be pinned to the SDK's unified version (`~57.0.7`),
+  not the old independent `0.32.x` scheme. The mismatched build linked against a
+  newer `expo-modules-core` than the tree has and died at startup with
+  `NoClassDefFoundError: expo/modules/kotlin/types/AnyTypeProvider`
+  (`sdk/org/apps/mobile/package.json`). `npx expo install --check` is what names
+  the expected version.
+- `POST_NOTIFICATIONS`, `VIBRATE` and `RECEIVE_BOOT_COMPLETED` reach the merged
+  manifest from the library's own AAR — `app.json` needs no `plugins` entry for
+  them (`sdk/org/apps/mobile/app.json`).
+
 Still **not** proven on a device, and stated as a gap rather than implied:
 
+- **push itself.** `registerForPush` runs only once signed in, inside the Teams
+  pane (`sdk/org/apps/mobile/src/TeamScreen.tsx`), and
+  `getExpoPushTokenAsync()` needs an EAS project id and an FCM key for
+  `org.lmthing.mobile`; neither is provisioned, so it takes the `catch` and
+  returns `null` (`sdk/org/apps/mobile/src/push.ts#registerForPush`). The
+  emulator itself is not the blocker — this AVD has Google Play services, so it
+  can receive a real push once those credentials exist. Nothing about "the phone
+  buzzes with the app closed" is verified.
 - a real interactive SSO login end-to-end (password login is disabled —
   `.issues/zitadel-password-login-disabled.md` — so verification used an
   already-minted gateway session);

@@ -48,7 +48,7 @@ A `package.json` with no `lmthing` block is skipped by the store manifest genera
 
 ## `settings` — the Integrations config form
 
-`settings` is a **JSON Schema** object; the Integrations tab renders it as a form (`sdk/org/libs/ui/src/studio/integrations/SettingsSchemaForm.tsx#SettingsSchemaForm`). The form iterates `schema.properties` and renders one labeled `@lmthing/ui` `<Input>` per property (`SettingsSchemaForm.tsx:57-74`). Each property's `title` (falling back to the property key) is the field label (`SettingsSchemaForm.tsx:63`), and `description` becomes the input placeholder (`SettingsSchemaForm.tsx:71`).
+`settings` is a **JSON Schema** object; the Integrations tab renders it as a form (`sdk/org/libs/ui/src/elements/forms/settings-schema-form/index.tsx#SettingsSchemaForm`). The form iterates `schema.properties` and renders one labeled `@lmthing/ui` `<Input>` per property (`SettingsSchemaForm.tsx:57-74`). Each property's `title` (falling back to the property key) is the field label (`SettingsSchemaForm.tsx:63`), and `description` becomes the input placeholder (`SettingsSchemaForm.tsx:71`).
 
 **`format: "password"`** masks a secret field — the input renders as `type="password"`; any other value renders plain `type="text"` (`SettingsSchemaForm.tsx:68`). The schema handles string properties only (`SettingsSchemaForm.tsx:3-6,18-25`).
 

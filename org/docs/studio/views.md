@@ -198,4 +198,4 @@ The `/studio/$projectId/settings` landing. One section — **Integrations** — 
 
 Installing is *not* done here — the empty state links out to the store `…/project-settings-view/index.tsx:154-171`.
 
-`SettingsSchemaForm` `sdk/org/libs/ui/src/studio/integrations/SettingsSchemaForm.tsx#SettingsSchemaForm` is a deliberately minimal JSON-Schema renderer: object-of-string properties only, `title` as the label, `format: 'password'` masked, `description` as the placeholder, `required[]` marking required fields — and **the schema's property keys ARE pod env-var names** `…/SettingsSchemaForm.tsx:1-11,19-33`.
+`SettingsSchemaForm` `sdk/org/libs/ui/src/elements/forms/settings-schema-form/index.tsx#SettingsSchemaForm` is a deliberately minimal JSON-Schema renderer: object-of-string properties only, `title` as the label, `format: 'password'` masked, `description` as the placeholder, `required[]` marking required fields — and **the schema's property keys ARE pod env-var names** `…/SettingsSchemaForm.tsx:1-11,19-33`.

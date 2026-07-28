@@ -213,13 +213,14 @@ modes (`tokens.json` `$meta`, `spectrum.description`).
   must NOT redeclare shared tokens — it only bridges the legacy `--lm-*` aliases … onto shared
   tokens so they inherit light/dark automatically" (`styles.css:20-26`). `lm-*` is sanctioned;
   don't churn it.
-- **Component styling pattern** — BEM component CSS is canonical: a stylesheet under
-  `src/{elements,components}/<name>/index.css` that opens with `@reference "…/theme.css"` and
-  builds each class from `@apply` + token utilities (`sdk/org/libs/css/src/elements/forms/button/index.css:1-12`);
-  the React component imports that stylesheet and composes the classes
-  (`sdk/org/libs/ui/src/elements/forms/button/index.tsx:1`). The catalog generator assumes this
-  shape — it parses `.block` / `.block__element` / `.block--modifier` out of every stylesheet
-  under `src/{elements,components}` (`sdk/org/libs/css/scripts/generate-components-catalog.mjs:3-8`).
+- **Component styling pattern** — a component carries its own styling as `$`-token style PROPS on
+  a Tamagui primitive; there is no per-component stylesheet
+  (`sdk/org/libs/ui/src/elements/forms/button/index.tsx#Button`). `libs/css` no longer ships
+  `src/elements` or `src/components` at all — what remains is the generated theme, the tokens, the
+  animations and the preflight (`sdk/org/libs/css/src/theme.css`). The BEM `@apply` stylesheets this
+  section used to describe were retired with the Tamagui migration; the catalog generator that
+  parsed them (`sdk/org/libs/css/scripts/generate-components-catalog.mjs`) now has nothing to read,
+  and `COMPONENTS.md` is a historical artefact rather than a live index.
   Inline Tailwind utilities are only for trivial one-off layout. Full detail →
   [components.md](./components.md).
 

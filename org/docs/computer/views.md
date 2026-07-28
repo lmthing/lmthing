@@ -71,7 +71,7 @@ The tree data is `buildTree(paths)` over the flat path list from `GET /api/fs/tr
 
 ### `IdeEditor` — Monaco tabs
 
-`sdk/org/libs/ui/src/computer/ide-editor.tsx#IdeEditor`: a tab strip over the open files (basename + an `X` close button that `stopPropagation`s) and a `MonacoEditor` for the active file. With no open file the strip shows `Select a file to edit` and the body `No file open` `sdk/org/libs/ui/src/computer/ide-editor.tsx:31-34,72-74`. Language comes from the extension via `LANG_MAP` (js/jsx→javascript, ts/tsx→typescript, json, html, css, md, svg→xml; anything else → `plaintext`) `sdk/org/libs/ui/src/computer/ide-editor.tsx:15-25`. Editor options: `theme="vs-dark"`, minimap off, fontSize 14, tabSize 2, `automaticLayout` `sdk/org/libs/ui/src/computer/ide-editor.tsx:62-70`.
+`sdk/org/libs/ui/src/computer/ide-editor.web.tsx#IdeEditor`: a tab strip over the open files (basename + an `X` close button that `stopPropagation`s) and a `MonacoEditor` for the active file. With no open file the strip shows `Select a file to edit` and the body `No file open` `sdk/org/libs/ui/src/computer/ide-editor.web.tsx:53-56`. Language comes from the extension via `LANG_MAP` (js/jsx→javascript, ts/tsx→typescript, json, html, css, md, svg→xml; anything else → `plaintext`) `sdk/org/libs/ui/src/computer/ide-editor.web.tsx:14-24`. Editor options: `theme="vs-dark"`, minimap off, fontSize 14, tabSize 2, `automaticLayout` `sdk/org/libs/ui/src/computer/ide-editor.web.tsx:102-111`.
 
 > Note: the Monaco theme is hard-pinned to `vs-dark` rather than following the design-token theme.
 
@@ -89,7 +89,7 @@ const CLI_LOG_COMMAND = 'tail -n 100 -f /tmp/lmthing-server.log 2>/dev/null || s
 
 ### `Terminal` (shared element)
 
-`sdk/org/libs/ui/src/elements/content/terminal/index.tsx#Terminal` — the xterm host used by BOTH the IDE tabs and the full-page terminal route. It lazily constructs `XTerm` only once the container has non-zero dimensions (a `ResizeObserver` retries `tryInit`) `sdk/org/libs/ui/src/elements/content/terminal/index.tsx:32-72`, loads the `FitAddon` + `WebLinksAddon`, pipes `session.onData → xterm.write`, and pipes `xterm.onData → session.write` **only when not `readonly`** `sdk/org/libs/ui/src/elements/content/terminal/index.tsx:86-101`. A second `ResizeObserver` refits and forwards `session.resize(cols, rows)` `sdk/org/libs/ui/src/elements/content/terminal/index.tsx:104-120`.
+`sdk/org/libs/ui/src/elements/content/terminal/index.web.tsx#Terminal` — the xterm host used by BOTH the IDE tabs and the full-page terminal route. It lazily constructs `XTerm` only once the container has non-zero dimensions (a `ResizeObserver` retries `tryInit`) `sdk/org/libs/ui/src/elements/content/terminal/index.web.tsx:58-85`, loads the `FitAddon` + `WebLinksAddon`, pipes `session.onData → xterm.write`, and pipes `xterm.onData → session.write` **only when not `readonly`** `sdk/org/libs/ui/src/elements/content/terminal/index.web.tsx:107-121`. A second `ResizeObserver` refits and forwards `session.resize(cols, rows)` `sdk/org/libs/ui/src/elements/content/terminal/index.web.tsx:124-140`.
 
 ### IDE state hooks
 

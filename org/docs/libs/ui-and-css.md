@@ -67,27 +67,18 @@ Allowed (not flagged): token-based `rgb/hsl(var(--…))`, and **achromatic** ove
 
 Exposed as the `lmthing-lint-tokens` bin (`sdk/org/libs/css/package.json:13-15`) and run at the repo root via `pnpm lint:tokens` over eleven `src` roots (`package.json:14`) and in CI over ten of them (`.github/workflows/design-tokens.yml:39-43`). What is and is not gated → [../design-system/README.md](../design-system/README.md).
 
-### The stylesheet convention
+### Styling lives on the component, not in a stylesheet
 
-Element/component stylesheets are BEM and built on `@apply` with token utilities. Each opens with `@reference "…/theme.css"` so Tailwind resolves the utilities, then defines classes. Example — the button (`sdk/org/libs/css/src/elements/forms/button/index.css:1`):
+There is no per-component CSS. A component carries its styling as `$`-token style PROPS on a
+Tamagui primitive, so one definition serves both targets — a React Native bundle has no stylesheet
+to import (`sdk/org/libs/ui/src/elements/forms/button/index.tsx#Button`).
 
-```css
-@reference "../../../theme.css";
-
-.btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium
-         transition-colors focus-visible:outline-none focus-visible:ring-2
-         focus-visible:ring-ring focus-visible:ring-offset-2
-         disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2;
-}
-.btn--primary { @apply bg-primary text-primary-foreground hover:bg-primary/90; }
-.btn--destructive { @apply bg-destructive text-white hover:bg-destructive/90; }
-```
-
-### CSS file tree
-
-- **`src/elements/`** — primitive stylesheets, mirrored by the UI elements: `branding/`, `content/` (avatar, badge, card, list-item, panel, separator, terminal), `forms/` (button, input, select, textarea), `layouts/` (page, split-pane, stack), `nav/` (app-links, app-sidebar, breadcrumb, settings-dialog, sidebar, tab-bar, top-bar), `overlays/` (dialog, dropdown, sheet), `typography/` (caption, code, heading, label).
-- **`src/components/`** — composite/surface stylesheets: `agent/{builder,runtime}`, `auth`, `chat/chat-panel`, `component-editor`, `functions`, `knowledge`, `markdown`, `presentation`, `setup-guide`, `shell` (+ `shell/studio-shell`), `space`, `studio`, `thing/{thing-chat,thing-message,thing-panel}`, `workflow/{save-workflow-modal,step-card,step-config-panel,step-schema-editor,workflow-card,workflow-editor,workflow-list}` (`find css/src/components -name index.css`).
+`libs/css` ships the generated theme, the tokens, the animations and the preflight
+(`sdk/org/libs/css/src/theme.css`); it no longer has `src/elements` or `src/components`. The BEM
+`@apply` stylesheets this section used to document, and the per-element CSS file tree beneath it,
+were retired with the Tamagui migration. `COMPONENTS.md` and its generator
+(`sdk/org/libs/css/scripts/generate-components-catalog.mjs`) survive as artefacts of that shape and
+no longer describe anything on disk.
 
 ---
 

@@ -117,6 +117,17 @@ const DEMO_SESSION: AuthSession = {
 
 In dev, `AuthProvider` also points the com/cloud URLs at the local proxy: `com.test` / `cloud.test` when `import.meta.env.DEV` (overridable with `VITE_COM_URL` / `VITE_CLOUD_URL`) (`sdk/org/libs/auth/src/AuthProvider.tsx#resolveConfig`).
 
+### Pointing a dev server at some other backend
+
+Every origin the SPA talks to has a `VITE_*` override — `VITE_CLOUD_BASE_URL` for the gateway, `VITE_COMPUTER_BASE_URL` for the pod, `VITE_STRIPE_PUBLISHABLE_KEY` for checkout — checked before the host-based fallback (`sdk/org/apps/web/src/lib/config.ts:19-31`). They work in both `dev` and `build`, from the environment or from a `.env*` file beside the app:
+
+```bash
+cd sdk/org/apps/web
+VITE_CLOUD_BASE_URL=http://localhost:5199 VITE_COMPUTER_BASE_URL=http://localhost:5198 pnpm dev
+```
+
+These apps are served by `vp` (vite-plus), which does **not** load `.env*` or expose `VITE_`-prefixed keys on `import.meta.env` the way stock Vite does — so for a while every one of those overrides was `undefined` at runtime and pointing the SPA at a local rig meant hand-editing `config.ts` and remembering not to commit it. The shared factory now loads them itself and injects them as `define` replacements, which is what stock Vite compiles `import.meta.env.VITE_*` to anyway (`sdk/org/libs/utils/src/vite.mjs#viteEnvDefines`). Only keys that are actually set are injected, so an unset override still falls through the `??` chain to `resolveApiOrigin`.
+
 ## Full local backend + compute pod (minikube)
 
 For work that needs the real gateway, Postgres, LiteLLM, and a compute pod, use the `local-*` targets. Config lives in [`devops/local/`](../../../devops/local).

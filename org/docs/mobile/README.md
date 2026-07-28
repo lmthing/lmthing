@@ -114,6 +114,22 @@ targets honour it.
   towards a forked surface. It is now on the shared prop surface
   (`sdk/org/libs/ui/src/elements/primitives/_tamagui.tsx#GestureProps`), inert on
   web, and it is what offers "reply in thread" on a phone.
+- **A `color-mix()` is dropped whole.** Every tint in the package is written
+  `color-mix(in srgb, var(--primary) 12%, transparent)` — a chip's fill, THING's ✦ avatar, the
+  active app tab. React Native's colour parser has never heard of the function, so the declaration
+  goes and the element renders with NO background: shape-preserving, silent, and invisible to the
+  render suites, which store the string without asking a view manager to parse it. The seam now
+  translates it (`sdk/org/libs/ui/src/elements/primitives/_native.tsx#toNativeColor`), including
+  colours written inside a `style` object rather than as props — which is how `AvatarFallback`
+  builds its spectrum tint, so every avatar was uncoloured. Mixing with `transparent` in sRGB is an
+  alpha multiply, so the token is resolved to a hex and the result is an `rgba()`; the resolution is
+  against the LIGHT theme because a prop mapper has no theme context, which is exact for the
+  `primary`/`brand-*`/`spectrum-*` tokens tints actually use and a slight hue shift for the three
+  that differ. Guarded by `sdk/org/libs/ui/metro/suites/native-style-units.tsx`.
+- **A `Text` does not centre its own content.** The circle-with-a-glyph idiom — a `Prim.Text` given
+  a width, a height, a radius and `justifyContent: center` — centres on web and puts the glyph in
+  the top-left corner on a device. The `View` does the layout, the `Text` holds the glyph
+  (`sdk/org/libs/ui/src/team/messages.tsx#SenderAvatar`).
 - **Icons** — `lucide-react` emits raw DOM `<svg>`/`<path>`, which React Native
   has no host component for; `@tamagui/lucide-icons-2` draws the same glyphs
   through `react-native-svg`, which in turn drags React Native into a web bundle.
@@ -341,3 +357,43 @@ thread" under every message turns a channel into a column of the same offer
 repeated after everything anyone said. Once a thread exists it gets Slack's
 summary bar instead: participant faces, the reply count, and when the last one
 arrived (`sdk/org/libs/ui/src/team/messages.tsx#ThreadSummary`).
+
+### What a 390px review changed
+
+A pass at phone width against the same rig, 2026-07-28. The findings and the plan they came from are
+in [`design/teams-mobile-ux.md`](../../../design/teams-mobile-ux.md); what the surface does now:
+
+- **The workspace's four tabs are a BOTTOM bar below `md`** and the top strip above it
+  (`sdk/org/libs/ui/src/elements/nav/bottom-tabs/index.tsx#BottomTabs`, used by
+  `sdk/org/apps/web/src/routes/team/$teamId/route.tsx#TeamChrome`). As one top row — a back link,
+  four tabs and a role badge — nothing could shrink below about 576px, so a 390px phone grew its
+  layout viewport to fit and rendered every screen zoomed out with `Members` clipped and `Settings`
+  off the edge, reachable by no other route. `nav/bottom-nav` is now the app shell's three tabs
+  rendered through the same bar.
+- **The sidebar names the team and switches between them**
+  (`sdk/org/libs/ui/src/team/sidebar.tsx#SidebarHeader`). It is the one piece of chrome both targets
+  have: the native screen renders `TeamChannelsView` and nothing else, so it opened `teams[0]`
+  without ever saying which team that was and offered no way to a second
+  (`sdk/org/apps/mobile/src/TeamScreen.tsx`). Creating a channel moved out of a section's `⋮` and
+  into a row of its own, next to the "New category" that had one.
+- **A rail that covers the screen is a place, and gets a back control** naming what it returns to,
+  on the left where a thumb is (`sdk/org/libs/ui/src/team/rail.tsx#RailPane`). The `×` in the
+  top-right stays for the desktop shape, where the rail is a panel beside the conversation.
+- **A long code block opens collapsed** with a peek and "Show N more lines"
+  (`sdk/org/libs/ui/src/elements/content/code-block/index.tsx#CodeBlock`), used by both the markdown
+  renderer and the `CodeBlock` descriptor
+  (`sdk/org/libs/ui/src/chat/components/render-descriptor.tsx:77-90`). THING answers a "build me an
+  app" turn with whole source files; on a phone one reply was thirty screenfuls and the message
+  after it was unreachable.
+- **An app THING built no longer throws itself over the conversation on every visit.** The effect
+  that opens it for whoever asked keyed on the last message id, which is set on mount — so opening a
+  channel whose last message was an app card covered the channel before it could be read
+  (`sdk/org/libs/ui/src/team/channels-view.tsx:107-133`).
+- **An empty channel offers the first move** rather than two grey sentences, and "Ask THING" hands
+  the composer a half-written message instead of sending one
+  (`sdk/org/libs/ui/src/team/channels-view.tsx#ChannelEmptyState` ·
+  `sdk/org/libs/ui/src/team/composer.tsx#Composer`).
+- **The Teams tab carries a mention badge.** The pane stays mounted while hidden, so it is the only
+  thing that can know a mention arrived while the member was on Home
+  (`sdk/org/apps/mobile/App.tsx#HomeShell`). Note this is the TEAM's own mention count from the live
+  socket, not the per-team unread that Home deliberately does not badge (above).

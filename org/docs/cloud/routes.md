@@ -18,6 +18,7 @@ The entry point builds the Hono app, applies CORS to `/api/*`, exposes a health 
 | `/api/status` | `routes/status.ts` | [Status](#status--apistatus) |
 | `/api/issues` | `routes/issues.ts` | [Issues](#issues--apiissues) |
 | `/api/teams` | `routes/teams.ts` | [Teams](#teams--apiteams) |
+| `/api/push` | `routes/push.ts` | [Push](#push--apipush) |
 | `/api` (catch-all, **LOCAL_DEV only**) | `lib/pod-proxy.ts` | [Pod proxy](#local-dev-pod-proxy) |
 
 - **CORS** — applied to all `/api/*`: `origin:"*"`, methods `GET/POST/PUT/DELETE/OPTIONS`, headers `Content-Type`/`Authorization` `cloud/gateway/src/index.ts:20-27`.
@@ -100,6 +101,69 @@ Three distinct authentication schemes appear below. Do not conflate them.
 | GET | `/api/teams/:teamId/billing/usage` | `teams.ts:596` | JWT + member | The team's tier, spend and budget windows |
 | DELETE | `/api/teams/:teamId` | `teams.ts:638` | JWT + **editor** | Delete the team (409 while a subscription is active) |
 | ALL | `/api/{sessions,spaces,state,events,asks,message,help,node}/*` | `pod-proxy.ts:35` | JWT (token or `?access_token`) | **LOCAL_DEV only** — proxy pod-served paths to the user's pod |
+
+---
+
+## Push — `/api/push`
+
+Router `cloud/gateway/src/routes/push.ts`. Two audiences with two credentials,
+which is why they are separate routes rather than one with a mode flag: a USER
+registers their own devices with a personal token; a POD asks for members to be
+notified with a shared secret.
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/api/push/config` | none | The VAPID **public** key and whether push is configured — a browser cannot subscribe without it, and it is public by construction |
+| POST | `/api/push/subscribe` | JWT | Register this device (`{kind:'web'\|'expo', endpoint, keys?, label?}`) |
+| POST | `/api/push/unsubscribe` | JWT | Forget a device by endpoint |
+| GET | `/api/push/devices` | JWT | The caller's registered devices — **never** the endpoints |
+| POST | `/api/push/send` | **pod secret** | Notify `{userIds, title, body, url, tag}`; always **202** |
+
+### The pod's credential
+
+`POST /send` reaches anybody's devices, so being signed in is deliberately **not**
+enough to call it `cloud/gateway/src/routes/push.ts#podAuthorized`. It requires
+`x-lmthing-pod-secret` matching the gateway's `POD_PUSH_SECRET`, which is injected
+into team pods as a **container** env var
+`cloud/gateway/src/lib/compute.ts#teamModeEnv` — never into the editable
+`user-env` secret, because `PUT /api/compute/env` replaces that wholesale and a
+pod able to grant itself the power to notify arbitrary users would be a real
+escalation. With no secret configured the route refuses everything: an
+unprovisioned environment fails closed.
+
+Devices are addressed by USER, never by endpoint. A caller never learns what
+devices somebody has and cannot target one.
+
+### Two transports, one contract
+
+`pushToUsers` looks up a user's devices and uses whatever each one needs
+`cloud/gateway/src/lib/push.ts#pushToUsers`:
+
+- **web** — the W3C Push API. The payload is encrypted to the browser's own
+  per-subscription keys and signed with our VAPID identity. Works in an installed
+  PWA on Android with the app closed.
+- **expo** — Expo's push service, fronting FCM/APNs. The device token is the
+  address and Expo does its own transport security, so there is nothing to
+  encrypt. Sent as ONE batched request — that is Expo's documented interface, and
+  per-token requests get rate limited.
+
+A device reported gone (404/410 from Web Push, `DeviceNotRegistered` from Expo)
+is **deleted**, not retried: keeping it means paying for a request that can never
+succeed on every future notification. A mere failure (a 500) keeps the row —
+that is the service's problem, not the device's.
+
+`push_subscriptions` is keyed on `endpoint`, which is already a globally unique
+device address for both transports `cloud/migrations/011_push_subscriptions.sql`.
+That is what makes re-subscribing idempotent: a browser returns the same endpoint
+until permission is revoked, so a user who opens the app fifty times has one row.
+
+### What actually triggers one
+
+The pod decides, and deliberately narrowly: only members a message **named**,
+only those without a live socket, and only if they have not already read it on
+another device
+`sdk/org/libs/cli/src/server/team-reads.ts#pushAudience`. A busy channel you are
+in is what the badge is for. Detail → [../cli-api/rest/team.md](../cli-api/rest/team.md).
 
 ---
 

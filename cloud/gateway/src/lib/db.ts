@@ -214,6 +214,109 @@ export async function ensureSchema(): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_team_invites_pending
       ON public.team_invites (team_id, email) WHERE accepted_at IS NULL
   `;
+  // Devices a user has asked to be notified on. One row per device, not per
+  // user: the whole point is that a phone with the app closed still hears about
+  // a direct message, and somebody has a laptop as well as a phone.
+  //
+  // `endpoint` is the natural key for BOTH transports — a Web Push endpoint URL
+  // and an Expo/FCM token are each already a globally unique device address —
+  // which is what makes re-subscribing idempotent. A browser hands back the same
+  // endpoint every time until permission is revoked, so a user who opens the app
+  // fifty times has one row, not fifty.
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id text NOT NULL,
+      kind text NOT NULL CHECK (kind IN ('web', 'expo')),
+      endpoint text NOT NULL UNIQUE,
+      -- Web Push only: the browser's per-subscription encryption keys. Null for
+      -- Expo, which addresses the device by token and does its own transport
+      -- security.
+      p256dh text,
+      auth text,
+      -- For telling a member which of their devices this is, and for pruning.
+      label text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      last_used_at timestamptz
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user
+      ON public.push_subscriptions (user_id)
+  `;
+}
+
+export interface PushSubscription {
+  id: string;
+  user_id: string;
+  kind: "web" | "expo";
+  endpoint: string;
+  p256dh: string | null;
+  auth: string | null;
+  label: string | null;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+/**
+ * Register a device, or refresh the one already at this endpoint.
+ *
+ * Keyed on the endpoint rather than (user, device): a browser reports the same
+ * endpoint until permission is revoked, so this is naturally idempotent. It also
+ * re-points a device at whoever is signed in on it now, which is the correct
+ * reading of "this endpoint belongs to that user" when a shared machine changes
+ * hands.
+ */
+export async function savePushSubscription(sub: {
+  userId: string;
+  kind: "web" | "expo";
+  endpoint: string;
+  p256dh?: string | null;
+  auth?: string | null;
+  label?: string | null;
+}): Promise<void> {
+  await sql`
+    INSERT INTO push_subscriptions (user_id, kind, endpoint, p256dh, auth, label)
+    VALUES (${sub.userId}, ${sub.kind}, ${sub.endpoint},
+            ${sub.p256dh ?? null}, ${sub.auth ?? null}, ${sub.label ?? null})
+    ON CONFLICT (endpoint) DO UPDATE
+      SET user_id = ${sub.userId},
+          kind = ${sub.kind},
+          p256dh = ${sub.p256dh ?? null},
+          auth = ${sub.auth ?? null},
+          label = ${sub.label ?? null}
+  `;
+}
+
+export async function listPushSubscriptions(
+  userIds: readonly string[],
+): Promise<PushSubscription[]> {
+  if (!userIds.length) return [];
+  return sql<PushSubscription[]>`
+    SELECT * FROM push_subscriptions WHERE user_id = ANY(${userIds as string[]})
+  `;
+}
+
+/**
+ * Drop a device.
+ *
+ * Called on explicit unsubscribe AND whenever a transport reports the endpoint
+ * is gone (a 404/410 from Web Push, a DeviceNotRegistered from Expo). Keeping a
+ * dead endpoint means every future notification pays for a request that cannot
+ * succeed.
+ */
+export async function deletePushSubscription(endpoint: string): Promise<void> {
+  await sql`DELETE FROM push_subscriptions WHERE endpoint = ${endpoint}`;
+}
+
+export async function touchPushSubscriptions(
+  endpoints: readonly string[],
+): Promise<void> {
+  if (!endpoints.length) return;
+  await sql`
+    UPDATE push_subscriptions SET last_used_at = now()
+    WHERE endpoint = ANY(${endpoints as string[]})
+  `;
 }
 
 export interface BackupConfig {

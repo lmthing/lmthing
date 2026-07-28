@@ -217,12 +217,32 @@ function dataPvc(p: PodPrincipal) {
 }
 
 /**
- * `LMTHING_TEAM_MODE=1` on a team pod, nothing on a user pod. The pod runtime
- * only enforces caller identity and viewer/editor gating when this is set —
- * a user pod stays the single-tenant server it has always been.
+ * What a TEAM pod gets that a user pod does not.
+ *
+ * `LMTHING_TEAM_MODE=1` turns on caller identity and viewer/editor gating — a
+ * user pod stays the single-tenant server it has always been.
+ *
+ * `LMTHING_TEAM_ID` so the pod can name itself in the notifications it asks for
+ * (a deep link needs the team in the path, and the pod only ever learns its team
+ * from request headers otherwise).
+ *
+ * `LMTHING_PUSH_SECRET` authorizes `POST /api/push/send`. All three are CONTAINER
+ * env vars, deliberately not keys in the editable `user-env` secret: an editor
+ * can rewrite that one wholesale with `PUT /api/compute/env`, and a pod able to
+ * grant itself the ability to notify arbitrary users — or to turn its own guard
+ * off — would be a real escalation.
+ *
+ * The secret is omitted when the gateway has none, so an unprovisioned
+ * environment simply has no push rather than a pod holding an empty credential.
  */
 function teamModeEnv(p: PodPrincipal): Array<{ name: string; value: string }> {
-  return p.kind === "team" ? [{ name: "LMTHING_TEAM_MODE", value: "1" }] : [];
+  if (p.kind !== "team") return [];
+  const pushSecret = process.env.POD_PUSH_SECRET;
+  return [
+    { name: "LMTHING_TEAM_MODE", value: "1" },
+    { name: "LMTHING_TEAM_ID", value: p.id },
+    ...(pushSecret ? [{ name: "LMTHING_PUSH_SECRET", value: pushSecret }] : []),
+  ];
 }
 
 const DEFAULT_POD_CONFIG: PodConfig = {

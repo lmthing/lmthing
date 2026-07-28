@@ -14,10 +14,12 @@
     "hono": "^4.7.0",
     "jose": "^5.0.0",
     "postgres": "^3.4.0",
-    "stripe": "^17.5.0"
+    "stripe": "^17.5.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@types/web-push": "^3.6.4",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^4.1.10"

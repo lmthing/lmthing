@@ -249,9 +249,13 @@ several people in it `sdk/org/libs/cli/src/server/team-channels.ts#promptFor`.
 
 `POST …/messages` returns as soon as the member's own message is stored; THING's
 answer arrives over the channel socket whenever it is ready, so a slow agent turn
-never blocks the composer. The in-flight replies are tracked so a shutdown (or a
-test) can wait for them
-`sdk/org/libs/cli/src/server/routes/team-channels.ts#settleThingReplies`.
+never blocks the composer.
+
+That leaves real work in flight that nothing is awaiting — THING's answer, and the
+delivery bookkeeping below — so it is all tracked in one place and drainable
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#settleChannelWork`, for a
+shutdown that would rather not drop a half-finished answer and for a test that
+needs to know it has landed.
 
 A failed turn is posted into the channel as a `system` message rather than
 disappearing.
@@ -260,6 +264,59 @@ disappearing.
 > so THING-in-a-channel cannot use a connection that would prompt for consent —
 > the consent prompter is only wired for interactive sessions
 > `sdk/org/libs/core/src/globals/consent.ts`.
+
+## Unread, mentions and notifications
+
+`.team/reads.json` records, per member per channel, when they last read it and how
+many messages have named them since
+`sdk/org/libs/cli/src/server/team-reads.ts`. `GET /api/team/channels` returns it
+alongside the channels, because a sidebar that draws itself and then re-draws with
+badges on is worse to look at than one that waits for both.
+
+The two numbers are deliberately different in kind:
+
+- **unread** is a boolean, DERIVED. "Is there anything I have not seen" is
+  `lastActivityAt(channel) > readAt`, and the last activity is the channel log's
+  mtime `sdk/org/libs/cli/src/server/team-reads.ts#lastActivityAt` — free, exact
+  (nothing else writes those files) and no bookkeeping on the hot path. An exact
+  unread COUNT would mean scanning every log on every sidebar render.
+- **mentions** is a counter, MAINTAINED at write time
+  `sdk/org/libs/cli/src/server/team-reads.ts#addMentions`. It has to be exact — a
+  badge reading "2" when three people asked you something is worse than none —
+  and it has to answer a client that has read no history. O(1) both ways.
+
+They are drawn differently for the same reason: bold says "there is something
+here" and can be ignored; a number says "somebody is waiting on you".
+
+A DM counts every message as a mention of the other participant
+`sdk/org/libs/cli/src/server/team-reads.ts#mentionAudience` — a direct message IS
+addressed to you. THING's answer is stamped as a mention of whoever asked, because
+an agent turn can take minutes, which is exactly the span over which somebody
+closes the tab.
+
+**Posting is reading**: `POST …/messages` marks the channel read for its sender.
+Without it your own message leaves the channel looking unread to you, since unread
+comes from the mtime you just moved.
+
+`POST /api/team/channels/:channelId/read` marks a channel read (viewer-allowed).
+The client calls it when a channel is opened — opening a channel IS reading it.
+
+### What may interrupt somebody
+
+`pushAudience` is deliberately narrow `sdk/org/libs/cli/src/server/team-reads.ts#pushAudience`:
+only members the message NAMED, only those with no live socket
+`sdk/org/libs/cli/src/server/ws/team-channels.ts#connectedUserIds`, and only if
+they have not already read it on another device. A busy channel you are in, or a
+thread you once replied to, is what the badge is for — a notification that fires
+for anything less than "somebody addressed me" trains people to switch
+notifications off.
+
+The pod does not talk to Web Push or FCM itself: those need long-lived credentials
+and a store of every device a user has, and a per-team workload that scales to zero
+and whose env an editor can rewrite is the wrong place for either. It asks the
+gateway, one way, best-effort, and never lets a failed notification fail a
+delivered message `sdk/org/libs/cli/src/server/team-push.ts#sendPushRequest`.
+The gateway side → [../../cloud/routes.md](../../cloud/routes.md).
 
 ## Cross-references
 

@@ -1,60 +1,57 @@
-# PROGRESS — THING creates live projects; remove store-catalog app-authoring
+# Team surface — mobile, notifications, Android
 
-**Goal:** THING owns live `createProject`/`selectProject` (real projects under `.lmthing/<id>/`) and
-directs the automator to build the app INTO the selected live project. The store-catalog
-app-AUTHORING flow (`build_app`/app-architect + catalog `createProject`/`selectProject`/`writePage`/
-`writeApi`/`writeHook`/`writeTableSchema`) is removed. Store **install** stays untouched. No client work.
+Started 2026-07-27. Follows `sdk/org b303640` (handles, categories, DMs, thread rail, apps
+beside a channel).
 
-**Decisions (FINAL rule set):**
-- App-build TARGET depends on the current project:
-  - current != `user`  → build INTO the current project (existing live automator path — KEEP).
-  - current == `user`  → THING ASKS for a name, creates a NEW project, builds into IT (retarget).
-- THING NEVER builds an app into the `user` project.
-- Retarget is needed for the `user` case (create-then-build-into-new within one session). "Build in current"
-  path stays for real projects (automator inherits the session project, no retarget).
-- No chat/UI project switch — THING just retargets the build. User finds the new project on next sidebar poll.
-- `project:manage` repurposed catalog→live; granted to THING. Store INSTALL untouched.
-- REMOVE store-catalog app-AUTHORING (build_app/app-architect + catalog create/select/writePage/Api/Hook/TableSchema).
+Two scope decisions taken by the user (AskUserQuestion, both maximal):
 
-## Mechanism (the one new thing)
-- Session gains mutable `activeBuildProjectId` (default = session projectId).
-- `createProject(name)` → `manager.createProject` → scaffold `.lmthing/<id>`, auto-select as build target.
-- `selectProject(id)` → validate exists, set `activeBuildProjectId`.
-- `delegate(...)` → if build target ≠ session project, resolve target's projectRoot/projectId/
-  projectSpacesDir + appGlobals via `manager.getProjectAppGlobals(target)` and pass THOSE to runDelegate.
+- **Android route:** a NATIVE surface in `@lmthing/ui`, not a PWA and not a WebView wrapper.
+  This is what the repo's own architecture already calls for — `apps/mobile`'s docstring says
+  screens live in the shared package and `scripts/lint-barrel-imports.mjs` enforces it.
+- **Notifications:** FULL push, delivered with the app closed. Needs credentials
+  (VAPID or Firebase), a gateway subscription store, a send endpoint and pod egress.
 
-## Tasks
-- [x] P1 cli foundation: projects.ts `createProjectSync`/`scaffoldProjectSync`/`uniqueProjectIdSync`; manager.createProject unified onto sync core (typechecks clean)
-- [ ] P1 core: session.ts (`resolveBuildTarget` opt + `delegateProjectContext()` centralizing 4 runDelegate call sites @684/756/804/1056), app-globals.ts (live create/select fields + project:manage inject), library-dts.ts (PROJECT_MANAGE_DTS live)
-- [ ] P1 cli: session-manager.ts (wire live createProject/selectProject + getProjectAppGlobals retarget; drop getAuthoringGlobals), app/authoring/globals.ts (remove createAppAuthoringGlobals; keep createProjectAuthoringGlobals + resolveCatalogRoot)
-- [ ] P2 spaces: delete app-architect + build_app + publish_app; rewrite THING instruct.md (grant project:manage; new create→build flow; drop 4b)
-- [ ] P2 tests: rewrite catalog tests → live create/select + delegate-retarget; keep catalog-root.test.ts
-- [ ] P2 docs: runtime-globals/app-authoring.md, system-spaces/README.md, capability/delegation pages (docs:check gate)
-- [ ] Verify: run "create a todo app" against local pod → new .lmthing/<id> project + working /app/<id>/
+## Order, and why
 
-## Fan-out (Opus subagents, disjoint file sets)
-- [x] Agent A — libs/core DONE + core typechecks clean: DelegateProjectContext type; session.ts delegateProjectContext() + 4 sites (692/756/802/1056); app-globals.ts removed writePage/writeApi/writeHook/writeTableSchema (fields+inject); library-dts.ts removed PAGES/API/HOOKS/WRITE_TABLE catalog DTS, kept PROJECT_* + PROJECT_MANAGE; bootstrap.ts db:schema→PROJECT_TABLE_DTS; capability.ts comment. FOLLOWUP(mine): library-dts.test.ts imports removed consts → 4 errors to fix in test pass.
-- [x] Agent B — libs/cli DONE: buildTarget holder + live create/select + resolveBuildTarget wired at defaultBuildSession (session-manager.ts:406/422/443), gated `if (projectId && projectRoot && appGlobals && root)`; removed createAppAuthoringGlobals/getAuthoringGlobals/6 catalog assigns; kept resolveCatalogRoot; FIXED bin.ts --request catalog path→createProjectAuthoringGlobals. FOLLOWUP(mine): globals.test.ts imports removed createAppAuthoringGlobals → test pass. Cross-pkg resolveBuildTarget errors clear on core rebuild.
-- [x] Agent C — system-spaces DONE: deleted app-architect/build_app/publish_app; THING instruct.md rewritten (project:manage granted, create-or-build-in-place rules, 4b removed); fixed dangling refs in app_building knowledge + architect frontmatter docs + automator cron example; RENAMED organize_material/04-build_app.md→04-build_live_app.md (id build_live_app). VERIFY(mine): organize_material index still resolves the renamed step; orphaned data-modeler/page-builder/api-author specialists now unreachable (harmless).
-- Agent D — org/docs: app-authoring.md, system-spaces/README.md, capability/delegation pages.
-- ME: [x] projects.test.ts (createProjectSync 6/6 green) · [x] core+cli rebuilt clean · [x] session+delegate tests 27/27 green (retarget no-regress) · [x] organize_material rename resolves · [ ] test-fix agent (5 files) landing · [ ] docs agent landing · [ ] FULL suite · [ ] docs:check · [ ] LIVE "create a todo app" verification
-- NOTE: automator canDelegateTo:[] + delegate() example in prose = PRE-EXISTING warning, non-fatal, not my regression.
+Each layer is a prerequisite of the next, so this is a chain rather than a fan-out:
 
-## Integration status (all green except live run in progress)
-- [x] core+cli rebuilt clean; full suite 1581 pass / 5 fail (ALL pre-existing: mock-session+harness-features 20s timeouts+ENOTEMPTY, apps/web install.test vite alias — confirmed via git stash clean-tree run; NOT my regression)
-- [x] projects.test.ts createProjectSync 6/6; session+delegate 27/27
-- [x] docs agent DONE (21 files); docs:check GREEN (4594 citations resolve) after fixing 3 (AppAuthoringGlobals→schemaToCreateTableSql/writeProjectPage; app-globals line-drift 238-241→230-233 + :29/:37 refs)
-- [x] slice specialists data-modeler/api-author/page-builder KEPT (orphaned, harmless) — docs reflect existence
-- [x] LIVE run #1: INFRA PROVEN — THING createProject'd a NEW `my-todos` project (NOT user), createProject returned {ok,appId,root}, user project stayed empty. BUT app not built: THING did createProject→display(proj)→STOPPED (didn't chain to automator delegate). Also turn-1 had a </think> leak → typecheck error (model artifact, not my bug).
-  → FIX: strengthened THING instruct.md "createProject is NOT the finish line — step 1 of 2, MUST delegate automator in SAME turn; created-but-unbuilt = FAILURE". Rebuilt cli (dist/system-spaces updated).
-- [x] LIVE run #2 (strengthened prompt): ✅ FULL SUCCESS end-to-end. THING created NEW `my-todos` (not user) → chained to automator → built todos table + full CRUD api (list/create/toggle/delete) + pages; /app/my-todos/ → 200; 3 seed rows LIVE (wash dog/buy house/find love) via api; user project stayed empty; THING reported correct /app/my-todos/ URL.
-- OBSERVATION: local DeepSeek model occasionally leaks `</think>` into first statement → 1 wasted typecheck-error turn; THING recovers. Model artifact, not feature bug; stronger prod model unaffected.
+1. **Read state** — nothing can notify without knowing what is unread. Also what the badges
+   read from, and what stops a push firing for a message you are already looking at.
+2. **Responsive web** — the layout decisions (one pane at a time, drawer, overlay rail) are
+   the same ones the native surface needs, so making them on web first means making them once.
+3. **Push infra** — gateway store + send path, then the web client (service worker), then the
+   native client (expo-notifications). One server contract, two transports.
+4. **Native surface** — port to platform-neutral shared components, then mount in Expo.
 
-## ✅ FEATURE COMPLETE — all green, live-verified. UNCOMMITTED (user's call to commit).
-Delivered: THING creates live projects (project:manage: createProject/selectProject) + retargets the automator build into the new project (resolveBuildTarget/DelegateProjectContext); never builds into `user`; store-catalog app-authoring removed (app-architect/build_app/publish_app + catalog writers/globals); store install untouched. Build+typecheck clean, full suite 1581 pass (5 pre-existing fails), docs:check green, live-verified.
-- REMINDER: `sleep` in FOREGROUND Bash is BLOCKED (whole cmd fails, no output). freshLocalServer now kills-by-port so no pre-kill needed.
+## Status
 
-## Notes / findings
-- store/apps/ does NOT exist on disk — only store/projects/ (fix stale comments app-globals.ts:58, library-dts.ts:254).
-- resolveCatalogRoot stays (routes/apps.ts install engine uses it).
-- automator = KEEP (live builder); app-architect = REMOVE (catalog builder).
+| # | Step | State |
+|---|---|---|
+| 1 | Pod: read state, unread + mention counts | ✅ 141 tests green (`team-reads.ts`, `team-push.ts`) |
+| 2 | Web: unread badges + title badge | ✅ two-level (bold / count), mark-read on open, `(2) lmthing` title — verified on the rig |
+| 3 | Web: responsive team surface | ✅ `useMedia` (works on native too); drawer + full-screen rail under 1024/768 — verified at 390×844 and back |
+| 4 | Push: gateway subscription store + send endpoint | ✅ `push_subscriptions` + web/expo transports, 20 gateway tests |
+| 5 | Push: web service worker + subscribe flow | ✅ sw.js, real PWA manifest, Settings toggle (degrades to "not configured") |
+| 6 | Native: channels surface → `@lmthing/ui` | ⬜ |
+| 7 | Native: Android app + expo-notifications | ⬜ |
+
+## Verification
+
+The local rig from the previous session is the harness (see the `reference-local-team-pod-rig`
+memory): a proxy on :5199 that plays BOTH Envoy (identity headers a team pod trusts and cannot
+fabricate itself) and the gateway (`/api/teams/*` stubs), in front of a real team-mode pod.
+`?as=ana|bo|cai` switches user, so two browser contexts are two real users.
+
+Native has its own gate that a jsdom test cannot stand in for: `pnpm test:native` runs the Metro
+graph gate and the native render suites (`libs/ui/metro/README.md`). A surface that only passes
+vitest has not been shown to work on the native target.
+
+## Open questions / risks
+
+- **Push credentials are not provisioned.** VAPID keys / a Firebase project do not exist yet.
+  The server contract and both clients can be built and unit-tested without them, but the
+  end-to-end "phone buzzes with the app closed" step is blocked on real credentials.
+- `docs:check` currently fails on 13 pre-existing citations (the in-flight Tamagui migration WIP
+  deleted files the docs still cite). Not caused by this work; do not "fix" by rewriting those.
+- The working tree carries an unrelated in-flight Tamagui/mobile migration. Stage explicitly;
+  never `git add -A`.

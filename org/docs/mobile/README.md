@@ -76,6 +76,33 @@ targets honour it.
   time an effect runs, a `ScrollView` has not, so it must be told on
   `onContentSizeChange` — an effect there scrolls to the end of the content it
   knew about, which for a freshly-opened transcript is about half of it.
+- **A DOM-only handler is DROPPED, not translated.** `nativeSafeProps` forwards
+  `onClick` (mapped to `onPress`) and the native event props, and discards every
+  other `on*` — so a control wired with `onMouseDown` has no handler at all on a
+  phone. The `@`-mention picker was: its rows were tappable, highlighted, and did
+  nothing. Nothing logs and nothing throws, which makes it the worst-shaped
+  failure in this list. `onMouseDown` there is deliberate on web (a click blurs
+  the textarea and unmounts the picker before it lands), so the fix branches on
+  `isWeb` rather than replacing it
+  (`sdk/org/libs/ui/src/team/composer.tsx#MentionPicker`).
+- **A bare string child is dropped by React Native**, which raises "Text strings
+  must be rendered within a `<Text>` component" and renders nothing — so a menu
+  row appears empty. On web the same markup is ordinary, which is why it gets
+  written that way. `labelled()` wraps strings for the shared leaves that accept
+  arbitrary children (`sdk/org/libs/ui/src/elements/primitives/labelled.tsx`);
+  `DropdownItem`, the context-menu `Item` and `ListItem` all had the bug and only
+  `Button` had a (private) fix. The gate mounts every such leaf with a bare
+  string: `sdk/org/libs/ui/metro/suites/string-children.tsx`.
+- **`asChild` must still be measurable.** The native `Dropdown` anchors its panel
+  by measuring the trigger, and the `asChild` branch cloned the caller's element
+  with the handler but no ref — most callers pass a `Button`, a plain function
+  component that forwards none, so the measurement never fired and the menu
+  rendered at `(0, 0)`: a bar across the status bar, nowhere near the control
+  that opened it. A wrapper carries the ref instead
+  (`sdk/org/libs/ui/src/elements/overlays/dropdown/index.native.tsx#DropdownTrigger`).
+  The panel also flips to right-alignment near the screen edge, because every
+  section menu that uses it is pinned to the right of its header and a phone has
+  no room to spare.
 - **A synthesised press event is EMPTY.** `onClick` is mapped to `onPress` with
   `{}` — there is no DOM node or mouse behind a native press — so a shared
   handler may use the fact that it fired and nothing else
@@ -272,6 +299,12 @@ to inject them). Verified: the channel list and drawer, sending a message,
 grouped runs under one header, opening a thread and replying in it, the reply
 summary appearing back in the channel, and the keyboard no longer covering the
 composer.
+
+Every tappable control on the surface was then driven one at a time, with each
+tap attributed to what it logged, which is how the four silent ones above were
+found — three of them (`onMouseDown` dropped, bare strings dropped, `asChild`
+losing its ref) are the same mistake in different clothes: **web markup that is
+correct, and that native discards without complaint.**
 
 Threads follow **Slack's rule**: a message with no replies shows nothing under
 it, and the action to start one is revealed by the message being acted on — a

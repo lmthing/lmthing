@@ -1,0 +1,12 @@
+{
+  "name": "utility-ledger",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "utility",
+    "title": "Ledger",
+    "tags": ["utility", "finance"],
+    "icon": "💰",
+    "description": "Finds the money columns in your app's tables, closes each calendar month into a report row, and flags anything over budget."
+  }
+}

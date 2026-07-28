@@ -1,0 +1,12 @@
+{
+  "name": "utility-deadlines",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "utility",
+    "title": "Deadlines",
+    "tags": ["utility", "reminders"],
+    "icon": "⏰",
+    "description": "Watches date columns across your app's tables and records approaching deadlines as alerts, on a daily sweep."
+  }
+}

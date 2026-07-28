@@ -1,0 +1,12 @@
+{
+  "name": "utility-importer",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "utility",
+    "title": "Importer",
+    "tags": ["utility", "data-in"],
+    "icon": "📥",
+    "description": "Turns a pasted CSV or JSON into real rows: parse, map columns, dry-run, then insert with dedupe."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "utility-validator",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "utility",
+    "title": "Validator",
+    "tags": ["utility", "data-quality"],
+    "icon": "✅",
+    "description": "Turns your app's implicit data contracts into explicit rules and checks them daily, queueing every violation for review."
+  }
+}

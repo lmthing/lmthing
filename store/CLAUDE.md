@@ -29,7 +29,8 @@ pnpm gen:apps-manifest  # regenerate projects/manifest.json only
 
 - `projects/<id>/` — one on-disk project-app template each. **Six ship today**: `blog`, `demo-feed`,
   `health`, `homes`, `kitchen`, `trips`.
-- `spaces/<id>/` — installable store spaces (the `integration-*` event sources).
+- `spaces/<id>/` — installable store spaces: the `integration-*` event sources and the
+  schema-agnostic `utility-*` spaces (bind to the host project's tables; `lmthing.kind: "utility"`).
 - `projects/manifest.json` — the generated browse index (`{ apps, spaces }`). **Never hand-edit it.**
   Regenerate with `pnpm gen:apps-manifest`; the `lmthing-apps-manifest` Vite plugin
   (`vite.config.ts` → `scripts/gen-apps-manifest.mjs`) also runs it on every build and copies the

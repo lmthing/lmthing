@@ -1,0 +1,12 @@
+{
+  "name": "utility-auditor",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "utility",
+    "title": "Auditor",
+    "tags": ["utility", "audit"],
+    "icon": "📜",
+    "description": "Snapshots your app's tables daily and keeps an append-only log of every row that was added, changed or removed."
+  }
+}

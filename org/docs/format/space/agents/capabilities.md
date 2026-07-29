@@ -4,7 +4,7 @@
 
 ## The grants and what they unlock
 
-There are 13 recognized capability ids, enumerated in `CapabilityId` / `CAPABILITY_IDS` (`sdk/org/libs/core/src/spaces/capabilities.ts:25-57`).
+There are 14 recognized capability ids, enumerated in `CapabilityId` / `CAPABILITY_IDS` (`sdk/org/libs/core/src/spaces/capabilities.ts:25-59`).
 
 | Capability | Unlocks (global) | Config |
 |---|---|---|
@@ -12,6 +12,7 @@ There are 13 recognized capability ids, enumerated in `CapabilityId` / `CAPABILI
 | `db:write` | `db.insert`, `db.update` (hard delete is host-only — code nodes / app runtime, not the agent surface) | optional `{ tables: [...] }` |
 | `db:schema` | `db.createTable`, `db.addColumn`, `writeProjectTable` | optional `{ tables: [...] }` |
 | `pages:write` | `writeProjectPage`, `writeProjectComponent` | bare |
+| `views:write` | the SPEC writers `writeProjectView`, `writeProjectViewComponent`, `writeProjectViewShell` | bare |
 | `api:write` | `writeProjectApi` | bare |
 | `hooks:write` | `writeProjectHook`/`Event`/`Function` | bare |
 | `knowledge:write` | `writeKnowledge` (own space only) | optional `{ spaces: [...] }` |
@@ -27,6 +28,8 @@ There are 13 recognized capability ids, enumerated in `CapabilityId` / `CAPABILI
 Any `db:*` grant ALSO earns the project-rooted introspection reads `listProjectDir`/`readProjectFile`, but only in a project-rooted session — they are gated on `projectRoot` + any db grant, exactly like `db` itself (`sdk/org/libs/core/src/exec/app-globals.ts:230-233`, DTS at `sdk/org/libs/core/src/exec/bootstrap.ts#AmbientDtsOpts`).
 
 The `db:*` grants map to the scoped `db` verbs shown above (`sdk/org/libs/core/src/exec/app-globals.ts:130-170`); `db:schema` additionally earns the live-project writer `writeProjectTable` (`sdk/org/libs/core/src/exec/app-globals.ts:219`). `pages:write` earns `writeProjectPage`/`writeProjectComponent` and `api:write` earns `writeProjectApi` (`sdk/org/libs/core/src/exec/app-globals.ts:206-208`); `hooks:write` earns the live-project `writeProjectHook`/`writeProjectEvent`/`writeProjectFunction` (`sdk/org/libs/core/src/exec/app-globals.ts:213-215`). `project:manage` earns `createProject`/`selectProject` — the LIVE-project create/select globals (`sdk/org/libs/core/src/exec/app-globals.ts:220-223`). The old STORE-CATALOG writers (`writePage`/`writeApi`/`writeHook`/`writeTableSchema`) have been removed.
+
+**`views:write` is deliberately a SEPARATE id from `pages:write`, not a share of it** (`sdk/org/libs/core/src/spaces/capabilities.ts:135-149`). It gates the spec writers `system-viewbuilder` builds its UI with, and the whole guarantee of that builder — a UI that is 100% spec and therefore renders natively with no WebView — rests on capability ABSENCE: an agent holding `views:write` and NOT `pages:write` has no `writeProjectPage`/`writeProjectComponent` injected and neither name in its DTS, so freehand TSX is a typecheck error rather than a rule it is asked to respect (`sdk/org/libs/core/system-spaces/system-viewbuilder/knowledge/app_building/model/capability-model.md:59-66`). Folding the spec writers into `pages:write` would hand every one of those agents the TSX writers back and dissolve the guarantee.
 
 `api:call`, `connections:use`, `store:read`, `store:install`, and `events:emit` are value-yielding globals wired through the yield router in `createChildVM` rather than by `injectAppGlobals`, and each is injected on its own grant in one contiguous block: `apiCall` on `api:call` (`sdk/org/libs/core/src/exec/bootstrap.ts:173`), `callConnection` on `connections:use` (`:177`), `storeSearch`+`storeInspect` on `store:read` (`:191-194`), `installSpace` on `store:install` (`:198`), and `emitEvent` on `events:emit` (`:202-204`) — the last with its emitting scope derived HOST-side at injection (`deriveEventScope(spaceDir, projectRoot)`), so sandbox code cannot spoof another scope's events (`sdk/org/libs/core/src/exec/bootstrap.ts:199-204`).
 
@@ -55,7 +58,7 @@ Each `db:*` grant carries an optional `{ tables?: string[] }` narrowing (`sdk/or
 `parseCapabilities` is fail-loud — any malformed entry throws during space load (`sdk/org/libs/core/src/spaces/capabilities.ts:236-244`). The throwing cases:
 
 - **Unknown id** → "declares unknown capability" (`sdk/org/libs/core/src/spaces/capabilities.ts:267-271`).
-- **Config on a bare-only cap** (`pages:write`/`api:write`/`hooks:write`/`project:manage`/`store:read`/`store:install`/`events:emit`, the set `BARE_ONLY_CAPABILITY_IDS`) → "takes no config (bare only)" (`sdk/org/libs/core/src/spaces/capabilities.ts:66-74`, `sdk/org/libs/core/src/spaces/capabilities.ts:278-283`).
+- **Config on a bare-only cap** (`pages:write`/`views:write`/`api:write`/`hooks:write`/`project:manage`/`store:read`/`store:install`/`events:emit`, the set `BARE_ONLY_CAPABILITY_IDS`) → "takes no config (bare only)" (`sdk/org/libs/core/src/spaces/capabilities.ts#BARE_ONLY_CAPABILITY_IDS`, `sdk/org/libs/core/src/spaces/capabilities.ts:316-322`).
 - **Unknown config key** on a `db:*`/`api:call`/`connections:use` map → "has disallowed config key(s)" (`sdk/org/libs/core/src/spaces/capabilities.ts#parseDbConfig`).
 - **`db:*` `tables` naming a table absent** from the project's `database/`, but only when `knownTables` is supplied — a bare cap on a system/project-agnostic space (`knownTables === undefined`) DEFERS this check to the project the space resolves into (`sdk/org/libs/core/src/spaces/capabilities.ts:150-160`).
 - **`tables` not a string list** → "must be a list of table names" (`sdk/org/libs/core/src/spaces/capabilities.ts:143-147`).
@@ -76,6 +79,8 @@ App-building splits its authority across two agents: **THING** picks the target 
 |---|---|
 | `user-thing/thing` | `project:manage`, `db:read`, `db:write`, `store:read`, `store:install`, `api:call` (`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:6-19`) |
 | `system-appbuilder/automator` | `hooks:write`, `db:schema`, `db:read`, `db:write`, `pages:write`, `api:write` (`sdk/org/libs/core/system-spaces/system-appbuilder/agents/automator/instruct.md:7-13`) |
+| `system-viewbuilder/automator` | `hooks:write`, `db:schema`, `db:read`, `db:write`, `api:write`, `views:write` — the same set with the TSX writer swapped for the spec writers (`sdk/org/libs/core/system-spaces/system-viewbuilder/agents/automator/instruct.md:8-14`) |
+| `system-viewbuilder/spec-builder` | `views:write`, `db:read` — the narrow UI specialist (`sdk/org/libs/core/system-spaces/system-viewbuilder/agents/spec-builder/instruct.md:7-9`) |
 
 THING holds `project:manage` (`createProject`/`selectProject`) but none of the `writeProject*` grants; the `automator` is the broad one — it authors the LIVE project (data model + automation + UI), so it holds every authoring grant except `project:manage`. THING creates or selects the project, then delegates the build to the automator, which the runtime re-roots at that project.
 

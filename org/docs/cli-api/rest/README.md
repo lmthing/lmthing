@@ -116,6 +116,7 @@ Registration order, as built in `sdk/org/libs/cli/src/server/serve.ts:L134-L326`
 | GET | `/api/projects/:projectId/app` | App manifest — tables/pages/endpoints/hooks/build | `handleAppManifest` `routes/app-admin.ts:L120` | [apps](./apps.md) |
 | GET | `/api/apps` | Public store APP catalog; `{apps: []}` when unreachable | `handleListApps` `routes/apps.ts:L103-L112` | [apps](./apps.md) |
 | POST | `/api/apps/install` | Install a catalog app (`{ok:false, diverged:true}` unless `force`) | `handleInstallApp` `routes/apps.ts:L185` | [apps](./apps.md) |
+| GET | `/api/apps/:id/views` | An installed app's view specs + endpoint manifest; `{views: []}` ⇒ not a spec app | `handleAppViews` `sdk/org/libs/cli/src/server/routes/app-views.ts#handleAppViews` | [apps](./apps.md) |
 | GET | `/api/store/spaces` | Public store SPACE catalog; `{spaces: []}` when unreachable | `handleListStoreSpaces` `routes/store-spaces.ts:L126-L135` | [store-spaces](./store-spaces.md) |
 | POST | `/api/store/spaces/install` | Install a space into `<root>/<projectId>/spaces/<spaceId>/` | `handleInstallStoreSpace` `routes/store-spaces.ts:L293` | [store-spaces](./store-spaces.md) |
 | `*` | `/app/:projectId/*` | **Project-app pages** — built bundle + asset-manifest SPA fallback + CSP | `createPageServeHandler` `sdk/org/libs/cli/src/app/pages-serve.ts` (mounted `serve.ts:L306`) | [apps](./apps.md) |

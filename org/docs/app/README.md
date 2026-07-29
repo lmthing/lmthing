@@ -8,7 +8,7 @@ A **project-application** is what a project's on-disk app layer becomes at runti
 | Page | Covers |
 |---|---|
 | [routes.md](./routes.md) | The URL surface — `/app/<id>/*`, `/app/<id>/api/*`, the root mount, the admin API |
-| [views.md](./views.md) | Pages, the client router, `@app/runtime` hooks, `<Chat>` |
+| [views.md](./views.md) | Pages, the client router, `@app/runtime` hooks, `<Chat>` — **and** the `ViewRenderer`, which draws a `system-viewbuilder` spec page on the web bundle *and* natively on a phone |
 | [features.md](./features.md) | The db, the api runtime, hooks/cron, typed contracts, error handling, CSP |
 
 ---

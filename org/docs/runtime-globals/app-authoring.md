@@ -25,6 +25,9 @@ A capability that is not granted is **not injected AND not declared** — a stra
 | `pages:write` | `writeProjectPage(route, src, opts?)` | `pages/<route>.tsx` | [pages/](../format/project/pages/README.md) |
 | `pages:write` | `writeProjectComponent(name, src)` | `components/<Name>.tsx` | [pages/](../format/project/pages/README.md) |
 | `pages:write` | `buildApp()` — **yields** | — (builds + programmatically checks, does not write) | [app/](../app/README.md) |
+| `views:write` | `writeProjectView(route, spec)` | `pages/<route>.view.json` **+ a generated `pages/<route>.tsx`** | [pages/view-spec.md](../format/project/pages/view-spec.md) |
+| `views:write` | `writeProjectViewComponent(name, def)` | `pages/components/<Name>.view.json` | [pages/view-spec.md](../format/project/pages/view-spec.md) |
+| `views:write` | `writeProjectViewShell(shell)` | `pages/_shell.view.json` | [pages/view-spec.md](../format/project/pages/view-spec.md) |
 | `hooks:write` | `writeProjectHook(slug, src)` | `hooks/<slug>.ts` | [hooks/](../format/project/hooks/README.md) |
 | `hooks:write` | `writeProjectEvent(name, src)` | `events/<name>.ts` | [events/](../format/project/events/README.md) |
 | `hooks:write` | `writeProjectFunction(name, src)` | `functions/<name>.ts` | [project format](../format/project/README.md) |
@@ -98,6 +101,41 @@ Writes `pages/<route>.tsx`; the `.tsx` suffix is appended when absent `sdk/org/l
 ### `writeProjectComponent(name, src) → { ok, error? }` — `pages:write`
 
 Writes a shared React component to `components/<Name>.tsx`; `<Name>` must be **PascalCase** (`COMPONENT_NAME_RE`) and `.tsx` is enforced `sdk/org/libs/cli/src/app/authoring/globals.ts:496-514` · `sdk/org/libs/cli/src/app/authoring/globals.ts:73-75`. Its DTS `PROJECT_COMPONENT_DTS` rides the `pages:write` grant `sdk/org/libs/core/src/typecheck/library-dts.ts#PROJECT_COMPONENT_DTS` · `sdk/org/libs/core/src/typecheck/library-dts.ts#CAPABILITY_DTS_FRAGMENTS`, injected only when the host supplies the live impl `sdk/org/libs/core/src/exec/app-globals.ts:219`.
+
+### `writeProjectView` · `writeProjectViewComponent` · `writeProjectViewShell` — `views:write`
+
+The **view-spec** writers: the second authoring medium, where a page is a validated *object* rather than TSX. They are what `system-viewbuilder` authors with; `system-appbuilder` is untouched and keeps the TSX writers above. The spec language, the eight section kinds, the element catalogue and the binding grammar → [view-spec.md](../format/project/pages/view-spec.md).
+
+**`views:write` is a SEPARATE capability from `pages:write`, and that separation is the mechanism, not a taxonomy.** A viewbuilder agent holds `views:write` and not `pages:write`, so `writeProjectPage` is neither injected nor declared and an attempt to author freehand TSX is a typecheck error the model sees and retries `sdk/org/libs/core/src/exec/app-globals.ts:229-231` · `sdk/org/libs/core/src/typecheck/library-dts.ts#PROJECT_VIEW_DTS`. Sharing one id would not have worked: a `capabilities:` profile lists capability **ids**, not individual globals, so a grant delivers its whole fragment at once `sdk/org/libs/core/src/typecheck/library-dts.ts#CAPABILITY_DTS_FRAGMENTS` · `sdk/org/libs/core/src/exec/bootstrap.ts:378-380`. `buildApp` stays under `pages:write` for the same reason — the viewbuilder gates its build host-side instead `sdk/org/libs/cli/src/app/authoring/globals.ts#ProjectAuthoringGlobals`.
+
+#### `writeProjectView(route, spec) → { ok, error? }`
+
+Validates `spec` against the project's **real endpoint contracts**, then writes `pages/<route>.view.json` AND host-generates the wrapper page `pages/<route>.tsx` that renders it `sdk/org/libs/cli/src/app/authoring/globals.ts#createProjectAuthoringGlobals` · `sdk/org/libs/cli/src/app/view-spec/wrapper.ts#renderViewWrapper`. The wrapper is why the page build needs **no changes at all**: it is an ordinary `.tsx`, so `walkPages`, the content hash, the cache and the entry generator all treat a spec page exactly like a hand-written one `sdk/org/libs/cli/src/app/build/pages.ts:225-245`. The spec's own `route` is normalized in from the first argument; a spec that declares a different one is rejected rather than silently relocated.
+
+`route` uses the same authoring grammar as `writeProjectPage` (`index`, `recipes/[id]`), further narrowed to the spec route pattern — lowercase, slash-separated, `[param]` only as a whole segment `sdk/org/libs/cli/src/app/view-spec/schema.ts#ROUTE_PATTERN`. A route that already holds a **hand-written** React page is refused: a route is a spec page or a TSX page, never both.
+
+#### `writeProjectViewComponent(name, def) → { ok, error? }`
+
+Writes `pages/components/<Name>.view.json` — a named, parameterised composition of elements with declared props. It is **data, not React**: it needs no bundling and loads natively for free, and it is validated exactly like a view (props declared, references acyclic, bindings well-formed) `sdk/org/libs/cli/src/app/view-spec/validate.ts#validateViewComponent`. `<Name>` is PascalCase.
+
+#### `writeProjectViewShell(shell) → { ok, error? }`
+
+Writes `pages/_shell.view.json` — nav entries, groups, per-entity subnav, brand, assistant dock. The renderer derives a shell from the route list only for a small flat app (`SHELL_DERIVE_MAX_ROUTES`), so above that the model declares one here `sdk/org/libs/cli/src/app/view-spec/schema.ts#SHELL_DERIVE_MAX_ROUTES` · `sdk/org/libs/cli/src/app/view-spec/schema.ts#ShellSpec`.
+
+#### Writing any of the three re-emits EVERY wrapper
+
+A wrapper inlines the spec **and** the components **and** the shell it renders with, so a component written after the pages that use it would otherwise leave each of them holding the old definition — a stale-bundle fault with no symptom at authoring time. Every successful write regenerates all wrappers instead of tracking which page used what `sdk/org/libs/cli/src/app/view-spec/files.ts#listViewRoutes`.
+
+#### Rejections are menu-shaped, and they throw
+
+A validation failure throws a `LintError` — like the TSX writers' lint, so the model sees it in the same turn — and nothing lands on disk `sdk/org/libs/cli/src/app/authoring/globals.ts#throwLint`. Every rejection names the instance path, the offence and the **finite valid set** `sdk/org/libs/cli/src/app/view-spec/messages.ts#unknownEndpoint`:
+
+```
+sections[1].mutation: "addRecipies" is not an endpoint. Did you mean addRecipe?
+Mutations: addRecipe, importRecipe, importRecipeText
+```
+
+The full rule set, the three validators and the two `$`-shaped failures they distinguish → [view-spec.md](../format/project/pages/view-spec.md).
 
 ### `writeProjectHook(slug, src) → { ok, error? }` — `hooks:write`
 

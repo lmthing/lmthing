@@ -1,10 +1,11 @@
-# Pod REST — apps: catalog, install, admin & the served app API
+# Pod REST — apps: catalog, install, admin, view specs & the served app API
 
-Three route families, all served by the pod CLI server (`lmthing serve`) — see [the REST index](./README.md) for the full route registry and the router's first-match-wins semantics.
+Four route families, all served by the pod CLI server (`lmthing serve`) — see [the REST index](./README.md) for the full route registry and the router's first-match-wins semantics.
 
 | Family | Routes | Module |
 |---|---|---|
 | **Store catalog + install** | `GET /api/apps`, `POST /api/apps/install` | `sdk/org/libs/cli/src/server/routes/apps.ts` |
+| **View specs** (the native renderer's source) | `GET /api/apps/:id/views` | `sdk/org/libs/cli/src/server/routes/app-views.ts` |
 | **App admin** (Studio-facing, reserved `/api/*`) | `GET /api/projects/:projectId/app`, `.../app/files/*`, `.../app/data/*`, `.../app/build` | `sdk/org/libs/cli/src/server/routes/app-admin.ts` |
 | **App API dispatcher** (the served app's own endpoints) | `* /app/:projectId/api/*` (+ root mount `* /:projectId/api/*`) | `sdk/org/libs/cli/src/server/routes/app-api.ts` |
 
@@ -194,6 +195,58 @@ serve.ts:325   * /:projectId/*             → createPageServeHandler(…, '')  
 The bare `/:projectId/*` root mount serves the same app with **no `/app` prefix** (clean `lmthing.app/blog/…` URLs) and is gated on `LMTHING_GATEWAY_URL`, which the gateway injects into every per-user pod and nothing else sets. Locally (`lmthing serve` / `pnpm thing`) it is unset, because a bare `/:projectId/*` would shadow every SPA route — hence apps live at `localhost:8080/app/<project>` `sdk/org/libs/cli/src/server/serve.ts:309-325`.
 
 Full serving behaviour of the page bundle (asset-manifest SPA fallback, `<base href>`, CSP) → [../../app/README.md](../../app/README.md).
+
+---
+
+## 5. `GET /api/apps/:id/views` — the view specs of an installed app
+
+`:id` is a **project** id in the runtime root (not a catalog app id). Registered right after the install route `sdk/org/libs/cli/src/server/serve.ts#startSessionServer`, handler `sdk/org/libs/cli/src/server/routes/app-views.ts#handleAppViews`.
+
+A `system-viewbuilder` app's pages are not a bundle — they are **specs** (the contract is `sdk/org/libs/cli/src/app/view-spec/schema.ts#ViewSpec`), rendered by the shared `ViewRenderer` on both targets. This route is the transport for the target that has no host page: on web the wrapper page carries its spec inline and the endpoint manifest arrives as the injected `window.__APP_ENDPOINTS__` `sdk/org/libs/cli/src/app/runtime/client.ts:L58-L63`, while on native there is nothing to inject into — which is why `endpoints` travels **in this payload** rather than in a second request `sdk/org/libs/cli/src/server/routes/app-views.ts:L1-L40`.
+
+### Response
+
+```json
+{
+  "project": "kitchen",
+  "views": [{ "route": "index", "title": "Kitchen", "sections": [{ "kind": "list", "query": "listRecipes" }] }],
+  "components": [{ "name": "RecipeCard", "props": { "recipe": "Recipe" }, "node": { "el": "surface" } }],
+  "shell": { "brand": "Kitchen", "nav": [{ "route": "index", "icon": "home" }] },
+  "endpoints": { "listRecipes": { "method": "GET", "routePath": "/recipes", "inputSchema": {}, "outputSchema": {} } }
+}
+```
+
+`sdk/org/libs/cli/src/server/routes/app-views.ts#AppViewsPayload`.
+
+- `views` — every page spec, sorted by route. `components` — every named component def, sorted by name. `shell` — the app shell or `null` (absent ⇒ the renderer predicts one).
+- `endpoints` is keyed by endpoint **name** and carries the two fields the web manifest carries (`method`, `routePath`) plus `inputSchema`/`outputSchema` `sdk/org/libs/cli/src/server/routes/app-views.ts#AppViewEndpoint`. The schemas ride along because a `create` section derives its form fields from the mutation's Input schema `sdk/org/libs/cli/src/app/view-spec/schema.ts#CreateSection` and native has no second place to get them. It is built from the same `EndpointContract[]` the page build projects into `window.__APP_ENDPOINTS__`, preferring the manager's cached contracts exactly as the app manifest does `sdk/org/libs/cli/src/server/routes/app-admin.ts#loadEndpoints`.
+- **`views: []` is not an error — it is the answer.** A project with no specs is a `system-appbuilder` app, and an empty list is precisely the signal the mobile host branches on `sdk/org/apps/mobile/src/app-views.ts#fetchAppTarget`.
+
+### Where the specs are read from
+
+| On disk | Becomes |
+|---|---|
+| `pages/<route>.view.json` | one entry in `views` |
+| `pages/components/<Name>.view.json` | one entry in `components` |
+| `pages/_shell.view.json` | `shell` |
+
+The route does **not** re-derive that layout: `sdk/org/libs/cli/src/app/view-spec/files.ts#loadProjectViews` is the one module that knows it, shared by the writers, the app-wide validators and this handler so they cannot drift. The specs live in the same `pages/` tree as TSX pages on purpose — an app is one thing with one page tree, and the page walk already skips a `components/` dir and every `_`-prefixed basename `sdk/org/libs/cli/src/app/view-spec/files.ts:L14-L25`.
+
+What the route adds is projection plus one transport check `sdk/org/libs/cli/src/server/routes/app-views.ts#readProjectViewSpecs`: the route of record is the **file path** and a component's name is its **filename** (a stale `route` field after a rename cannot then resolve one way on web and another here `sdk/org/libs/cli/src/app/view-spec/files.ts#routeOfViewFile`), and a file that parsed but is not shaped like the artifact its location claims is reported rather than shipped — the renderer is contracted never to validate, so an object with no `sections` reaching it is a blank page.
+
+### Errors
+
+| Condition | Response |
+|---|---|
+| `:id` fails `safeProjectId` | `400 { error: 'invalid project id: …' }` |
+| no runtime root configured | `404 { error: 'no project root configured' }` |
+| the project directory does not exist | `404 { error: 'project not found: …' }` |
+| a spec file is unreadable, malformed, or not shaped like its artifact | `200`, that file omitted, named in `errors: [{ file, message }]` |
+| contract generation threw | `200`, `endpoints: {}` **and** `endpointsError` — the same "no endpoints" vs "could not read them" distinction the app manifest draws |
+
+The pod **transports** specs; it does not interpret them. Validation is the writer's job at save time (`writeProjectView`) and the whole-app gate's at verify time (`sdk/org/libs/cli/src/app/view-spec/validate.ts#validateAppViews`), so the read is shape-level only. One bad file costs one page, never the whole app — an app-wide read that threw on one artifact would report nothing at all about the other nineteen `sdk/org/libs/cli/src/app/view-spec/files.ts#loadProjectViews`.
+
+The native consumer → [../../mobile/README.md](../../mobile/README.md).
 
 ---
 

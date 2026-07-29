@@ -4,6 +4,8 @@ A project-app's `pages/` directory holds **real client-side React** — each non
 
 Pages are written by the capability-gated live-project global `writeProjectPage(route, src, opts?)`, injected only when the agent holds the `pages:write` grant (`sdk/org/libs/cli/src/app/authoring/globals.ts#writeProjectPage`; DTS gated at `sdk/org/libs/core/src/typecheck/library-dts.ts#PROJECT_PAGE_DTS`). See [capabilities.md](../../space/agents/capabilities.md) for the grant model.
 
+> **There is a second authoring medium.** A page may instead be a **view spec** — a validated object rather than TSX, rendered by a shared `ViewRenderer` on the web bundle and natively in the mobile app. It is written by `writeProjectView` under a separate `views:write` grant, and it lands beside a *generated* `.tsx` wrapper so everything on this page — file routing, the bundle, the cache — applies to it unchanged (`sdk/org/libs/cli/src/app/view-spec/wrapper.ts#renderViewWrapper`). `system-appbuilder` writes TSX; `system-viewbuilder` writes specs. Full contract → [view-spec.md](./view-spec.md).
+
 A page **must have a default export** (the component the route renders); a write without one is rejected at write time with a thrown, retryable error rather than failing later as an esbuild bundle error `sdk/org/libs/cli/src/app/authoring/lint.ts#lintPageSource`.
 
 ## File routing

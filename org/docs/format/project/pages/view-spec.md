@@ -46,6 +46,10 @@ A page is `{ route, title?, layout?, sections }` `sdk/org/libs/cli/src/app/view-
 
 Section slots take an element tree, a component reference (`{ use: 'RecipeCard', props: … }`), or the flat convenience form (`item: { title: '$.name' }`) `sdk/org/libs/cli/src/app/view-spec/schema.ts#Slot`. The element catalogue is 24 kinds and is likewise closed `sdk/org/libs/cli/src/app/view-spec/schema.ts#ELEMENT_KINDS`.
 
+Every text-ish key of the flat form takes a string **or** that string with its modifiers attached — `{ value, format?, currencyField?, tone?, toneMap?, suffix?, maxLines? }` `sdk/org/libs/cli/src/app/view-spec/schema.ts#FlatValue`. `suffix` is how a value carries a unit (`meta: { value: '$.prepMinutes', suffix: 'min' }` renders "20 min"); it lives on that one shared definition rather than as a `metaSuffix`/`captionSuffix` key family, which is the key explosion the object form exists to prevent.
+
+`chat.agent` is an agent **slug** — kebab-case, the naming style every agent in this codebase uses (`pantry-keeper`, `data-modeler`) `sdk/org/libs/cli/src/app/view-spec/schema.ts#AGENT_NAME_PATTERN`. The pattern is deliberately thin: its job is to keep a URL or a sentence out of the field, and whether the agent *exists* is not a shape question.
+
 **There is no `custom` kind and no React escape hatch.** A surface that cannot be expressed is *reported* by the planner; the escape hatch is one level up — `system-appbuilder` `sdk/org/libs/cli/src/app/view-spec/schema.ts:24-27`.
 
 ### Bindings are paths, never expressions
@@ -57,6 +61,14 @@ Exactly eight roots, and nothing else `sdk/org/libs/cli/src/app/view-spec/schema
 No conditionals, no arithmetic, no interpolation, no eval. Computation lives in three places instead: renderer built-ins, a **named declarative policy** (`toneMap`, `poll.while`, `merge: 'fill-empty'`), or an endpoint's Output. Two consequences are the point of the design — no app-authored code ever runs on the phone, and a weak model cannot write a broken computation in a language that has none.
 
 `looksLikeExpression` is what lets a rejection tell "you wrote an expression" from "you mistyped a path" `sdk/org/libs/cli/src/app/view-spec/schema.ts#looksLikeExpression`.
+
+### An argument is a constant **or** a binding
+
+Every argument map — a section's `input`, `mutate.input`, `navigate.params`, `link.params`, `create.prefill.input`, and the endpoint-side `x-options.input` — takes an **`Arg`**: a binding path, or a constant `string`/`number`/`boolean` `sdk/org/libs/cli/src/app/view-spec/schema.ts#Arg`. So `{ id: '$.id', meal: 'dinner', withinDays: 7 }` is one object, and a number stays a number all the way to the request `sdk/org/libs/ui/src/view/bind.ts#resolveInputs`.
+
+A string argument is graded by the same pattern every other authored string is graded by, so a literal stays distinguishable from a path and an embedded binding (`'/trips/$result.id'`) is still an error `sdk/org/libs/cli/src/app/view-spec/schema.ts#VALUE_PATTERN`. A constant is a **scalar** — an object or an array is a type error — so this adds no expression power.
+
+It is load-bearing rather than a convenience: **one endpoint called with different constants** (three buttons, one `explain` mutation, `tldr` / `eli5` / `why-me`) is an ordinary shape, and moving the constant into the endpoint's Input default — the only workaround while arguments were paths-only — works for exactly one value per endpoint.
 
 ### The view-shaped-endpoint rule
 

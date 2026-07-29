@@ -284,6 +284,12 @@ eight roots are `$`, `$.field`, `$props.x`, `$route.id`, `$data.<sectionId>.<pat
 `$result.field`, `$form.field` and `$client.timezone`; anything else resolves to `undefined`
 rather than throwing.
 
+An **argument** (a section's `input`, `mutate.input`, `navigate.params`, …) is a binding *or* a
+constant: a non-string `Arg` resolves to itself, so `{ withinDays: 7 }` reaches the endpoint as the
+number 7 and never as `'7'` `sdk/org/libs/ui/src/view/bind.ts#resolveInputs`. Only a **binding** can
+be pending — an unresolved one disables its query, which is the declarative replacement for every
+hand-coded `enabled:` flag; a constant is always ready.
+
 **S1 — a bound value that resolves to nothing renders NOTHING, its label and wrapper included.**
 A literal is never omitted. That asymmetry is the whole rule
 `sdk/org/libs/ui/src/view/bind.ts#resolveValue`: it replaces the ~15 hand-written
@@ -371,9 +377,15 @@ from a flat route list — four hand-group 13–21 routes into 4–6 destination
 produces an unusable 13–21-item bottom bar on a phone. Deriving anyway would put the shell's own
 layout-override rate near 80%, which by the plan's own metric means the *prediction* is wrong.
 
-- **A parameterised route is never a nav item** — `/feed/[articleId]` is a drill-in, not a
-  destination. It reaches the user through a `rowAction`, a `navigate`, or a subnav
-  `sdk/org/libs/ui/src/view/shell.tsx#isStaticRoute`.
+- **A parameterised route is never a *destination*** — `/feed/[articleId]` is a drill-in, and a tab
+  that opens it opens nothing. It reaches the user through a `rowAction`, a `navigate`, or a subnav
+  `sdk/org/libs/ui/src/view/shell.tsx#isStaticRoute`. A group's **highlight family** is the other
+  role and takes the other rule: a member MAY be parameterised, because a drill-in is exactly the
+  page its tab should stay lit for (kitchen's real `_layout.tsx` keeps Shop highlighted on
+  `trip/:planId`) `sdk/org/libs/cli/src/app/view-spec/schema.ts#NavGroup`. A family member is
+  matched by segment SHAPE, so `trip/[planId]` highlights on the live `trip/p7`
+  `sdk/org/libs/ui/src/view/shell.tsx#routeShapeMatches`. Conflating the two roles made every
+  drill-in an orphan unless some page happened to navigate to it.
 - **Placement is target-predicted**: bottom tabs on a phone, a top bar on a wide screen with few
   destinations, a sidebar above four. All three are one tree with media-driven visibility, so
   there is no platform branch anywhere in the file `sdk/org/libs/ui/src/view/shell.tsx#ViewShell`.
@@ -437,6 +449,12 @@ pre-materialised data, because a spec is authored before the data exists.
 - **`maxLines`** clamps with an ellipsis on both targets (RN's `numberOfLines` and the web
   line-clamp trio) `sdk/org/libs/ui/src/view/elements.tsx#clampProps`; **`strike`** and the other
   leaf props ride on `text` `sdk/org/libs/ui/src/view/types.ts#TextEl`.
+- **`suffix`** puts a unit on a flat value — `meta: { value: '$.prepMinutes', suffix: 'min' }`
+  renders "20 min" where a bare binding rendered "20" `sdk/org/libs/ui/src/view/types.ts#FlatValue`.
+  It is appended **after** formatting (the unit belongs to the rendered figure, and `currency`
+  already owns the symbol side) and is itself a value, so `suffix: '$.unit'` works and an
+  unresolved one appends nothing rather than printing "20 undefined"
+  `sdk/org/libs/ui/src/view/elements.tsx#FlatItemView`.
 - **`field`** is the one element the audit added, and the one finding that was outright
   inexpressible: `button { mutate }` carries no argument, so without it a spec app renders every
   page and lets a user change nothing about a row. The new control value is sent under the Input

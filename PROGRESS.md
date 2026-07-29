@@ -1,81 +1,202 @@
-# Team surface — mobile, notifications, Android
+# App builder v2 — `system-viewbuilder`
 
-Started 2026-07-27. Follows `sdk/org b303640` (handles, categories, DMs, thread rail, apps
-beside a channel).
+Started 2026-07-29. Plan: [`design/appbuilder-viewspec-plan.md`](./design/appbuilder-viewspec-plan.md).
+(The previous occupant of this file — the team-surface mobile work, shipped — is archived at
+[`design/teams-mobile-progress.md`](./design/teams-mobile-progress.md).)
 
-Two scope decisions taken by the user (AskUserQuestion, both maximal):
+**What this is:** a NEW sibling system space that builds apps as *view specs* — data, not TSX —
+validated against endpoint contracts at save time and rendered by a shared `ViewRenderer`. Its
+defining capability: those apps render **natively on the phone, with no WebView**. Two owner
+constraints shape everything: `system-appbuilder` is **frozen** (not one line changes, routing to
+the new builder is explicit opt-in), and the new builder has **no escape hatch** — every surface is
+built from the element vocabulary or is honestly declared unbuildable.
 
-- **Android route:** a NATIVE surface in `@lmthing/ui`, not a PWA and not a WebView wrapper.
-  This is what the repo's own architecture already calls for — `apps/mobile`'s docstring says
-  screens live in the shared package and `scripts/lint-barrel-imports.mjs` enforces it.
-- **Notifications:** FULL push, delivered with the app closed. Needs credentials
-  (VAPID or Firebase), a gateway subscription store, a send endpoint and pod egress.
+## Waves
 
-## Order, and why
-
-Each layer is a prerequisite of the next, so this is a chain rather than a fan-out:
-
-1. **Read state** — nothing can notify without knowing what is unread. Also what the badges
-   read from, and what stops a push firing for a message you are already looking at.
-2. **Responsive web** — the layout decisions (one pane at a time, drawer, overlay rail) are
-   the same ones the native surface needs, so making them on web first means making them once.
-3. **Push infra** — gateway store + send path, then the web client (service worker), then the
-   native client (expo-notifications). One server contract, two transports.
-4. **Native surface** — port to platform-neutral shared components, then mount in Expo.
-
-## Status
-
-| # | Step | State |
+| Wave | Work | State |
 |---|---|---|
-| 1 | Pod: read state, unread + mention counts | ✅ 141 tests green (`team-reads.ts`, `team-push.ts`) |
-| 2 | Web: unread badges + title badge | ✅ two-level (bold / count), mark-read on open, `(2) lmthing` title — verified on the rig |
-| 3 | Web: responsive team surface | ✅ `useMedia` (works on native too); drawer + full-screen rail under 1024/768 — verified at 390×844 and back |
-| 4 | Push: gateway subscription store + send endpoint | ✅ `push_subscriptions` + web/expo transports, 20 gateway tests |
-| 5 | Push: web service worker + subscribe flow | ✅ sw.js, real PWA manifest, Settings toggle (degrades to "not configured") |
-| 6 | Native: channels surface → `@lmthing/ui` | ✅ one source; web renders from it; Metro gate + a new render suite green on ios AND android |
-| 7 | Native: Android app + expo-notifications | ✅ code complete (Teams is a real pane, FCM registration); ⚠️ needs `pnpm install` + an EAS build to run on a device |
+| 0 | T0 desk check · element-catalog audit · schema draft | ✅ all three |
+| 0 | **Gate:** reconcile evidence, pin the schema, call go/no-go | ✅ **GO** (one clause overridden — see below) · schema **PINNED** |
+| 1 | CLI-ENGINE · UI-RENDERER · SPACE · MOBILE (parallel, disjoint paths) | 🔄 SPACE ✅ · MOBILE ✅ · CLI-ENGINE + UI-RENDERER running |
+| 2 | Integrate: golden app (kitchen) + `pnpm test` / `test:native` / `docs:check` | ⏳ |
+| 3 | Prove: A/B baseline, 2 new scenarios, DeepSeek gate, lmauto campaign, visual + native gates | ⏳ |
 
-## Verification
+## Wave 0 — the contract
 
-The local rig from the previous session is the harness (see the `reference-local-team-pod-rig`
-memory): a proxy on :5199 that plays BOTH Envoy (identity headers a team pod trusts and cannot
-fabricate itself) and the gateway (`/api/teams/*` stubs), in front of a real team-mode pod.
-`?as=ana|bo|cai` switches user, so two browser contexts are two real users.
+The schema is the one artifact all four Wave-1 agents code against, so nothing in Wave 1 started
+until it was pinned.
 
-Native has its own gate that a jsdom test cannot stand in for: `pnpm test:native` runs the Metro
-graph gate and the native render suites (`libs/ui/metro/README.md`). A surface that only passes
-vitest has not been shown to work on the native target.
+| Agent | Deliverable | State |
+|---|---|---|
+| T0 | `design/viewspec-T0-deskcheck.md` — 10 shipped pages hand-expressed as specs; missing-feature list; 8th-section-kind verdict; archetype/shell prediction scorecard; **GO/NO-GO** | ✅ GO |
+| AUDIT | `design/viewspec-element-audit.md` — every hand-built catalog component mapped to an element tree; ranked catalog amendments; interactivity gaps; out-of-scope list | ✅ |
+| SCHEMA | `sdk/org/libs/cli/src/app/view-spec/{schema.ts,schema.test.ts,README.md}` — TS types + ajv JSON Schema, 8th kind pinned as `timeline` | ✅ |
 
-## What the native port had to solve
+### The gate call — GO, with one clause of the bar overridden
 
-- **Icons.** `lucide-react` renders DOM `<svg>`. `@tamagui/lucide-icons-2` is declared in
-  `libs/ui/package.json` but is NOT installed, so importing it does not resolve. Drawn with the
-  SVG primitives instead (`libs/ui/src/team/icons.tsx`) — they exist for exactly this, web
-  components named to mirror `react-native-svg` with a native fork that re-exports them.
-- **Routing.** The shared view is prop-driven and router-free. Web keeps channel + rail in the
-  URL (so links paste); mobile keeps them in state (it has no URL).
-- **The app pane.** `app-view.tsx` (iframe) / `app-view.native.tsx` (WebView) — a real platform
-  seam, because a project app is a separately built web bundle either way.
-- **The transport.** `createTeamClient({baseUrl, getToken})`: same-origin on web, absolute on
-  native. `fetch` and `WebSocket` are all it uses, and RN has both.
-- **The document title.** Reported to the host as a mention count, not applied — native has no
-  `document`.
+The plan's bar was: ≥7/10 pages express cleanly · ≤1 of 10 out of scope · ≤2 new schema features.
+Measured: **9/10** ✅ · **1/10** ✅ · **4 features** ❌.
 
-Two SHARED-component defects the new render suite found, which affected every native consumer
-and not just this surface:
+T0 reported the miss rather than shaving it, which is the right behaviour and the reason to trust
+the rest of its numbers. I called **GO** anyway, and the reasoning is the record:
 
-- `Button` put a bare string child into a `Pressable` (a `View` on native). React Native drops
-  the string with a warning, so `<Button><Plus/> New category</Button>` was a lone `+` on a
-  device. Fixed in `Button`, not per call site.
-- `AvatarFallback` rendered its initials into a `Box`. Same failure — the avatars were blank
-  tinted circles. Now a `Text`.
+- The feature-count clause is a **proxy** for the question "is this the wrong medium?" — and the
+  direct evidence answers no. **26 of 31** audited client-side transforms move cleanly to a computed
+  endpoint Output field or a renderer built-in, usually producing a *better* result (a cross-query
+  join becomes one server-side field). Only 3 can't move; only 1 costs a page.
+- **None of the 4 additions is an escape hatch**, and none adds expression power — the spec language
+  stays non-Turing-complete, which is the property the whole design rests on.
+- There is **no 2-feature configuration that clears the ≥7 bar** (the best is 6–7/10), so honouring
+  the clause literally would mean redesigning a vocabulary that the evidence says works.
 
-## Open questions / risks
+What would have changed the call: an escape-hatch-shaped feature, a transform that couldn't move
+server-side without client logic, or >1 page out of scope. None occurred.
 
-- **Push credentials are not provisioned.** VAPID keys / a Firebase project do not exist yet.
-  The server contract and both clients can be built and unit-tested without them, but the
-  end-to-end "phone buzzes with the app closed" step is blocked on real credentials.
-- `docs:check` currently fails on 13 pre-existing citations (the in-flight Tamagui migration WIP
-  deleted files the docs still cite). Not caused by this work; do not "fix" by rewriting those.
-- The working tree carries an unrelated in-flight Tamagui/mobile migration. Stage explicitly;
-  never `git add -A`.
+### What Wave 0 actually found
+
+**The two agents converged independently on the same #1 finding** — polling (`refetchInterval`
+while a job is pending) from two different evidence bases, 20 files and 12 files. That's the
+best-evidenced addition in the wave, and it's the difference between an app suite built on
+background agents looking alive or looking dead.
+
+**The catalog should be SMALLER than the plan proposed, not larger.** 47 of 153 real components
+(31%) vanish before any mapping — 26 loading/empty/error states are renderer defaults, 1,435 LOC of
+markdown bodies collapse into one element, 1,020 LOC of icon files into another. Five proposed
+elements had ~zero measured demand (`chip`, `avatar`, `code`, `quote`, `map` — there are literally
+zero avatar components). Net: **24 elements, strictly more capable than the 28 the plan's table actually listed.**
+
+**The audit nearly failed by looking only at visuals.** Its own verdict: the visual survey was never
+close to failing, but a visuals-only pass would have pinned a schema that renders every catalog app
+beautifully *and lets a user change nothing about a row* — because `button {mutate}` carries no
+argument, so a per-row "mark done" is inexpressible. Four such **section-contract** gaps (row-scoped
+mutation arguments, sort + facet counts, polling, multi-select) landed in the pinned schema, where
+they're cheap; promoting them later would have been the expensive kind.
+
+**Two findings that removed work:** pagination demand is *literally zero* across 153 components and
+84 pages (so `limit`-only is right), and no app does optimistic UI (so the plan's one accepted v1
+loss costs nothing).
+
+**The largest un-designed area is navigation, not rendering.** The derived shell reproduces **0 of
+5** real apps: four of them hand-group 13–21 routes into 4–6 destinations, so a flat route→nav map
+yields an unusable 21-item phone tab bar. And per-entity sub-nav (`TripTabs` = 15 tabs in 3 groups)
+was entirely absent from the plan — without it, a spec app's per-trip pages cannot reach each other.
+Both are now first-class schema concepts.
+
+**8th section kind: `timeline`**, confirmed on evidence from two apps — and on a phone the timeline
+form is *better* than the shipped 640px-wide scrolling grid it replaces.
+
+### The pinned vocabulary
+
+`sdk/org/libs/cli/src/app/view-spec/{schema.ts,schema.test.ts,README.md}` — 110 tests green,
+`tsc --noEmit` clean. This is the contract all four Wave-1 agents code against.
+
+- **8 section kinds, union FULL:** `list · detail · create · stats · markdown · chat · toolbar · timeline`. No `custom`, no 9th.
+- **24 elements** (28 in the plan's table − 5 cut for ~zero measured demand + `field`). `field` is the
+  inline-editable control; without it every generated app would have been read-only.
+- **16 flat-item keys, closed.** The 11 text-ish ones take a string *or*
+  `{ value, format?, currencyField?, tone?, toneMap?, maxLines? }` — one modifier rule instead of a
+  paired `metaFormat`/`captionFormat` key explosion.
+- **Bindings are strictly paths**: `$.` `$props.` `$data.<id>.` `$route.` `$result.` `$form.`
+  `$client.timezone`. The regex rejects — with tests — `{{ x ? y : z }}`, `$.a + $.b`, `$.a ?? $.b`,
+  `!$.endedAt`, `$.items.map(…)`, `format($.total)`, and embedded bindings inside string literals
+  (`'/trips/$result.id'`) while keeping `'Cost: $5'` legal.
+- **Navigation is `{ navigate, params }`**, never interpolation. Refusing
+  `'/searches/$result.id/inbox'` is what keeps the non-Turing-complete guarantee real rather than
+  decorative — interpolation is expression power wearing a different hat.
+- Routes use the **authoring form** (`recipes/[id]`), matching `writeProjectPage`/`walkPages`.
+- Defaults live in the **renderer**, not in ajv (`useDefaults: false`) — which is what makes them
+  apply retroactively to shipped apps through `BUILDER_VERSION`.
+
+**Cross-agent interface, pinned so three agents agree:**
+`ViewRenderer({spec, components, shell, client})` and `createViewClient({baseUrl, getToken, endpoints})`,
+exported from `@lmthing/ui/view`.
+
+## Standing constraints
+
+- **Everything local, never prod.** The scenario runner (per-run isolated `lmthing serve`, own port
+  and data dir, snapshots + `--resume`) is the harness.
+- **The DeepSeek pin is the acceptance bar**, not a stretch goal: a strong-slot-only pass is a
+  design failure until proven otherwise.
+- **Exit-status ground truth** — `buildApp`, `validateAppViews`, `renderSmokeViews`, the judge
+  campaign. Never a model's self-assessment.
+- Docs move in the same change as the code (`org/docs/**`, `pnpm docs:check` gates).
+
+## Wave 1 — the arbitration that mattered: `views:write`
+
+The two builders are separated by **what their agents can call**, not by what their prompts say.
+
+CLI-ENGINE initially gated the three view writers on the existing `pages:write`, reasoning that a
+spec-only space would simply leave the TSX writers out of its profile. That isn't possible here: a
+capability profile is a list of capability **ids**, not of globals, and `pages:write` is one bare id
+that injects `writeProjectPage`, `writeProjectComponent` *and* the view writers together
+(`libs/core/src/typecheck/library-dts.ts:376` bundles all four DTS fragments under that key).
+
+Under that gating, `system-viewbuilder` would have had to hold `pages:write` to write a single spec
+— which hands it the TSX writers and their DTS. The zero-WebView guarantee would then have rested on
+an *instruction* not to use them, which is precisely the kind of unenforced prose this design exists
+to stop relying on. The runtime's actual rule is **not granted ⇒ not injected AND absent from the
+DTS**, so freehand UI becomes a typecheck error the model sees and retries.
+
+Resolution: a new `views:write` capability (registered by SPACE in `libs/core/src/spaces/`), gating
+the three view writers **alone** — not OR'd with `pages:write`, since an OR would let one profile
+hold both media and dissolve the separation again. Tested in both directions.
+
+Consequence handled rather than papered over: `buildApp` is also bundled under `pages:write`, so the
+viewbuilder's agents don't get it — `16-verify` is a HOST-run code node calling `buildProjectApp`,
+and `18-finalize` runs no build of its own.
+
+### SPACE — delivered
+
+23 nodes. Verbatim copies of the data/behaviour half; `system-appbuilder` verified untouched
+(`git status --porcelain` empty). Notable additions the plan didn't anticipate:
+
+- **`15b-implement_shell`** — the shell had no home in the plan's node list, but T0 found 0/5 apps
+  reproduce from a flat route list, and `validateAppViews` asks "is every route reachable from the
+  nav?" — so the shell must be written *before* verify.
+- **`05-plan_endpoints`** carries both mandatory Wave-0 amendments: one-section-one-endpoint, and
+  "Toggles are ENDPOINTS" (the spec language has no `!`, so a save/pin/dismiss toggle must flip
+  server-side or every toggle in every generated app is broken).
+- **`17-fix` opens with** "NEVER 'fix' this by removing the binding from the page — that deletes the
+  feature and the gate goes quiet." An always-null binding routes to the *handler*, never the view.
+- **`18-finalize` carries `cannotExpress`** through to the user. With no escape hatch, an honest
+  "I can't express this part" is a first-class output — it's what keeps the procrustean rate at zero.
+
+THING routing is opt-in as specified: one added rule, one delegate example, the existing 6 call sites
+untouched, and an explicit instruction not to switch builders on its own judgement.
+
+Gates: `pnpm test libs/core/src/spaces` 331 passed · `tsc --noEmit -p libs/core` clean ·
+`pnpm docs:check` 121 docs / 4894 citations all resolving.
+
+### MOBILE — delivered, no native blocker
+
+`GET /api/apps/:id/views` (`libs/cli/src/server/routes/app-views.ts`, 11 tests) returns
+`{project, views, components, shell, endpoints}`. `endpoints` carries `{method, routePath,
+inputSchema, outputSchema}` keyed by name — the two fields `window.__APP_ENDPOINTS__` supplies on
+web, plus the schemas a `create` form derives from, because **native has no second source** for
+them. Auth follows the neighbouring routes: none of its own on a personal (single-tenant) pod;
+`team-guard` gates the team case before dispatch.
+
+**The branch decision is the fetch itself.** `views.length > 0 ⇒ native`, everything else ⇒ WebView
+— no project flag, because the thing that decides and the thing the native path needs are one
+request. Every failure mode (404 from an older pod, offline, 500, junk body) resolves to WebView,
+since none of those is *evidence* of a spec app and the appbuilder path is the default.
+
+**Totality confirmed: no page kind was un-renderable natively, and once native there is no path back
+to a WebView.** The appbuilder path is byte-for-byte the same element. One honest behaviour change:
+a one-round-trip "Opening…" now precedes it, because you cannot branch without asking — and
+rendering the WebView first then swapping would flash a WebView on a spec app, which is the one
+thing this project forbids.
+
+`pnpm test:native` PASS · route + mobile suites 22/22 · `docs:check` green. It also added
+`apps/mobile/src/**/*.test.ts` to `vitest.config.ts` — that directory is outside the workspace and
+had no suite running at all.
+
+### Known reds carried into Wave 2
+
+- `pnpm lint:tokens` — 3 `rgba()` in `libs/ui/src/elements/primitives/_native.tsx`, **pre-existing
+  and unmodified at HEAD**. Hard CI gate, so Wave 2 must clear it.
+- `libs/cli/src/server/session-manager.spaceref.test.ts` — fails only under full-suite parallel
+  load, passes in isolation. Pre-existing flake, not caused by this work.
+- A concurrent Claude Code session (the Play Store work) is committing to this repo in parallel;
+  commit `d4d107b0` swept `org/docs/mobile/README.md` in. No viewbuilder agent has committed
+  anything — all of this work is still uncommitted.

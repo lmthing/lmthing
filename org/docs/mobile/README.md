@@ -307,8 +307,63 @@ Two things about that element are load-bearing and neither is obvious:
 
 A TEAM app opens in the rail beside the conversation, pinned there by THING when it finishes
 building. A PERSONAL app has no conversation to sit beside, so it opens full screen from the
-project on Home (`sdk/org/apps/mobile/src/AppScreen.tsx`) — before that, `DashboardHome`'s
+project on Home (`sdk/org/apps/mobile/src/AppScreen.tsx#AppScreen`) — before that, `DashboardHome`'s
 `onOpenProject` was never passed and tapping a project did nothing at all.
+
+### Two builders, and only one of them needs a WebView
+
+Everything above describes a `system-appbuilder` app, which is the default and is unchanged. The
+other builder, `system-viewbuilder`, does not produce a bundle at all: its pages are **view specs**
+— data — and `@lmthing/ui/view` renders them on the `Prim.*` primitives, so they mount as real
+native views. **A viewbuilder app never touches a WebView, on any page.** That is the single
+capability the spec pipeline exists to deliver, and no amount of improvement to a TSX-authoring
+builder can produce it, because its output is a browser bundle.
+
+The branch is one question asked once, when the app is opened
+(`sdk/org/apps/mobile/src/app-views.ts#fetchAppTarget`):
+
+```
+GET <pod>/api/apps/<projectId>/views   →  { views, components, endpoints, shell }
+                                          views.length > 0  ⇒  native
+                                          anything else     ⇒  the WebView, as before
+```
+
+There is no flag on the project to consult, deliberately: the thing that decides the branch and the
+thing the native path needs are the same fetch. The route is
+[`GET /api/apps/:id/views`](../cli-api/rest/apps.md), and `endpoints` travels in that payload
+because on web the manifest is injected into the host page as `window.__APP_ENDPOINTS__` and here
+there is no host page to inject anything into.
+
+**Every failure resolves to the WebView.** A pod that predates the route, an offline moment, a 500
+— none of those is evidence that the project is a spec app, and the appbuilder path is the one that
+works for every app built so far. The branch that must never be partial is the one *inside* a known
+viewbuilder app, and that one is settled by this single answer
+(`sdk/org/apps/mobile/src/app-views.ts#fetchAppTarget`).
+
+What the native host contributes is exactly the two things the divergence budget is for
+(`sdk/org/apps/mobile/src/AppScreen.tsx#NativeApp`):
+
+- **Which page is on screen**, because native has no URL for it to live in — the same reason
+  `TeamScreen` owns its rail. `ViewNavigation.navigate` hands back a route with its `[param]`s
+  already filled (filling them from `$result.id` is binding resolution, and that is the renderer's
+  job), so the host stores that literal path and matches it back to the spec that owns it, static
+  segments winning over parameters (`sdk/org/apps/mobile/src/app-views.ts#resolveRoute`).
+- **The platform capabilities the client leaves to its host** — `openExternal` (`Linking`), the
+  clipboard, a confirmation (`Alert`). Each is one line of React Native and each would otherwise be
+  a silent no-op on a device.
+
+The client is built with the app base, not the pod root
+(`` `${baseUrl}/app/${projectId}` ``): the request builder appends `/api<routePath>`, and a
+project's handlers are served under `/app/<project>/api/*`. Absolute, and authenticated with the
+pod token — the `teamTokenGetter` pattern, no cookie and no same-origin assumption
+(`sdk/org/apps/mobile/src/team.ts#teamTokenGetter`).
+
+The **team rail gets the same branch**. `onOpenApp` no longer sets the rail directly: it starts the
+probe, and the answer picks the destination — the native screen full-width, or the rail exactly as
+before for an appbuilder app (`sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`). On a phone the
+rail is full-width anyway, so what actually differs is the back affordance, and each screen brings
+its own. The probe's answer is handed to `AppScreen` rather than re-asked, since the team surface
+had to ask before it could choose.
 
 ## Pointing a device build somewhere other than production
 
@@ -456,6 +511,15 @@ eas build --platform android --profile preview      # APK, installable on a phon
 eas build --platform android --profile production   # AAB for the store
 eas submit --platform android --latest
 ```
+
+**`babel-preset-expo` must be an explicit dependency** even though `expo` pulls it in
+(`sdk/org/apps/mobile/package.json:38-44`). `babel.config.js` names it as a preset, and
+under pnpm's strict layout Babel resolves presets from *its own* location in the store,
+where a transitive dependency of `expo` is not reachable. `expo export` survives this —
+Metro's transformer resolves the preset itself — so `pnpm bundle:android` stays green
+while the Gradle release task, which is what EAS runs, dies with
+`Cannot find module 'babel-preset-expo'`. The green gate does not cover the failing
+path; only `./gradlew :app:bundleRelease` does.
 
 **EAS builds from the git tree, and `sdk/org` is a submodule with its own root** — which
 is what makes this work at all, since `apps/mobile` belongs to `sdk/org`'s pnpm workspace

@@ -307,3 +307,61 @@ were on `main` before Wave 0. Only two parallel-load flakes remain, and both pas
   keep *not* triggering it), and each carries one deliberately vocabulary-hostile page need: with no
   escape hatch, the planner's boundary behaviour is itself under test, and the right outcome is an
   honest "cannot express" rather than a forced fit.
+
+### T3 scenarios — authored (`11-clinic`, `12-rentals`)
+
+Both load clean (`--plan`: 17 and 16 steps, every fixture attached by some step). Counts each implies:
+≥6 tables · ≥15 endpoints · 9 and 10 pages incl. dashboard, master-detail pair, prefill create and
+background import · 2–3 automations.
+
+**Neither persona says a keyword.** Each states a requirement about how the thing must run, with a
+physical reason — one works one-handed between patients and had "a website squeezed into an app,
+everything half a second behind"; the other is in stairwells with one bar of signal and stopped
+opening the last thing because it timed out every time. The trigger phrasing appears **0 times in
+scenarios 06–10**, which is the A/B contrast the plan needs.
+
+**That immediately found a routing bug, before either scenario ran.** THING's rule listed only our
+jargon ("spec-based", "natively-rendering", "without a WebView") *and* warned against switching
+"because the user mentioned their phone" — so the one phrasing a real person uses was simultaneously
+unlisted and pre-emptively suppressed. Opt-in routing was effectively opt-in for people who had read
+our source. Fixed by naming the lay phrasings and stating the line that separates them from
+over-triggering: **a requirement about HOW IT MUST RUN, not a mention of WHERE IT WILL BE USED.**
+"I'll mostly use this on my phone" stays with the appbuilder; "it must be a phone app rather than a
+wrapped website" is the ask; genuinely unclear gets one plain question, because switching on a guess
+spends the user's choice for them.
+
+The two vocabulary-hostile wants are deliberately different shapes. The clinic's room grid with
+draggable blocks is hostile *because* `timeline` is adjacent and would look close enough — so the
+honest outcome is **partial**: the week ships as a real timeline while the grid and the dragging are
+named. The floor plan is the clean impossible case (no positional kind exists, and `map` was cut in
+the Wave-0 audit for zero demand), and its temptation is nameable, so the expect fails a grid of
+cards pretending to be one. Both wants are planted in the opening brief *and* asked again from inside
+the running app — two different code paths.
+
+Money invariants are arithmetic a judge can actually do: arrears total **£2,135**, and a planted
+migration row charging £700 against a flat that never existed must not inflate it.
+
+### `scenarios/13-plant-care` — whose it is
+
+Not the scenario author's: its `scenario.yaml` predates that agent's first file by five minutes and it
+contains a *completed run*, which that agent's brief forbade. It is the live-run lane's smoke harness
+— a deliberately small 2-table brief driven straight at `system-viewbuilder/automator`, bypassing
+THING, to measure the pipeline rather than routing. Recorded here so it stops reading as a phantom
+test, since the campaign enumerates that directory.
+
+### The harness gap the scenarios exposed
+
+Three of the strongest new invariants were **unverifiable as written**, which is worth stating plainly
+rather than discovering during a campaign:
+
+- `compactStep`/`snapshot` record tables, manifest, delegates, errors and `lastText` — and **nothing
+  about view specs**. Every assertion about a `timeline` section, a `prefill`, a `poll.while`, the
+  generated-wrapper banner or an endpoint count needed the judge to read disk itself.
+- `open_app` records build/check/page-status and says outright that "browser render is the judge's
+  job", with no rig to do it. **This is exactly how the Wave-2 empty-form bug survived: "Nothing to
+  fill in." passes `appCheck` cleanly.** A page can build, serve 200, and show the user nothing.
+- No step verb reaches `GET /api/apps/:id/views`, so "the app opens in the native path" cannot be
+  expressed in a scenario at all.
+
+First two are now in flight (snapshot fields + the Playwright render rig with empty-render and
+empty-form detection). The third is under assessment.

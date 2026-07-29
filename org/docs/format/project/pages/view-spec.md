@@ -21,6 +21,8 @@ The two non-route paths are chosen so the build cannot mistake them for routes: 
 
 **The wrapper is the whole trick.** Because a spec sits beside a trivial `.tsx` that renders it, the page pipeline never learns that view specs exist — discovery, content hashing, caching, the route table and the client entry are all unchanged `sdk/org/libs/cli/src/app/view-spec/wrapper.ts#renderViewWrapper`. The wrapper **inlines** the spec, the app's components and the shell, so a web page carries its own definition and fetches no spec; the native target fetches instead. A component or shell write therefore re-emits every wrapper `sdk/org/libs/cli/src/app/view-spec/files.ts#listViewRoutes`.
 
+Three things the wrapper does that are not decoration, each of which breaks **every route** of an app when absent: it mounts `ViewThemeProvider` (a page bundle has no root that supplies the theme context `Prim.*` requires); it builds the data client **inside** the component, because ESM hoists page imports above the entry's `mountApp({ manifest })` and a module-scope client would capture an empty manifest; and it passes the router's `[param]` values through as `route`, which is what `$route.*` resolves against `sdk/org/libs/cli/src/app/view-spec/wrapper.ts#renderViewWrapper`.
+
 Renderer improvements reach **already-built** apps through the builder-version bump, because a spec app's UI lives in the renderer rather than in its pages `sdk/org/libs/cli/src/app/build/pages.ts:100-108`.
 
 ---

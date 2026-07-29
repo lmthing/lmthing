@@ -38,7 +38,9 @@ The barrel exports exactly these values `sdk/org/libs/cli/src/app/runtime/index.
 
 ## Views call the api by **name**, not by URL
 
-A view addresses an endpoint by its stable exported `name` (`export const name = 'markRead'` in the handler — see [../format/project/api/README.md](../format/project/api/README.md)); the network layer addresses it by route. The bridge is the **endpoint manifest** `name → { method, routePath }`, projected at build time from the typed `EndpointContract[]` `sdk/org/libs/cli/src/app/build/pages.ts#endpointManifest` and injected onto `window.__APP_ENDPOINTS__` by `mountApp` `sdk/org/libs/cli/src/app/runtime/router.tsx#mountApp`. `apiCall` reads that manifest, and throws `HttpError(500, 'unknown endpoint "<name>"')` for an unknown name (or a 500 if the manifest was never injected) `sdk/org/libs/cli/src/app/runtime/client.ts#manifest`, `sdk/org/libs/cli/src/app/runtime/client.ts#apiCall`.
+A view addresses an endpoint by its stable exported `name` (`export const name = 'markRead'` in the handler — see [../format/project/api/README.md](../format/project/api/README.md)); the network layer addresses it by route. The bridge is the **endpoint manifest** `name → { method, routePath, inputSchema? }`, projected at build time from the typed `EndpointContract[]` `sdk/org/libs/cli/src/app/build/pages.ts#endpointManifest` and injected onto `window.__APP_ENDPOINTS__` by `mountApp` `sdk/org/libs/cli/src/app/runtime/router.tsx#mountApp`.
+
+The manifest carries each endpoint's **Input JSON Schema** as well as its routing, because a `create` section declares no fields and derives every one of them from that schema — and on the web target there is no second source for it (the native target reads it from `GET /api/apps/:id/views`). Without it every `create` section in a browser-served viewbuilder app renders "Nothing to fill in." The same schema is what stops the renderer sending a route parameter to an endpoint that does not declare it `sdk/org/libs/ui/src/view/sections/common.tsx#useSectionSource`: every handler's Input is `additionalProperties: false` and ajv-validated pod-side, so an undeclared key is a 400 for the whole section. `apiCall` reads that manifest, and throws `HttpError(500, 'unknown endpoint "<name>"')` for an unknown name (or a 500 if the manifest was never injected) `sdk/org/libs/cli/src/app/runtime/client.ts#manifest`, `sdk/org/libs/cli/src/app/runtime/client.ts#apiCall`.
 
 Request assembly is **method-aware** and mirrors the server's input assembly `sdk/org/libs/cli/src/app/runtime/client.ts#buildRequest`:
 
@@ -189,11 +191,18 @@ The renderer lives in `@lmthing/ui`, not in the CLI, precisely so both consumers
 ## The contract
 
 ```tsx
-import { ViewRenderer, createViewClient } from '@lmthing/ui/view'
+import { ViewRenderer, ViewThemeProvider, createViewClient } from '@lmthing/ui/view'
 
 const client = createViewClient({ baseUrl, getToken, endpoints })
-<ViewRenderer spec={spec} components={components} shell={shell} client={client} />
+<ViewRenderer spec={spec} components={components} shell={shell} client={client} route={route} />
 ```
+
+`ViewThemeProvider` is the theme context the renderer's `Prim.*` primitives require — every one of
+them calls Tamagui's `useTheme()`, which throws `Missing theme.` outside a provider
+`sdk/org/libs/ui/src/view/provider.tsx#ViewThemeProvider`. A host that already has one does **not**
+wrap it (the unified web SPA at `sdk/org/apps/web/src/routes/__root.tsx:22-29`, the mobile app at
+its own root); the **generated web wrapper** does, because a project-app page bundle has no root of
+its own `sdk/org/libs/cli/src/app/view-spec/wrapper.ts#renderViewWrapper`.
 
 `ViewRenderer` takes the page spec, the component definitions a `{ use: … }` reference resolves
 against, the app shell, the data client, optionally every route in the app (for shell derivation)

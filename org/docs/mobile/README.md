@@ -521,6 +521,21 @@ while the Gradle release task, which is what EAS runs, dies with
 `Cannot find module 'babel-preset-expo'`. The green gate does not cover the failing
 path; only `./gradlew :app:bundleRelease` does.
 
+**The workspace dependencies must be BUILT before the bundler runs**
+(`sdk/org/apps/mobile/package.json:16`). Most of the shared libs are consumed as
+source — `@lmthing/ui`, `auth` and `css` all export `./src/*` — but `@lmthing/core`
+exports `./dist/*`, and `dist/` is gitignored. A local checkout has one from the last
+`pnpm build`, so Metro resolves `@lmthing/core/ui` and every local gate is green; a
+fresh EAS clone has no `dist` at all and the bundle dies with
+`Unable to resolve module @lmthing/core/ui from libs/ui/src/chat/components/render-descriptor.tsx`.
+`eas-build-post-install` is the hook EAS runs after installing, and
+`--filter "@lmthing/mobile^..."` names the app's dependencies rather than a list that
+goes stale — today that builds `@lmthing/core` and nothing else, in about four seconds.
+
+> Neither `pnpm bundle:android` nor `pnpm test:native` can catch this. Both run against
+> a tree where `dist/` already exists. The failing path is "clean clone", and the only
+> honest test of it is a build on EAS.
+
 **EAS builds from the git tree, and `sdk/org` is a submodule with its own root** — which
 is what makes this work at all, since `apps/mobile` belongs to `sdk/org`'s pnpm workspace
 and is deliberately absent from the repo-root one. Uncommitted changes are not uploaded;

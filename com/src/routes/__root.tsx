@@ -39,11 +39,28 @@ function Nav() {
   )
 }
 
+// Both stores require the privacy policy and the account-deletion page to be reachable
+// by someone who is not signed in — a reviewer checking the listing is exactly that
+// person — so they hang off every page rather than off /account, which redirects to
+// /login.
+function Footer() {
+  return (
+    <footer className="mt-16 border-t border-border">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-6 px-6 py-6">
+        <Link to="/privacy" className="text-sm text-muted-foreground hover:text-foreground">Privacy</Link>
+        <Link to="/delete-account" className="text-sm text-muted-foreground hover:text-foreground">Delete account</Link>
+        <a href="mailto:support@lmthing.org" className="text-sm text-muted-foreground hover:text-foreground">Support</a>
+      </div>
+    </footer>
+  )
+}
+
 function RootComponent() {
   return (
     <AuthProvider>
       <Nav />
       <Outlet />
+      <Footer />
     </AuthProvider>
   )
 }

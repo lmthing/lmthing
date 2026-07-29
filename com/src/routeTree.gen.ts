@@ -11,11 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DocsRouteImport } from './routes/docs'
+import { Route as DeleteAccountRouteImport } from './routes/delete-account'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as BillingRouteImport } from './routes/billing'
@@ -34,6 +36,11 @@ const SignupRoute = SignupRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -59,6 +66,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const DocsRoute = DocsRouteImport.update({
   id: '/docs',
   path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeleteAccountRoute = DeleteAccountRouteImport.update({
+  id: '/delete-account',
+  path: '/delete-account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckoutRoute = CheckoutRouteImport.update({
@@ -114,11 +126,13 @@ export interface FileRoutesByFullPath {
   '/billing': typeof BillingRouteWithChildren
   '/callback': typeof CallbackRoute
   '/checkout': typeof CheckoutRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/docs': typeof DocsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/account/keys': typeof AccountKeysRoute
@@ -132,11 +146,13 @@ export interface FileRoutesByTo {
   '/billing': typeof BillingRouteWithChildren
   '/callback': typeof CallbackRoute
   '/checkout': typeof CheckoutRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/docs': typeof DocsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/account/keys': typeof AccountKeysRoute
@@ -151,11 +167,13 @@ export interface FileRoutesById {
   '/billing': typeof BillingRouteWithChildren
   '/callback': typeof CallbackRoute
   '/checkout': typeof CheckoutRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/docs': typeof DocsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/account/keys': typeof AccountKeysRoute
@@ -171,11 +189,13 @@ export interface FileRouteTypes {
     | '/billing'
     | '/callback'
     | '/checkout'
+    | '/delete-account'
     | '/docs'
     | '/forgot-password'
     | '/login'
     | '/onboarding'
     | '/pricing'
+    | '/privacy'
     | '/reset-password'
     | '/signup'
     | '/account/keys'
@@ -189,11 +209,13 @@ export interface FileRouteTypes {
     | '/billing'
     | '/callback'
     | '/checkout'
+    | '/delete-account'
     | '/docs'
     | '/forgot-password'
     | '/login'
     | '/onboarding'
     | '/pricing'
+    | '/privacy'
     | '/reset-password'
     | '/signup'
     | '/account/keys'
@@ -207,11 +229,13 @@ export interface FileRouteTypes {
     | '/billing'
     | '/callback'
     | '/checkout'
+    | '/delete-account'
     | '/docs'
     | '/forgot-password'
     | '/login'
     | '/onboarding'
     | '/pricing'
+    | '/privacy'
     | '/reset-password'
     | '/signup'
     | '/account/keys'
@@ -226,11 +250,13 @@ export interface RootRouteChildren {
   BillingRoute: typeof BillingRouteWithChildren
   CallbackRoute: typeof CallbackRoute
   CheckoutRoute: typeof CheckoutRoute
+  DeleteAccountRoute: typeof DeleteAccountRoute
   DocsRoute: typeof DocsRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   PricingRoute: typeof PricingRoute
+  PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   AuthSsoRoute: typeof AuthSsoRoute
@@ -250,6 +276,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -285,6 +318,13 @@ declare module '@tanstack/react-router' {
       path: '/docs'
       fullPath: '/docs'
       preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/delete-account': {
+      id: '/delete-account'
+      path: '/delete-account'
+      fullPath: '/delete-account'
+      preLoaderRoute: typeof DeleteAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/checkout': {
@@ -382,11 +422,13 @@ const rootRouteChildren: RootRouteChildren = {
   BillingRoute: BillingRouteWithChildren,
   CallbackRoute: CallbackRoute,
   CheckoutRoute: CheckoutRoute,
+  DeleteAccountRoute: DeleteAccountRoute,
   DocsRoute: DocsRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   PricingRoute: PricingRoute,
+  PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   AuthSsoRoute: AuthSsoRoute,

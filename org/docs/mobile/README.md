@@ -397,3 +397,91 @@ in [`design/teams-mobile-ux.md`](../../../design/teams-mobile-ux.md); what the s
   thing that can know a mention arrived while the member was on Home
   (`sdk/org/apps/mobile/App.tsx#HomeShell`). Note this is the TEAM's own mention count from the live
   socket, not the per-team unread that Home deliberately does not badge (above).
+
+## Shipping it — Google Play
+
+The app is `org.lmthing.mobile`, an Expo managed build. Its whole configuration is
+`sdk/org/apps/mobile/app.config.js` — a `.js` file rather than `app.json` because every
+colour in it is READ from the design tokens rather than transcribed
+(`sdk/org/apps/mobile/app.config.js#color`). An adaptive-icon ground or a splash colour
+written as a hex literal is the same class of bug as a raw colour in a stylesheet, and
+no linter looks at app config.
+
+### The brand assets are generated, not drawn
+
+`sdk/org/apps/mobile/scripts/generate-icons.py` produces the launcher icon, the Android
+adaptive layer, the splash mark, the notification silhouette and both Play listing
+images from `tokens.json` and the repo's own Cera Round Pro Bold
+(`sdk/org/apps/mobile/scripts/generate-icons.py:162-186`). `pnpm icons` re-runs it, so a
+brand colour change is one command rather than an afternoon in an image editor.
+
+Three things it knows that are easy to get wrong:
+
+- **The mark sits on the DARK ground.** 48dp is the size that decides a launcher icon,
+  and the light variants of the same wordmark wash out against a pale wallpaper — the
+  rose `l` stops being legible first.
+- **The adaptive layer is sized by its DIAGONAL, not its width**
+  (`sdk/org/apps/mobile/scripts/generate-icons.py:60-64`). Android guarantees only a 66dp
+  circle of the 108dp canvas, and a launcher may mask to exactly that circle. At 0.58 of
+  the canvas wide the mark measures 0.65 corner to corner, and the outer strokes of `l`
+  and `t` are cut off on any round-masked launcher.
+- **The notification icon is alpha only.** Android discards the colours of a status-bar
+  icon and tints the shape, so a coloured mark arrives as a solid white blob.
+
+Play also rejects an alpha channel on the 512² listing icon, which is why that one is
+converted to RGB.
+
+### What the config asserts
+
+- **Three permissions are blocked.** Expo's prebuild template adds `SYSTEM_ALERT_WINDOW`
+  and `READ`/`WRITE_EXTERNAL_STORAGE`; nothing here uses them, and the first is shown to
+  users on the listing as "Display over other apps".
+- **A production build FAILS if `EXPO_PUBLIC_TEST_SESSION` is set.** `babel-preset-expo`
+  inlines every `EXPO_PUBLIC_*` var into the bundle, so the device-verification hatch
+  that seeds an already-minted session and skips the login screen would ship *inside* a
+  published app as an auth bypass. The build throws rather than producing it.
+
+### Building and submitting
+
+`sdk/org/apps/mobile/eas.json` carries three build profiles and a submit profile. The
+production one emits an app bundle and takes its `versionCode` from EAS rather than the
+config (`sdk/org/apps/mobile/eas.json:1-22`), so the number Play orders releases by has
+one owner. Submission targets the internal track as a draft
+(`sdk/org/apps/mobile/eas.json:24-31`).
+
+```bash
+cd sdk/org/apps/mobile
+eas login
+eas build --platform android --profile preview      # APK, installable on a phone
+eas build --platform android --profile production   # AAB for the store
+eas submit --platform android --latest
+```
+
+**EAS builds from the git tree, and `sdk/org` is a submodule with its own root** — which
+is what makes this work at all, since `apps/mobile` belongs to `sdk/org`'s pnpm workspace
+and is deliberately absent from the repo-root one. Uncommitted changes are not uploaded;
+commit before building or the build is of the last commit.
+
+### What only the Play Console can do
+
+The store listing needs a privacy policy URL and, because the app creates accounts, an
+account-deletion URL reachable by someone who is not signed in. Both are routes on
+lmthing.com (`com/src/routes/privacy.tsx#Privacy` ·
+`com/src/routes/delete-account.tsx#DeleteAccount`), linked from every page's footer
+(`com/src/routes/__root.tsx#Footer`) and from inside the app itself
+(`sdk/org/libs/ui/src/dashboard/DashboardHome.tsx#DashboardHome`) — Play requires an
+in-app route to deletion, and it lands in the shared surface so the web app carries it
+too. The origin comes from the auth context rather than `crossAppOrigin`
+(`sdk/org/libs/auth/src/types.ts#AuthContextValue`), which knows only the four product
+surfaces and returns `''` off the web, which on a phone is not a URL.
+
+The listing also needs: the Data safety form (the app collects identity, user content
+and a device push token, sends conversation content to model providers, and runs no
+analytics or advertising SDK), a content rating questionnaire, a target-audience
+declaration, and — because every screen past launch is behind a login — **reviewer
+credentials in App access**, or the reviewer sees only the sign-in screen.
+
+Sign-in is GitHub SSO through an in-app browser
+(`sdk/org/libs/auth/src/platform/sso.native.ts#startLogin`); there is no password path
+(`.issues/zitadel-password-login-disabled.md`), so the demo account handed to the
+reviewer has to be a GitHub account, and one without 2FA prompts they cannot satisfy.

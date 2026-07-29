@@ -68,9 +68,6 @@ spec:
               value: "local"
             - name: LOCAL_BUCKET_BASE_PATH
               value: "/data/updates"
-            # The signing pair arrives base64 in the env rather than as files on disk.
-            - name: KEYS_STORAGE_TYPE
-              value: "environment"
             - name: USE_DASHBOARD
               value: "true"
             - name: PROMETHEUS_ENABLED
@@ -80,8 +77,10 @@ spec:
               value: "true"
           # Everything secret comes from ota-secrets, created by the cloud_secrets
           # Ansible role OUTSIDE ArgoCD (same as lmthing-secrets) so no value here is in
-          # git. Its own secret rather than more keys in lmthing-secrets: the private
-          # signing key can push code into the app, and only this pod needs it.
+          # git. No signing key among them: in control-plane mode the server generates
+          # each app's pair itself and keeps the private half encrypted in its database
+          # under DB_KEYS_MASTER_KEY_B64, handing out only the certificate for the app to
+          # embed. That master key is therefore the sensitive one here.
           envFrom:
             - secretRef:
                 name: ota-secrets

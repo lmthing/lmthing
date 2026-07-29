@@ -582,12 +582,18 @@ is a crash loop that only a store release can end.
 **The manifest is signed, and the app verifies it.** `codeSigningCertificate` embeds the
 public half in the binary at build time — it is compiled into the Android manifest as
 `expo.modules.updates.CODE_SIGNING_CERTIFICATE`, which is why `certs/certificate.pem` is
-committed and the build fails without it. The private half never enters the repo
-(`sdk/org/apps/mobile/.gitignore:11-19`); it reaches the update server from Ansible
-Vault as `PRIVATE_EXPO_KEY_B64`
-(`devops/ansible/roles/cloud_secrets/tasks/main.yml:69-95`). Without signing, anything
-that can answer for `lmthing.cloud/ota` — a hostile DNS reply on a shared network —
-executes code inside the app.
+committed and the build fails without it. Without signing, anything that can answer for
+`lmthing.cloud/ota` — a hostile DNS reply on a shared network — executes code inside the
+app.
+
+**The SERVER owns the private half, and we never see it.** In control-plane mode an
+Application is created with `keysConfig.mode: database`: the server generates the pair,
+keeps the private key encrypted under `DB_KEYS_MASTER_KEY_B64`, and exposes only the
+certificate at `GET /api/apps/{id}/certificate` — that download is what
+`certs/certificate.pem` is. The dashboard refuses to provision `environment` mode at
+all ("it cannot be provisioned from the dashboard"), which is the API saying the key is
+not meant to travel. So the one key that can push code into every installed phone is
+never in the vault, never in a Secret and never on a laptop.
 
 `url` is compiled into the binary, so changing it is a store release, not a config
 edit. It is a PATH on the gateway host rather than an `updates.` subdomain, which is

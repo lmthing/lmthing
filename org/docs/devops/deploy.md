@@ -110,6 +110,14 @@ Two ArgoCD `Application`s in the `argocd` namespace watch this repo (`main`) and
 
 `devops/argocd/core/kustomization.yaml` lists what `lmthing-core` applies: namespace, postgres, zitadel, litellm, render, ota, gateway, computer, compute-pod-template, compute-prepull, studio, chat, and the eight product SPAs (`com`, `social`, `store`, `org`, `space`, `team`, `blog`, `casa`) `devops/argocd/core/kustomization.yaml:4-24`. `ota` is the expo-open-ota server behind `lmthing.cloud/ota` that serves the mobile app's over-the-air updates; its secrets come from the `cloud_secrets` role like every other secret, not from ArgoCD.
 
+> **Removing a key from a secret task does not remove it from the cluster.** The
+> `cloud_secrets` role applies each Secret with `state: present`, which merges — so a
+> key deleted from `stringData` stays in the live object indefinitely, holding whatever
+> value it last had. Deleting one for real needs an explicit
+> `kubectl patch secret <name> -n lmthing --type=json -p '[{"op":"remove","path":"/data/<KEY>"}]'`.
+> This matters when the value being retired is a credential: the point of removing it is
+> that it stops existing, and a merge quietly defeats that.
+
 **Bootstrapping** the Applications is a one-time Ansible step (`argocd_apps` role): copies `apps/core.yaml` + `apps/envoy.yaml` to the node and applies them `devops/ansible/roles/argocd_apps/tasks/main.yml:5-22`, then waits until `lmthing-core` reports `.status.sync.status == "Synced"` (30×10s) and rolls out litellm, gateway, computer `devops/ansible/roles/argocd_apps/tasks/main.yml:24-45`.
 
 ### Sync latency & forcing a sync

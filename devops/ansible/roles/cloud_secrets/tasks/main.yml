@@ -68,13 +68,12 @@
   no_log: true
 
 # ── OTA update server (expo-open-ota) ────────────────────────
-# Its own secret rather than a few more keys in lmthing-secrets: the private key in
-# it can push JavaScript into every installed copy of the mobile app, and only the
-# update server ever needs it. Keeping it out of the secret every other workload
-# already mounts means a compromise elsewhere does not hand over the app.
-#
-# Base64 rather than raw PEM (expo-open-ota's *_EXPO_KEY_B64 form) so a certificate's
-# newlines survive both YAML and the env var.
+# Its own secret rather than a few more keys in lmthing-secrets. DB_KEYS_MASTER_KEY_B64
+# is what the per-app manifest signing keys are encrypted under, so holding it plus the
+# database is equivalent to holding the key that can push JavaScript into every
+# installed copy of the app. Only this one Deployment needs it; keeping it out of the
+# secret every other workload already mounts means a compromise elsewhere does not
+# hand over the app.
 - name: Create ota-secrets in cluster
   kubernetes.core.k8s:
     state: present
@@ -90,11 +89,14 @@
         # same value goes in the EXPO_OPEN_OTA_TOKEN GitHub secret that
         # .github/workflows/ota-publish.yml authenticates with.
         JWT_SECRET: "{{ vault_expo_updates_jwt_secret }}"
-        # The manifest signing pair, base64 (KEYS_STORAGE_TYPE=environment). The public
-        # half is also committed and compiled into the app; only the private half is a
-        # secret, and it is the one that can push code into every installed copy.
-        PRIVATE_EXPO_KEY_B64: "{{ vault_expo_updates_private_key_b64 }}"
-        PUBLIC_EXPO_KEY_B64: "{{ vault_expo_updates_public_key_b64 }}"
+        # No signing keys here, deliberately. In control-plane mode each Application is
+        # created with keysConfig.mode=database: the SERVER generates the pair and keeps
+        # the private half encrypted under DB_KEYS_MASTER_KEY_B64, handing out only the
+        # certificate (GET /api/apps/{id}/certificate) for the app to embed. The
+        # dashboard refuses to provision `environment` mode at all. A PRIVATE_EXPO_KEY_B64
+        # here would be a key that signs nothing — and a trap, since switching an app to
+        # environment mode later would silently sign with a key whose certificate is NOT
+        # the one compiled into the installed binaries.
         # Control-plane mode: its presence is what enables it. Built from the existing
         # Postgres credentials rather than a second set — the `ota` database is created
         # below, owned by the same user the gateway uses.

@@ -110,33 +110,29 @@ vault_acr_password: your-acr-password
 
 # ── OTA updates (expo-open-ota) ──────────────────────────────
 # The mobile app checks https://lmthing.cloud/ota/manifest on launch and runs whatever
-# JavaScript that server signs for it, so the signing key below is as sensitive as
-# GATEWAY_JWT_SECRET — anyone holding it can push code into every installed copy.
+# JavaScript that server signs for it.
 #
-# The PUBLIC half is a certificate committed at
-# sdk/org/apps/mobile/certs/certificate.pem and compiled into the app binary; the
-# private half is gitignored and lives only here. Generate the pair with:
-#   openssl genrsa -out private-key.pem 4096
-#   openssl pkcs8 -topk8 -nocrypt -in private-key.pem -out private-key.pem
-#   openssl req -x509 -key private-key.pem -out certificate.pem -days 3650 -sha256 \
-#     -subj "/CN=lmthing OTA/O=lmthing" \
-#     -addext "keyUsage=critical,digitalSignature" \
-#     -addext "extendedKeyUsage=critical,codeSigning"
+# There is NO signing key here on purpose. In control-plane mode each Application is
+# created with keysConfig.mode=database: the server generates the pair itself, keeps the
+# private half encrypted under DB_KEYS_MASTER_KEY_B64, and exposes only the certificate
+# (GET /api/apps/{id}/certificate) — which is committed at
+# sdk/org/apps/mobile/certs/certificate.pem and compiled into the app binary. The
+# dashboard refuses to provision `environment` key mode at all.
 #
-# Both are supplied base64 (KEYS_STORAGE_TYPE=environment), which keeps a PEM's
-# newlines out of YAML and out of a k8s env var:
-#   base64 -w0 sdk/org/apps/mobile/certs/private-key.pem
-#   base64 -w0 sdk/org/apps/mobile/certs/certificate.pem
-vault_expo_updates_private_key_b64: ""
-vault_expo_updates_public_key_b64: ""
+# So the master key below is the sensitive one: with the database, it is equivalent to
+# the key that can push code into every installed copy of the app.
+
 # Signs dashboard sessions and the upload tokens the eoas CLI presents. The SAME value
 # goes in the EXPO_OPEN_OTA_TOKEN GitHub secret used by .github/workflows/ota-publish.yml.
 # Generate with: openssl rand -base64 32
 vault_expo_updates_jwt_secret: ""
-# Encrypts the per-app keys the control plane stores. 32 bytes, base64:
+# Encrypts the per-app signing keys the control plane stores. 32 bytes, base64:
 #   openssl rand -base64 32
 vault_expo_updates_db_master_key_b64: ""
-# Dashboard sign-in (USE_DASHBOARD=true on the Deployment).
+# Dashboard sign-in (USE_DASHBOARD=true on the Deployment). The password seeds the first
+# admin and must satisfy the dashboard policy: 8+ chars with an uppercase, a lowercase, a
+# digit AND a special character — `openssl rand -base64 24` does not reliably produce one,
+# and the server crash-loops on boot if it does not.
 vault_expo_updates_admin_email: ""
 vault_expo_updates_admin_password: ""
 # No storage credentials: STORAGE_MODE is `local` against the ota-updates PVC

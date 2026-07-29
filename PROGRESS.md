@@ -18,8 +18,8 @@ built from the element vocabulary or is honestly declared unbuildable.
 | 0 | T0 desk check · element-catalog audit · schema draft | ✅ all three |
 | 0 | **Gate:** reconcile evidence, pin the schema, call go/no-go | ✅ **GO** (one clause overridden — see below) · schema **PINNED** |
 | 1 | CLI-ENGINE · UI-RENDERER · SPACE · MOBILE (parallel, disjoint paths) | ✅ all four |
-| 2 | Integrate: golden app (kitchen) + full gates | 🔄 **T1 PASSES**; fixing what it found |
-| 3 | Prove: A/B baseline, 2 new scenarios, DeepSeek gate, lmauto campaign, visual + native gates | ⏳ |
+| 2 | Integrate: golden app (kitchen) + full gates | ✅ **T1 PASSES**; both gates fixed and honest |
+| 3 | Prove: A/B baseline, 2 new scenarios, DeepSeek gate, lmauto campaign, visual + native gates | 🔄 first live run + scenario authoring |
 
 ## Wave 0 — the contract
 
@@ -273,3 +273,37 @@ Ingredient[]`, which strict TS rejects. `runProjectAppCheck` short-circuits on t
 unmodified catalog template never reaches esbuild.** T1 cleared it mechanically to make gate 1
 meaningful and introduced **0** new errors of its own; the real fix belongs to whoever owns the
 catalog.
+
+## Wave 2 — closed
+
+Both gates were fixed and re-proved against the same 13-route app that exposed them:
+
+| | before | after |
+|---|---|---|
+| `validateAppViews` | 81 findings, **all false** | **0** (orphan-route / dead-component / no-data checks still run) |
+| smoke findings | 42 | **2, both true positives** |
+| `recipes/[id]` coverage | 100% while every call 404'd | 100% on real 200s |
+| `rendererMounted` | `false` — the tier never ran | **`true`**, 13/13 mount, 0 render errors |
+
+Three things worth remembering from that round:
+
+- **The smoke tier had never mounted anything.** `@lmthing/cli` pins React 18, `@lmthing/ui` peers ≥19, so `import('react-dom/server')` drove a 19 tree with 18's renderer. It reported itself as not-mounted rather than claiming success, which is the only reason this was discoverable — but the render-error tier had been dark the whole time. Worked around by resolving both from the renderer's own location; **the version split in `libs/cli/package.json` is the real fix and is still open.**
+- **"Not measured" is now a third answer** beside 0% and 100%. That one distinction is what stopped a fully-broken page scoring perfectly.
+- The four T1 vocabulary gaps all landed, three as widenings rather than new tokens. The blocking one — literal arguments — was applied at all **eleven** argument sites, not just the one that hurt.
+
+Also cleared two reds that predate this work: `lint:tokens` (3 `rgba()` in the one function whose job is
+to emit a literal colour, two of them the linter reading prose) and `authoring/tokens.test.ts` (`scrim`
+arrived in `tokens.json` at 50% alpha and the derived-vs-hardcoded list never learned about it). Both
+were on `main` before Wave 0. Only two parallel-load flakes remain, and both pass in isolation.
+
+## Wave 3 — in flight
+
+- **First live pipeline run.** The 23 tasklist nodes have never executed with a model in the loop;
+  everything so far is unit-tested or hand-migrated. Small brief, local, driven straight at the space
+  so THING's judgement isn't in the measurement. Failures get classified by the improvement-loop
+  bucket, because that decides who fixes it and whether the fix is retroactive.
+- **T3 scenario authoring** — `11-clinic` and `12-rentals`. Each persona asks for a spec-based app in
+  their own words (routing is opt-in, so the ask has to be in the brief, and the old scenarios must
+  keep *not* triggering it), and each carries one deliberately vocabulary-hostile page need: with no
+  escape hatch, the planner's boundary behaviour is itself under test, and the right outcome is an
+  honest "cannot express" rather than a forced fit.

@@ -39,6 +39,36 @@ The first production build prompts to generate an upload keystore. **Let EAS gen
 and hold it.** Play App Signing holds the real signing key; the upload key is only how
 you authenticate a new bundle. `eas credentials` shows it later.
 
+### Building on this machine instead of the queue
+
+The free tier queues. `--local` runs the same profile here — same `eas.json`, same
+`eas-build-post-install`, same credentials — and needs only the toolchain that is
+already installed (Java 17, `ANDROID_HOME=~/Android/Sdk`):
+
+```bash
+eas build --platform android --profile production --local
+```
+
+It still signs with the keystore EAS holds, which is the point. **Do not reach for
+`./gradlew :app:bundleRelease` instead:** Expo's generated `build.gradle` sets
+`release { signingConfig signingConfigs.debug }`, so it emits a debug-signed bundle
+that Play refuses with *"You uploaded an APK or Android App Bundle that was signed in
+debug mode"*. Fixing that file does not stick either — `android/` is gitignored and
+`expo prebuild` regenerates it.
+
+To build with no EAS account at all, own the keystore locally:
+
+```bash
+keytool -genkey -v -keystore release.keystore -alias upload \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+then add `"credentialsSource": "local"` to the production profile in `eas.json` and a
+`credentials.json` beside it naming that keystore. **Back the file up somewhere you
+cannot lose it** — with Play App Signing a lost upload key is recoverable by asking
+Google to reset it, but it is a support round-trip you do not want mid-release. Add
+both `release.keystore` and `credentials.json` to `.gitignore`.
+
 `versionCode` comes from EAS (`appVersionSource: "remote"` + `autoIncrement`), so you
 never edit it. Bump the human-facing `version` in `app.config.js` when it means
 something.

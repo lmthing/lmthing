@@ -95,15 +95,21 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "1000m"
+          # TCP probes, not httpGet — this server has no health endpoint and serves
+          # NOTHING at `/`. A kubelet GET there 404s, which failed readiness (so the
+          # Service had no endpoints) and then failed liveness, so the container was
+          # killed and restarted every ~90s while its own log said "ready to serve
+          # traffic". The routes it does have are unusable as probes: `/manifest`
+          # answers 400 to a request without the expo-updates headers, and `/dashboard`
+          # 301s. Same reasoning as render.yaml, which probes browserless over TCP
+          # because its HTTP routes are token-gated.
           readinessProbe:
-            httpGet:
-              path: /
+            tcpSocket:
               port: 3000
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /
+            tcpSocket:
               port: 3000
             initialDelaySeconds: 30
             periodSeconds: 15

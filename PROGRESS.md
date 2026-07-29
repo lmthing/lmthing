@@ -17,8 +17,8 @@ built from the element vocabulary or is honestly declared unbuildable.
 |---|---|---|
 | 0 | T0 desk check · element-catalog audit · schema draft | ✅ all three |
 | 0 | **Gate:** reconcile evidence, pin the schema, call go/no-go | ✅ **GO** (one clause overridden — see below) · schema **PINNED** |
-| 1 | CLI-ENGINE · UI-RENDERER · SPACE · MOBILE (parallel, disjoint paths) | 🔄 SPACE ✅ · MOBILE ✅ · CLI-ENGINE + UI-RENDERER running |
-| 2 | Integrate: golden app (kitchen) + `pnpm test` / `test:native` / `docs:check` | ⏳ |
+| 1 | CLI-ENGINE · UI-RENDERER · SPACE · MOBILE (parallel, disjoint paths) | ✅ all four |
+| 2 | Integrate: golden app (kitchen) + full gates | 🔄 **T1 PASSES**; fixing what it found |
 | 3 | Prove: A/B baseline, 2 new scenarios, DeepSeek gate, lmauto campaign, visual + native gates | ⏳ |
 
 ## Wave 0 — the contract
@@ -200,3 +200,76 @@ had no suite running at all.
 - A concurrent Claude Code session (the Play Store work) is committing to this repo in parallel;
   commit `d4d107b0` swept `org/docs/mobile/README.md` in. No viewbuilder agent has committed
   anything — all of this work is still uncommitted.
+
+## Wave 2 — T1, the golden app: **PASS**
+
+Kitchen (the hardest catalog app — 5 queries, 2 dependent, 9 mutations, cross-query joins)
+hand-migrated to specs, no model in the loop, so every failure is the engine's.
+
+- `buildApp` **green**: `ok=true built=true routes=13 errors=0`
+- **13/13 routes serve and render** against a live seeded db: 0 page errors, 0 error-state
+  sections, 0 empty forms.
+- **Authored UI: 4,282 LOC of TSX → 1,599 LOC of specs (−63%).** What the model actually emits is
+  **803 lines (−81%)**. The api layer grew +321 (+11%) — that is the moved computation, and it is
+  the trade the design asks for. Net authored 7,162 → 4,800 (−33%).
+- **45 of the app's 123 typecheck errors were in `pages/`+`components/` and are simply gone.** The
+  13 generated wrappers contribute zero.
+- **Archetype prediction: 0 overrides in 13 pages.** `layout` was never set once and every page came
+  out right; section order was never reordered. **Shell: 1 override, forced and correct** — 13
+  routes ≫ the derive limit of 5, exactly the case the schema predicts for 4/5 catalog apps.
+- Verified live: `x-options` (a foreign key rendered a select that fetched its own options — without
+  it, a UUID text box) and `$client.timezone`.
+- `timeline` works as a **generic group-by**, not just dates — and the grouped result is better on a
+  phone than the 640px horizontally-scrolling grid it replaces.
+
+### The five wiring defects it found — every one broke EVERY route
+
+Not one was visible to any existing harness. The web SPA, the mobile app and the renderer's own
+jsdom suite each supply their own theme, client and params, so the single configuration nobody
+exercised was **a project-app page bundle** — the only configuration a generated wrapper runs in.
+
+| defect | symptom |
+|---|---|
+| wrapper mounted the renderer bare; every primitive calls `useTheme()` | 13/13 routes: "Missing theme" |
+| client built at wrapper MODULE scope — ESM hoists page imports above `mountApp({manifest})`, so it captured `{}` | every section: "unknown endpoint" |
+| wrapper never passed `route` | every detail page 404'd on load |
+| endpoint manifest carried `{method, routePath}` only, and a `create` form has no other source on web | **every form in every app**: "Nothing to fill in" |
+| the route param was injected into EVERY query; handler Inputs are `additionalProperties:false` | any page with a param 400'd throughout |
+
+The last one is the instructive one: **`renderSmokeViews` already had the correct rule and the
+runtime did not.** The gate and the renderer disagreed, and the gate was right.
+
+### Both whole-app gates were broken — worse than useless, because they accuse innocent code
+
+- **`validateAppViews`: 81 findings on a correct app, all 81 false.** Two causes, both proven:
+  a contract reduction that isn't idempotent (the second pass recomputes `inputKeys` from an
+  already-dropped `inputSchema`, so *every* `input` key everywhere reads as undeclared), and an
+  Output-field walker that doesn't follow `$ref` — which is exactly what `export type Output =
+  Recipe[]`, the commonest shape in the catalog, compiles to. Neutralise both and 81 → 1.
+  Worse, the **writer path is immune to both**, so today the writer accepts specs the app-wide gate
+  then rejects. That contradiction is the one thing this design must not have.
+- **`renderSmokeViews`: mostly false negatives, and the headline metric inverts.** An error body
+  counts as a row, so a page whose every endpoint 4xxs reports **100% coverage and not-empty** —
+  perfect scores exactly when the app is most broken. Plus: rows taken from the first array-valued
+  property (14 bindings checked against the wrong rows, each accusing an innocent handler), no
+  dependent-`input` resolution, and a global param pool that hands a detail page another entity's id.
+
+### Vocabulary gaps (bucket 1 — blocking ones promote on first occurrence)
+
+- **Literal arguments are illegal** — `input` is `Record<string, Binding>`, so `{ meal: 'dinner' }`
+  cannot be said. One endpoint called with three different constants (blog's TL;DR / ELI5 / Why-me
+  buttons) is **inexpressible in the vocabulary at all**. Blocking; promoting now.
+- `chat.agent` rejects kebab-case, which is this codebase's own agent-slug convention — a chat dock
+  had to be dropped with no spec-side workaround.
+- `groups[].routes` conflates nav destinations with highlight families, so drill-in routes become
+  orphans and T1 had to invent two toolbar buttons purely to satisfy reachability.
+- A flat `meta` can't carry a unit — "20" where the page said "20 min".
+
+### Known pre-existing red, needs an owner decision
+
+**`buildApp` is RED on the shipped catalog kitchen: 123 typecheck errors** (api 78, components 23,
+pages 22), all the same idiom — a local `type Row = Record<string, unknown>` then `db.query(...) as
+Ingredient[]`, which strict TS rejects. `runProjectAppCheck` short-circuits on typecheck, so **an
+unmodified catalog template never reaches esbuild.** T1 cleared it mechanically to make gate 1
+meaningful and introduced **0** new errors of its own; the real fix belongs to whoever owns the
+catalog.

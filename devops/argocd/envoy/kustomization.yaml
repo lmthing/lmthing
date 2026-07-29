@@ -49,6 +49,14 @@ replacements:
           name: cloud-gateway-api
         fieldPaths:
           - spec.hostnames.0
+      # Every hostname on this list is opt-in — a new HTTPRoute that writes
+      # DOMAIN_PLACEHOLDER and is not named here ships the literal string, and the
+      # API server rejects it against the hostname pattern.
+      - select:
+          kind: HTTPRoute
+          name: cloud-ota
+        fieldPaths:
+          - spec.hostnames.0
       - select:
           kind: Certificate
           name: lmthing-cloud-tls

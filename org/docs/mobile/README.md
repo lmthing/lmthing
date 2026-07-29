@@ -603,6 +603,20 @@ JS bundle is ~4.5 MB and updates are occasional (`devops/argocd/core/ota.yaml`).
 migration when that stops being true is `STORAGE_MODE=azure` plus a CDN, and nothing
 else changes.
 
+### The app id is baked in too
+
+In control-plane mode the server will not answer a manifest request that does not say
+which app it is for: it replies `No app id provided`, with no fallback. The client sends
+that as an `expo-app-id` request header, which — like `url` — is compiled into the
+binary. Its value is the **Application UUID from the eoas dashboard**, not the EAS
+`projectId`.
+
+A store build made without it can never receive an update, and no config change fixes
+it afterwards; only a new store release does. That is the same failure as shipping with
+no updates client at all, so a production build THROWS rather than producing a binary
+whose OTA is quietly dead (`sdk/org/apps/mobile/app.config.js:23-40`). Set
+`EXPO_OTA_APP_ID` in the production profile's env.
+
 ### Publishing
 
 `.github/workflows/ota-publish.yml`, manually dispatched. It is not automatic on push on

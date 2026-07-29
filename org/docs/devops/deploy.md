@@ -108,7 +108,7 @@ Two ArgoCD `Application`s in the `argocd` namespace watch this repo (`main`) and
 
 (`devops/argocd/apps/core.yaml:8-32`, `devops/argocd/apps/envoy.yaml:8-27`). Both carry the `resources-finalizer.argocd.argoproj.io` finalizer `devops/argocd/apps/core.yaml:6-7`. `lmthing-core` also `ignoreDifferences` on the `postgres` StatefulSet's volumeClaimTemplate fields that K8s mutates server-side `devops/argocd/apps/core.yaml:23-32`.
 
-`devops/argocd/core/kustomization.yaml` lists what `lmthing-core` applies: namespace, postgres, zitadel, litellm, render, gateway, computer, compute-pod-template, compute-prepull, studio, chat, and the eight product SPAs (`com`, `social`, `store`, `org`, `space`, `team`, `blog`, `casa`) `devops/argocd/core/kustomization.yaml:4-23`.
+`devops/argocd/core/kustomization.yaml` lists what `lmthing-core` applies: namespace, postgres, zitadel, litellm, render, ota, gateway, computer, compute-pod-template, compute-prepull, studio, chat, and the eight product SPAs (`com`, `social`, `store`, `org`, `space`, `team`, `blog`, `casa`) `devops/argocd/core/kustomization.yaml:4-24`. `ota` is the expo-open-ota server behind `lmthing.cloud/ota` that serves the mobile app's over-the-air updates; its secrets come from the `cloud_secrets` role like every other secret, not from ArgoCD.
 
 **Bootstrapping** the Applications is a one-time Ansible step (`argocd_apps` role): copies `apps/core.yaml` + `apps/envoy.yaml` to the node and applies them `devops/ansible/roles/argocd_apps/tasks/main.yml:5-22`, then waits until `lmthing-core` reports `.status.sync.status == "Synced"` (30×10s) and rolls out litellm, gateway, computer `devops/ansible/roles/argocd_apps/tasks/main.yml:24-45`.
 

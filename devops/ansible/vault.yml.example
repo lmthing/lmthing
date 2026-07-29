@@ -109,25 +109,38 @@ vault_acr_password: your-acr-password
 
 
 # ── OTA updates (expo-open-ota) ──────────────────────────────
-# The mobile app checks https://updates.lmthing.cloud/manifest on launch and runs
-# whatever JavaScript that server signs for it, so these are as sensitive as the
-# gateway's own signing secret.
+# The mobile app checks https://lmthing.cloud/ota/manifest on launch and runs whatever
+# JavaScript that server signs for it, so the signing key below is as sensitive as
+# GATEWAY_JWT_SECRET — anyone holding it can push code into every installed copy.
 #
 # The PUBLIC half is a certificate committed at
-# sdk/org/apps/mobile/certs/certificate.pem and compiled into the app binary —
-# nothing about it belongs here. Only the private key does. Generate the pair with
-# `make -C devops ota-keypair`, or by hand:
+# sdk/org/apps/mobile/certs/certificate.pem and compiled into the app binary; the
+# private half is gitignored and lives only here. Generate the pair with:
 #   openssl genrsa -out private-key.pem 4096
 #   openssl pkcs8 -topk8 -nocrypt -in private-key.pem -out private-key.pem
+#   openssl req -x509 -key private-key.pem -out certificate.pem -days 3650 -sha256 \
+#     -subj "/CN=lmthing OTA/O=lmthing" \
+#     -addext "keyUsage=critical,digitalSignature" \
+#     -addext "extendedKeyUsage=critical,codeSigning"
 #
-# Both are supplied base64-encoded (expo-open-ota's *_EXPO_KEY_B64 form), which
-# keeps a PEM's newlines out of YAML and out of a k8s env var:
+# Both are supplied base64 (KEYS_STORAGE_TYPE=environment), which keeps a PEM's
+# newlines out of YAML and out of a k8s env var:
 #   base64 -w0 sdk/org/apps/mobile/certs/private-key.pem
 #   base64 -w0 sdk/org/apps/mobile/certs/certificate.pem
 vault_expo_updates_private_key_b64: ""
 vault_expo_updates_public_key_b64: ""
-# Signs the eoas CLI's publish requests. Generate with: openssl rand -base64 32
+# Signs dashboard sessions and the upload tokens the eoas CLI presents. The SAME value
+# goes in the EXPO_OPEN_OTA_TOKEN GitHub secret used by .github/workflows/ota-publish.yml.
+# Generate with: openssl rand -base64 32
 vault_expo_updates_jwt_secret: ""
-# Storage credentials go here too once the backend is chosen (expo-open-ota supports
-# Azure Blob, S3-compatible and a local volume). Its per-backend variable names live in
-# the GitBook, not the repo, so they are deliberately not guessed at here.
+# Encrypts the per-app keys the control plane stores. 32 bytes, base64:
+#   openssl rand -base64 32
+vault_expo_updates_db_master_key_b64: ""
+# Dashboard sign-in (USE_DASHBOARD=true on the Deployment).
+vault_expo_updates_admin_email: ""
+vault_expo_updates_admin_password: ""
+# No storage credentials: STORAGE_MODE is `local` against the ota-updates PVC
+# (devops/argocd/core/ota.yaml). Moving to Azure Blob later adds
+# AZURE_STORAGE_ACCOUNT_NAME / AZURE_STORAGE_ACCOUNT_KEY / AZURE_BLOB_CONTAINER_NAME.
+# DB_URL is BUILT from vault_postgres_user/password against the `ota` database, so it is
+# not a separate secret here.

@@ -1,0 +1,126 @@
+# expo-open-ota — the over-the-air update server for the mobile app.
+#
+# The app checks https://lmthing.cloud/ota/manifest on launch and runs whatever
+# JavaScript this server signs for it (sdk/org/apps/mobile/app.config.js). That makes
+# this the most powerful service in the cluster by blast radius: a bundle published
+# here reaches every installed phone within minutes, with nothing between it and the
+# user. The gateway can at worst refuse to answer; this can replace the app.
+#
+# Control-plane mode (DB_URL set) rather than stateless, because the reason for running
+# expo-open-ota at all is the rollback: pulling a bad bundle back is instant and needs
+# no build, which is not true of publishing a fix.
+#
+# Storage is a PVC rather than Azure Blob. A JS bundle is ~4.5 MB and updates are
+# occasional, so a volume is enough; the migration path when it stops being enough is
+# STORAGE_MODE=azure plus a CDN in front, and nothing else changes.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ota-updates
+  namespace: lmthing
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ota
+  namespace: lmthing
+spec:
+  # ReadWriteOnce PVC and a single writer of the update store — must stay 1 unless
+  # storage moves to a bucket.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ota
+  template:
+    metadata:
+      labels:
+        app: ota
+    spec:
+      containers:
+        - name: ota
+          # Public upstream image, pulled directly (no ACR pull secret, like litellm and
+          # render), pinned to a concrete tag — a floating tag with IfNotPresent serves a
+          # stale cached image (see litellm.yaml). Confirm against
+          # ghcr.io/mercuretechnologies/expo-open-ota before bumping.
+          image: ghcr.io/mercuretechnologies/expo-open-ota:v3.0.5
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            # Every manifest and asset URL the server hands out is built from BASE_URL,
+            # so it must carry the /ota prefix that Envoy strips on the way in —
+            # otherwise the client is told to fetch assets from https://lmthing.cloud/
+            # and gets the SPA instead of a bundle.
+            - name: BASE_URL
+              value: "https://lmthing.cloud/ota"
+            - name: PORT
+              value: "3000"
+            - name: STORAGE_MODE
+              value: "local"
+            - name: LOCAL_BUCKET_BASE_PATH
+              value: "/data/updates"
+            # The signing pair arrives base64 in the env rather than as files on disk.
+            - name: KEYS_STORAGE_TYPE
+              value: "environment"
+            - name: USE_DASHBOARD
+              value: "true"
+            - name: PROMETHEUS_ENABLED
+              value: "false"
+            # Envoy terminates TLS and is the only thing in front of this.
+            - name: TRUST_PROXY_HEADERS
+              value: "true"
+          # Everything secret comes from ota-secrets, created by the cloud_secrets
+          # Ansible role OUTSIDE ArgoCD (same as lmthing-secrets) so no value here is in
+          # git. Its own secret rather than more keys in lmthing-secrets: the private
+          # signing key can push code into the app, and only this pod needs it.
+          envFrom:
+            - secretRef:
+                name: ota-secrets
+          volumeMounts:
+            - name: updates
+              mountPath: /data/updates
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+      volumes:
+        - name: updates
+          persistentVolumeClaim:
+            claimName: ota-updates
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ota
+  namespace: lmthing
+spec:
+  selector:
+    app: ota
+  ports:
+    - port: 3000
+      targetPort: 3000

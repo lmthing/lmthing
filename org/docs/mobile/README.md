@@ -586,11 +586,22 @@ committed and the build fails without it. The private half never enters the repo
 (`sdk/org/apps/mobile/.gitignore:11-19`); it reaches the update server from Ansible
 Vault as `PRIVATE_EXPO_KEY_B64`
 (`devops/ansible/roles/cloud_secrets/tasks/main.yml:69-95`). Without signing, anything
-that can answer as `updates.lmthing.cloud` — a hostile DNS reply on a shared network —
+that can answer for `lmthing.cloud/ota` — a hostile DNS reply on a shared network —
 executes code inside the app.
 
-`url` is compiled into the binary, so it names a host we control and can re-point behind
-DNS. Changing it is a store release, not a config edit.
+`url` is compiled into the binary, so changing it is a store release, not a config
+edit. It is a PATH on the gateway host rather than an `updates.` subdomain, which is
+what let the server ship without a new listener pair, a cert-manager Certificate and a
+DNS record: Envoy strips the `/ota` prefix and routes to the `ota` Service
+(`devops/argocd/envoy/cloud-routes.yaml:141-181`), and the server's `BASE_URL` carries
+the prefix back so the asset URLs it hands out return through the same rule.
+
+The server runs in control-plane mode against its own `ota` database — that is what
+buys the instant rollback, which is the reason for self-hosting rather than serving a
+static manifest. Bundles land on a PVC (`STORAGE_MODE=local`) rather than a bucket: a
+JS bundle is ~4.5 MB and updates are occasional (`devops/argocd/core/ota.yaml`). The
+migration when that stops being true is `STORAGE_MODE=azure` plus a CDN, and nothing
+else changes.
 
 ### Publishing
 

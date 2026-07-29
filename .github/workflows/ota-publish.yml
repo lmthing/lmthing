@@ -1,7 +1,7 @@
 name: Publish OTA update
 
 # Ships a JavaScript-only update to installed copies of the mobile app, through our own
-# expo-open-ota server (https://updates.lmthing.cloud). No store review, no new binary.
+# expo-open-ota server (https://lmthing.cloud/ota). No store review, no new binary.
 #
 # THE THING TO UNDERSTAND BEFORE USING THIS: an OTA can only replace JavaScript. The
 # `runtimeVersion` policy is `fingerprint` (sdk/org/apps/mobile/app.config.js), so a

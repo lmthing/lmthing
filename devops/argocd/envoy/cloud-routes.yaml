@@ -132,3 +132,47 @@ spec:
           namespace: lmthing
           port: 3000
           weight: 1
+
+---
+# /ota/* -> expo-open-ota (mobile over-the-air updates)
+#
+# A path on the gateway host rather than an `updates.` subdomain, which is what let the
+# update server ship without a new listener pair, a cert-manager Certificate or a DNS
+# record. The app has `https://lmthing.cloud/ota/manifest` COMPILED INTO ITS BINARY
+# (sdk/org/apps/mobile/app.config.js), so this prefix cannot be renamed without a store
+# release — it is not a routing detail that can be tidied later.
+#
+# The prefix is stripped here because the server serves `/manifest` and `/assets` at its
+# root. Its BASE_URL carries the `/ota` back, so the asset URLs it hands to a phone
+# return through this same rule.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: cloud-ota
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: cloud-https
+  hostnames:
+    - DOMAIN_PLACEHOLDER
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /ota
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: ota
+          namespace: lmthing
+          port: 3000
+          weight: 1

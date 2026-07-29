@@ -86,15 +86,24 @@
         namespace: lmthing
       type: Opaque
       stringData:
-        # These three names are expo-open-ota's own (its "stateless mode" takes the
-        # signing pair base64-encoded and a JWT secret for the eoas CLI).
-        PRIVATE_EXPO_KEY_B64: "{{ vault_expo_updates_private_key_b64 | default('') }}"
-        PUBLIC_EXPO_KEY_B64: "{{ vault_expo_updates_public_key_b64 | default('') }}"
-        JWT_SECRET: "{{ vault_expo_updates_jwt_secret | default('') }}"
-        # Storage credentials are NOT here yet: expo-open-ota supports Azure Blob among
-        # many backends, but its per-backend variable names are in the GitBook rather
-        # than the repo, and a guessed name is a pod that starts and silently serves
-        # nothing. Add them from the deployment docs together with the Deployment.
+        # Signs dashboard sessions and the upload tokens the eoas CLI presents. The
+        # same value goes in the EXPO_OPEN_OTA_TOKEN GitHub secret that
+        # .github/workflows/ota-publish.yml authenticates with.
+        JWT_SECRET: "{{ vault_expo_updates_jwt_secret }}"
+        # The manifest signing pair, base64 (KEYS_STORAGE_TYPE=environment). The public
+        # half is also committed and compiled into the app; only the private half is a
+        # secret, and it is the one that can push code into every installed copy.
+        PRIVATE_EXPO_KEY_B64: "{{ vault_expo_updates_private_key_b64 }}"
+        PUBLIC_EXPO_KEY_B64: "{{ vault_expo_updates_public_key_b64 }}"
+        # Control-plane mode: its presence is what enables it. Built from the existing
+        # Postgres credentials rather than a second set — the `ota` database is created
+        # below, owned by the same user the gateway uses.
+        DB_URL: "postgresql://{{ vault_postgres_user }}:{{ vault_postgres_password }}@postgres.lmthing.svc.cluster.local:5432/ota?sslmode=disable"
+        # Encrypts the per-app keys the control plane stores. 32 bytes, base64.
+        DB_KEYS_MASTER_KEY_B64: "{{ vault_expo_updates_db_master_key_b64 }}"
+        # USE_DASHBOARD=true is set on the Deployment; these are its sign-in.
+        ADMIN_EMAIL: "{{ vault_expo_updates_admin_email }}"
+        ADMIN_PASSWORD: "{{ vault_expo_updates_admin_password }}"
   no_log: true
 
 # ── Create ACR imagePullSecret in lmthing namespace ─────────
@@ -132,6 +141,22 @@
     kubectl exec -n lmthing postgres-0 -- \
       psql -U "{{ vault_postgres_user }}" -d lmthing -c \
       "ALTER USER {{ vault_postgres_user }} PASSWORD '{{ vault_postgres_password }}';"
+  changed_when: true
+  no_log: true
+
+# expo-open-ota migrates its own schema on boot but will not create the database, and
+# the init.sh that made `zitadel` only runs on a first initdb — this cluster is long
+# past that, so it happens here. Placed AFTER the readiness wait above, not up beside
+# the secret it belongs to: it talks to Postgres, and on a fresh deploy the secret tasks
+# run before Postgres is up.
+#
+# Idempotent by guard select, because CREATE DATABASE takes no IF NOT EXISTS.
+- name: Create the ota database
+  ansible.builtin.shell: |
+    kubectl exec -n lmthing postgres-0 -- psql -U "{{ vault_postgres_user }}" -d lmthing -tAc \
+      "SELECT 1 FROM pg_database WHERE datname='ota'" | grep -q 1 || \
+    kubectl exec -n lmthing postgres-0 -- psql -U "{{ vault_postgres_user }}" -d lmthing -c \
+      "CREATE DATABASE ota OWNER {{ vault_postgres_user }};"
   changed_when: true
   no_log: true
 

@@ -84,9 +84,19 @@ All three return a finding list, never a verdict: exit-status ground truth, the 
 
 Runs inside `writeProjectView` before anything reaches disk `sdk/org/libs/cli/src/app/view-spec/validate.ts#validateViewSpec`. Shape first (ajv, from the pinned schema `sdk/org/libs/cli/src/app/view-spec/schema.ts#validateViewSpecShape`); if the shape is wrong the semantic checks are skipped entirely, because a model handed twenty cascading errors from one missing brace fixes none of them.
 
-Then: every `query`/`mutation`/`prefill.endpoint`/`mutate`/`download`/`invalidates` name against the project's real endpoints **and their methods**; every `input` key against the endpoint's declared Input; every `$.field` against its Output; `$props`/`$route`/`$data`/`$result`/`$form` against their scopes; component references and their props; `reveals` and `$data.<id>` targets; `navigate` routes.
+Then: every `query`/`mutation`/`prefill.endpoint`/`mutate`/`download`/`invalidates` name against the project's real endpoints **and their methods**; every `input` key against the endpoint's declared Input; every `$.field` against its Output; `$props`/`$route`/`$data`/`$result`/`$form` against their scopes; component references and their props; `reveals` and `$data.<id>` targets; `navigate` routes; and a qualified `chat.agent` against the project's real agents `sdk/org/libs/cli/src/app/view-spec/validate.ts#loadProjectAgents`.
+
+A **`navigate` target that is not yet a route is a warning at save time and an error app-wide** `sdk/org/libs/cli/src/app/view-spec/messages.ts#unknownRoute`. `recipes` links to `recipes/[id]` and `recipes/[id]` links back, so whichever page is written first names a route that does not exist — **no write order satisfies both**, and a hard failure there is a writer no model can satisfy. Nothing is lost: `validateAppViews` re-runs the identical resolution against every route on disk `sdk/org/libs/cli/src/app/view-spec/validate.ts#validateAppViews`.
+
+`chat.agent` resolves only when the section also names a `space`, since a bare slug is the project's own top-level agent — dispatched as `agentSlug`, not `spaceRef` `sdk/org/libs/ui/src/view/sections/chat.tsx#sessionBody` — and nothing on disk enumerates those. A project with no `spaces/` dir skips the check rather than failing it.
 
 Field resolution is deliberately a **union** of the endpoint's top-level and row fields rather than an exact scope resolution `sdk/org/libs/cli/src/app/view-spec/validate.ts#outputFieldUniverse`. Being exact would need a type checker over JSON Schema, and the failure mode of getting it wrong is rejecting a spec that would have worked — the one outcome a save-time gate must never produce. An endpoint whose Output cannot be read yields `undefined` fields, which means *skip*, never *reject*.
+
+Three consequences of that rule, each one a measured false rejection:
+
+- The universe **follows `$ref` into `definitions`**, because `export type Output = Recipe[]` — the commonest Output shape — generates a root whose only property names are `type`/`items`/`definitions` `sdk/org/libs/cli/src/app/view-spec/validate.ts#outputFieldUniverse`. A reader that stopped there saw zero fields and rejected every binding on the endpoint.
+- An Output that resolves to **zero** fields yields `undefined`, never `[]`. `EndpointContract` uses an empty-object schema both for *declares no Output* and for *could not be read*, so `[]` would reject every binding on an endpoint whose contract merely went stale `sdk/org/libs/cli/src/app/build/schema.ts#EndpointContract`.
+- The **synchronous** reader the writers use expands a named element type declared beside the handler, and returns `undefined` — not a partial list — when it cannot `sdk/org/libs/cli/src/app/view-spec/validate.ts#loadViewContracts`. A partial menu is worse than none: it rejects, and it rejects with confident advice. For the same reason a `from`-scoped section skips the field check entirely there, because that reader carries no schema to re-root against.
 
 ### 2. `validateAppViews(projectRoot)` — whole app
 
@@ -96,11 +106,19 @@ An app with no specs reports `ok:false` and says so, because an empty finding li
 
 ### 3. `renderSmokeViews(projectRoot, { call })` — against live data
 
-The view twin of `smoke_endpoints`, and the only tier that can see the failure the others cannot: a page that is structurally perfect and **empty** `sdk/org/libs/cli/src/app/view-spec/validate.ts#renderSmokeViews`. It calls each section's endpoint with route parameters filled from ids real rows carry, then reports per page:
+The view twin of `smoke_endpoints`, and the only tier that can see the failure the others cannot: a page that is structurally perfect and **empty** `sdk/org/libs/cli/src/app/view-spec/validate.ts#renderSmokeViews`. It resolves each section's inputs the way the renderer does — `$data.<section>.path` from the section above it, `$client.timezone`, and route parameters from ids real rows carry — then reports per page:
 
 - **binding coverage** — what fraction of the page's bound fields were non-null on real rows;
 - **empty-render detection** — the page produced nothing a user would see;
 - **an always-null binding**, reported against the **endpoint**, not the view `sdk/org/libs/cli/src/app/view-spec/messages.ts#alwaysNullBinding`. The view named a field the contract declares, so the defect is that the endpoint never computes it; a fix routed at the page would delete the binding and call it fixed.
+
+Three things it does *not* do, each because doing them produced a confidently wrong finding:
+
+- It never measures a section against a **guess** at its rows. The scope is the section's own source — `from`, or `rows` for a `list`/`timeline` and the record for everything else, mirroring `sdk/org/libs/ui/src/view/sections/common.tsx#useSectionSource`. Taking "the first array-valued property" instead reported fourteen correct bindings on one kitchen page as always-null, each naming the wrong endpoint.
+- A **non-2xx response is never data** `sdk/org/libs/cli/src/app/view-spec/validate.ts#renderSmokeViews`. An error body counted as one row is how a page whose every endpoint 4xx'd reported as populated.
+- **Zero checked bindings is not 100%.** `coverage` and `empty` are `null` for a page nothing could be measured on, which is a third answer distinct from both 0% and 100% `sdk/org/libs/cli/src/app/view-spec/validate.ts#ViewSmokeReport`; the sections that could not be reached are listed in `unmeasured`. Defaulting them to `1`/`false` made the headline metric read perfect exactly where the app was most broken.
+
+Route parameters come from an id pool **scoped to the collection that produced them** — the value for `/plan/:id/trip` comes from `/plan`, never from `/pantry` `sdk/org/libs/cli/src/app/view-spec/validate.ts#ViewEndpoint`. A flat pool let one entity's id smoke another's page and 404.
 
 With no api caller it reports `unavailable: true` rather than a clean run, and `rendererMounted` says whether the real `ViewRenderer` was additionally mounted — never inferred from an empty finding list.
 

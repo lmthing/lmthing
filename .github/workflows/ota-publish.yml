@@ -1,0 +1,103 @@
+name: Publish OTA update
+
+# Ships a JavaScript-only update to installed copies of the mobile app, through our own
+# expo-open-ota server (https://updates.lmthing.cloud). No store review, no new binary.
+#
+# THE THING TO UNDERSTAND BEFORE USING THIS: an OTA can only replace JavaScript. The
+# `runtimeVersion` policy is `fingerprint` (sdk/org/apps/mobile/app.config.js), so a
+# change that touches the native project — a new Expo module, an SDK bump, a permission
+# — produces a DIFFERENT fingerprint, and the update is simply never offered to the
+# binaries already out there. That is the safe failure, and it is why the policy is
+# fingerprint rather than appVersion: nothing here can push a bundle at a binary that
+# cannot run it.
+#
+# It is deliberately NOT automatic on push. A bad bundle reaches every phone in minutes,
+# and unlike a store release there is no review standing between the two. Someone runs
+# this on purpose, at a percentage they chose.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Update branch to publish to'
+        required: true
+        type: choice
+        options: [production, staging]
+        default: staging
+      rollout:
+        description: 'Percent of devices to offer it to (start small; raise by re-running)'
+        required: true
+        default: '10'
+      message:
+        description: 'What this update changes (shown in the eoas dashboard)'
+        required: true
+
+concurrency:
+  # Two publishes racing to the same branch leave the newest manifest ambiguous.
+  group: ota-${{ github.event.inputs.branch }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # `production` and `staging` are GitHub Environments. Put a required reviewer on
+    # `production` — that approval gate is the only thing between a merge and every
+    # installed phone running this code.
+    environment: ${{ github.event.inputs.branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          # The fingerprint is computed from the native project, which is derived from
+          # the whole workspace. A shallow checkout hashes a different tree.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+
+      - name: Install
+        working-directory: sdk/org
+        run: pnpm install --frozen-lockfile
+
+      # @lmthing/core exports from dist/, which is gitignored — the same clean-clone gap
+      # that broke the first EAS build. Metro cannot bundle without it.
+      - name: Build the app's workspace dependencies
+        working-directory: sdk/org/apps/mobile
+        run: pnpm run eas-build-post-install
+
+      # Cheap insurance: the bundle about to be published to real devices is the one
+      # thing worth proving before it leaves CI.
+      - name: Typecheck and bundle
+        working-directory: sdk/org/apps/mobile
+        run: |
+          pnpm typecheck
+          pnpm bundle:android
+
+      - name: Publish
+        working-directory: sdk/org/apps/mobile
+        env:
+          # Authenticates this runner to expo-open-ota. Same value as the server's
+          # JWT_SECRET (devops/ansible/roles/cloud_secrets/tasks/main.yml).
+          EXPO_OPEN_OTA_TOKEN: ${{ secrets.EXPO_OPEN_OTA_TOKEN }}
+          EXPO_UPDATES_CHANNEL: ${{ github.event.inputs.branch }}
+        run: |
+          npx eoas publish \
+            --branch "${{ github.event.inputs.branch }}" \
+            --rollout-percentage "${{ github.event.inputs.rollout }}" \
+            --message "${{ github.event.inputs.message }}"
+
+      - name: Summary
+        run: |
+          {
+            echo "### OTA published"
+            echo ""
+            echo "- **branch** \`${{ github.event.inputs.branch }}\`"
+            echo "- **rollout** ${{ github.event.inputs.rollout }}%"
+            echo "- **commit** \`${{ github.sha }}\`"
+            echo ""
+            echo "Raise the rollout by re-running with a higher percentage."
+            echo "To pull it back, roll back from the eoas dashboard — that is instant,"
+            echo "and faster than publishing a fix."
+          } >> "$GITHUB_STEP_SUMMARY"

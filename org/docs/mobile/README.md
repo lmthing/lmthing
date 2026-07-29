@@ -564,3 +564,41 @@ Sign-in is GitHub SSO through an in-app browser
 (`sdk/org/libs/auth/src/platform/sso.native.ts#startLogin`); there is no password path
 (`.issues/zitadel-password-login-disabled.md`), so the demo account handed to the
 reviewer has to be a GitHub account, and one without 2FA prompts they cannot satisfy.
+
+## Over-the-air updates
+
+The app carries an updates client (`sdk/org/apps/mobile/app.config.js:44-63`) pointed at
+our own server rather than EAS Update. Two properties of that config are the whole
+safety story.
+
+**`runtimeVersion` is `fingerprint`, not `appVersion`.** An OTA can only ever replace
+JavaScript. The fingerprint is a hash of the native project, so adding an Expo module or
+bumping the SDK changes it automatically and the binaries already installed are simply
+never offered the new bundle. Under `appVersion` the same safety depends on a person
+remembering to bump `version` in the commit that changed native — and forgetting once
+means every installed copy launches JavaScript whose native modules are not there, which
+is a crash loop that only a store release can end.
+
+**The manifest is signed, and the app verifies it.** `codeSigningCertificate` embeds the
+public half in the binary at build time — it is compiled into the Android manifest as
+`expo.modules.updates.CODE_SIGNING_CERTIFICATE`, which is why `certs/certificate.pem` is
+committed and the build fails without it. The private half never enters the repo
+(`sdk/org/apps/mobile/.gitignore:11-19`); it reaches the update server from Ansible
+Vault as `PRIVATE_EXPO_KEY_B64`
+(`devops/ansible/roles/cloud_secrets/tasks/main.yml:69-95`). Without signing, anything
+that can answer as `updates.lmthing.cloud` — a hostile DNS reply on a shared network —
+executes code inside the app.
+
+`url` is compiled into the binary, so it names a host we control and can re-point behind
+DNS. Changing it is a store release, not a config edit.
+
+### Publishing
+
+`.github/workflows/ota-publish.yml`, manually dispatched. It is not automatic on push on
+purpose: a bad bundle reaches every phone within minutes, and unlike a store release
+nothing reviews it on the way. The workflow takes a branch, a rollout percentage and a
+message, runs typecheck and a real bundle first, and publishes with `eoas`. The
+`production` branch maps to a GitHub Environment, so a required reviewer there is the
+gate between a merge and everyone's phone.
+
+Rolling back beats publishing a fix — it is instant, and it does not need a green build.

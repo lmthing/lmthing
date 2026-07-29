@@ -67,6 +67,36 @@
         ACR_PASSWORD: "{{ vault_acr_password }}"
   no_log: true
 
+# ── OTA update server (expo-open-ota) ────────────────────────
+# Its own secret rather than a few more keys in lmthing-secrets: the private key in
+# it can push JavaScript into every installed copy of the mobile app, and only the
+# update server ever needs it. Keeping it out of the secret every other workload
+# already mounts means a compromise elsewhere does not hand over the app.
+#
+# Base64 rather than raw PEM (expo-open-ota's *_EXPO_KEY_B64 form) so a certificate's
+# newlines survive both YAML and the env var.
+- name: Create ota-secrets in cluster
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: ota-secrets
+        namespace: lmthing
+      type: Opaque
+      stringData:
+        # These three names are expo-open-ota's own (its "stateless mode" takes the
+        # signing pair base64-encoded and a JWT secret for the eoas CLI).
+        PRIVATE_EXPO_KEY_B64: "{{ vault_expo_updates_private_key_b64 | default('') }}"
+        PUBLIC_EXPO_KEY_B64: "{{ vault_expo_updates_public_key_b64 | default('') }}"
+        JWT_SECRET: "{{ vault_expo_updates_jwt_secret | default('') }}"
+        # Storage credentials are NOT here yet: expo-open-ota supports Azure Blob among
+        # many backends, but its per-backend variable names are in the GitBook rather
+        # than the repo, and a guessed name is a pod that starts and silently serves
+        # nothing. Add them from the deployment docs together with the Deployment.
+  no_log: true
+
 # ── Create ACR imagePullSecret in lmthing namespace ─────────
 - name: Create ACR pull secret in lmthing namespace
   kubernetes.core.k8s:

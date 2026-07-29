@@ -365,3 +365,48 @@ rather than discovering during a campaign:
 
 First two are now in flight (snapshot fields + the Playwright render rig with empty-render and
 empty-form detection). The third is under assessment.
+
+### Salvaged from the stopped Wave-3 agents
+
+Four agents were stopped mid-flight; their partial work was verified and kept rather than discarded.
+
+**The view writers were never wired into the hosts.** `writeProjectView` /
+`writeProjectViewComponent` / `writeProjectViewShell` existed, held their own `views:write`
+capability, and appeared in the DTS — and the pipeline still could not call one, because
+`libs/cli/src/cli/bin.ts` and `libs/cli/src/server/session-manager.ts` each forward an **explicit
+list** of authoring globals into the session and code-node context, and neither list had learned
+about them. Every unit test passed, because unit tests construct the authoring object directly and
+never travel through a host.
+
+This is the same failure this project keeps meeting from a new angle: **the capability said yes, the
+type said yes, and the wiring said nothing.** Only a run with a model in the loop asks all three at
+once — which is precisely why the first live run was scheduled before the campaign, and it earned its
+place on its first attempt.
+
+**The shell's scroll container could not shrink.** `flexGrow` alone leaves a Yoga child sized to its
+content, so a page grew past the viewport instead of scrolling inside it — the same
+transcript-clipping bug this repo already fixed once in a different component. Now explicit
+`flexShrink`/`flexBasis`/`minHeight: 0` down the chain, so the scroller is the thing that scrolls.
+
+Verified: `pnpm typecheck` clean across 8 packages, 521 tests green in `libs/cli/src/server` +
+`libs/ui/src/view`.
+
+### `pnpm test:native` is environmentally blocked on this machine
+
+`ENOSPC: System limit for number of file watchers reached`. **Not a code failure** — proved by
+reverting the three salvaged files and re-running at `HEAD~1`, where it fails identically. Metro's
+fallback watcher (no watchman installed) opens one `fs.watch` per directory, and there are ~19,655
+directories under `sdk/org` alone; the React 19 + ink 7 install grew `node_modules` enough to cross
+the 65,536 `fs.inotify.max_user_watches` limit. The harness config already carries an `UNWATCHED`
+blocklist for this exact class of problem, but it cannot exclude `node_modules` — resolution needs it.
+
+Unblock with either (needs sudo, so it is an owner action):
+
+```bash
+sudo sysctl -w fs.inotify.max_user_watches=524288   # add to /etc/sysctl.d/ to persist
+# or install watchman, which uses ONE watch instead of thousands
+```
+
+The native gate was green earlier in this same session (after the React unification, before the
+install grew the tree), so nothing about the renderer is known-broken — it is unverified, which is a
+different and weaker statement.

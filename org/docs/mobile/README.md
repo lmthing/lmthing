@@ -632,4 +632,12 @@ message, runs typecheck and a real bundle first, and publishes with `eoas`. The
 `production` branch maps to a GitHub Environment, so a required reviewer there is the
 gate between a merge and everyone's phone.
 
+Two names matter and are easy to get wrong. `EOO_TOKEN` holds an **app-scoped API key**
+(`eoo_…`) minted per app in the dashboard — not the server's `JWT_SECRET`, so the CI
+credential can only publish to this one app and can be revoked without touching
+anything else. And `RELEASE_CHANNEL` decides which channel's config builds INTO the
+bundle; it does not choose where the update lands, which only `--branch` does. The app
+config reads the same `RELEASE_CHANNEL` for the `expo-channel-name` header it compiles
+into a build, so the bundle and the binary asking for it cannot drift apart.
+
 Rolling back beats publishing a fix — it is instant, and it does not need a green build.

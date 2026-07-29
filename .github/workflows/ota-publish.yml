@@ -78,15 +78,23 @@ jobs:
       - name: Publish
         working-directory: sdk/org/apps/mobile
         env:
-          # Authenticates this runner to expo-open-ota. Same value as the server's
-          # JWT_SECRET (devops/ansible/roles/cloud_secrets/tasks/main.yml).
-          EXPO_OPEN_OTA_TOKEN: ${{ secrets.EXPO_OPEN_OTA_TOKEN }}
-          EXPO_UPDATES_CHANNEL: ${{ github.event.inputs.branch }}
+          # An APP-SCOPED API key from the eoas dashboard (`eoo_…`), not the server's
+          # JWT_SECRET — control-plane mode authenticates the CLI per app, so this
+          # credential can only publish to `lmthing` and can be revoked on its own.
+          EOO_TOKEN: ${{ secrets.EOO_TOKEN }}
+          # eoas reads RELEASE_CHANNEL to decide which channel's config builds INTO the
+          # bundle. It does not select where the update lands — only --branch does. Kept
+          # equal to the branch so the two cannot drift.
+          RELEASE_CHANNEL: ${{ github.event.inputs.branch }}
+          # And app.config.js reads the same variable for the `expo-channel-name` header
+          # it compiles into a build, so a bundle and the binary that asks for it agree.
+          EXPO_OTA_APP_ID: 9a2ba224-69e6-4629-a894-4f42eb305a45
         run: |
           npx eoas publish \
             --branch "${{ github.event.inputs.branch }}" \
             --rollout-percentage "${{ github.event.inputs.rollout }}" \
-            --message "${{ github.event.inputs.message }}"
+            --message "${{ github.event.inputs.message }}" \
+            --nonInteractive
 
       - name: Summary
         run: |

@@ -282,6 +282,27 @@ needs to know it has landed.
 A failed turn is posted into the channel as a `system` message rather than
 disappearing.
 
+### The reply is what the agent DISPLAYED — never what it wrote
+
+`runHeadless` returns `result` from the turn's `display()` calls and nothing else
+`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager`. There is
+deliberately no fallback to the last history entry, because **in this runtime the
+model does not answer in prose — it writes TypeScript**, so that entry is the
+turn's source code. With the fallback in place, a turn that displayed nothing
+"answered" with its own statements, and the channel posted the agent's comments
+and its `setActivity(...)` call into the thread as the reply.
+
+`undefined` is the honest result for "it displayed nothing", and every caller
+already had to handle it (a failed turn returns no result at all). A caller that
+wants the reasoning has the tracer. In a channel that case reads as
+`THING finished without posting an answer.` rather than a wall of source
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#renderResult`.
+
+Otherwise a JSX answer is stored as `blocks` (descriptors reduced to allowed
+components) with `text` carrying the flattened prose, so a client that cannot
+draw components still has something to show and a notification has something to
+read.
+
 > **Known limitation.** Headless runs fail closed on consent-gated capabilities,
 > so THING-in-a-channel cannot use a connection that would prompt for consent —
 > the consent prompter is only wired for interactive sessions

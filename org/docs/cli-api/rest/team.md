@@ -101,6 +101,19 @@ the agent socket (`/api/ws`) and the channel socket (`/api/team/ws`); a
 **terminal** (`/api/terminals/:id`) is editor-only, because it is unrestricted
 shell access to the team's workspace.
 
+**The client reconnects the channel socket itself, with a capped exponential
+backoff** `sdk/org/libs/ui/src/team/use-team-chat.ts#useTeamChat` — a 500ms
+initial retry, doubling up to an 8s ceiling, reset to 500ms on a successful
+`open`. Without it, any network blip, laptop sleep or pod restart left
+`onmessage` wired to a socket that would never reopen, so messages, typing and
+`thing_status` went silently dead until a full page reload. `TeamChat.connection`
+distinguishes the first `connecting` from a later `reconnecting` (the socket
+*was* live and dropped), which is what lets the view show "Reconnecting…" only
+for the case actually worth telling a member about
+`sdk/org/libs/ui/src/team/channels-view.tsx#TeamChannelsView`. The mobile shell
+keeps the team screen mounted-but-hidden across tab switches specifically so
+this one socket survives them, which only pays off because it can heal itself.
+
 ## Channels
 
 Channels are the Slack-like surface the team talks in. They live on the team's
@@ -269,9 +282,36 @@ The prompt names the sender (`[ana@example.com in #general] …`) so a
 multi-person thread reads correctly to the agent — it is one conversation with
 several people in it `sdk/org/libs/cli/src/server/team-channels.ts#promptFor`.
 
+That prose prefix is **not** how the turn knows who is asking. The verified
+`TeamCaller` read from the request's Envoy headers is passed as a value down
+`handlePostMessage` → `beginThingReply` → `runThingReply`
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#runThingReply`, which builds
+a per-turn team resolver bound to it
+`sdk/org/libs/cli/src/server/team-globals.ts#createTeamResolver` and hands it to
+`runHeadlessThreaded({ team })`. That resolver is what backs THING's `team:read` /
+`team:post` globals — the directory, the channel list, channel history, posting
+into another channel, pinning an app — and every one of them answers for **that
+member**: a DM they are not in is invisible, and a viewer cannot write. A turn
+with no verified caller gets no team globals at all. The full surface, the
+capability split and the refusals → [runtime-globals/team.md](../../runtime-globals/team.md).
+
+A channel id mentioned in a prompt is not authorisation: reads go through the same
+`isVisibleTo` predicate `requireVisibleChannel` uses for a direct HTTP read
+`sdk/org/libs/cli/src/server/team-channels.ts#isVisibleTo`.
+
 `POST …/messages` returns as soon as the member's own message is stored; THING's
 answer arrives over the channel socket whenever it is ready, so a slow agent turn
 never blocks the composer.
+
+The client appends that REST response to the transcript immediately, rather than
+waiting for the same message to arrive back over the channel socket
+`sdk/org/libs/ui/src/team/use-team-chat.ts#useTeamChat` — on a slow or dropped
+connection the socket echo might be delayed or lost outright, and the sender
+would never see their own message land. The later echo (if it comes) is deduped
+against the REST response by message id, so it never appears twice. A failed
+`postMessage` is surfaced through the same `error` state every other mutation in
+the hook uses, and rethrown so the composer restores the drafted text instead of
+silently losing it.
 
 That leaves real work in flight that nothing is awaiting — THING's answer, and the
 delivery bookkeeping below — so it is all tracked in one place and drainable
@@ -318,6 +358,13 @@ tracer's `activity` events (every `setActivity()` the agent makes)
 `sdk/org/libs/cli/src/server/routes/team-channels.ts#runThingReply`. A build runs
 for minutes; with nothing on screen a reader cannot tell it apart from a hang.
 The thread shows it beside THING's name and clears it on `done`/`error`.
+
+The client also holds a **client-side safety timeout** on top of that terminal
+frame `sdk/org/libs/ui/src/team/use-team-chat.ts#useTeamChat` (90s, reset on
+every `running` frame). The server only clears `thinking`/`activity` by sending
+that explicit terminal frame; if the pod dies mid-turn it never gets to send one,
+and without the timeout "THING is working…" would stay on screen for the rest of
+the session.
 
 ### The reply is what the agent DISPLAYED — never what it wrote
 

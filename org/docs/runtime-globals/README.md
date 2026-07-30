@@ -29,6 +29,7 @@ Sub-docs, by global family:
 | [session-and-utils.md](./session-and-utils.md) | `setSessionMeta`, `sleep`, `fetch`, and the host-tools substrate |
 | [app-authoring.md](./app-authoring.md) | `createProject`/`selectProject` (live build target), the live-project `writeProject*` writers, `apiCall` |
 | [data-db.md](./data-db.md) | `db.*`, `apiCall` |
+| [team.md](./team.md) | `teamContext`, `teamMembers`, `teamChannels`, `teamHistory`, `teamPost`, `teamPinApp` — **team pods only** |
 
 Capability frontmatter (the `capabilities:` list that grants the project-app globals) is
 specified in [../format/space/agents/capabilities.md](../format/space/agents/capabilities.md).
@@ -43,13 +44,15 @@ Two mechanically different kinds of global:
 (`sdk/org/libs/core/src/exec/bootstrap.ts:151-153`, `pushYield`). Pushing a yield **ends the
 turn**: the host stops the model stream, resolves the request (`routeCommonYield`,
 `sdk/org/libs/core/src/eval/yield-router.ts#routeCommonYield`), binds the resolved value host-side, and
-the next turn resumes with it in scope. There are **19** yield kinds today — the
+the next turn resumes with it in scope. There are **25** yield kinds today — the
 `YieldRequest['kind']` union (`sdk/org/libs/core/src/eval/yield.ts#YieldRequest.kind`), one per `kind: '…'`
 literal under `sdk/org/libs/core/src/globals/`: `ask`, `sleep`, `fetch`, `readDocument`,
-`loadKnowledge`, `inspect`, `fork`, `tasklist`, `delegate`, `registerSpace`, `setSessionMeta`,
+`loadKnowledge`, `inspect`, `fork`, `tasklist`, `delegate`, `registerSpace`, `buildApp`,
 `apiCall`, `callConnection`, `integrationStatus`, `storeSearch`, `storeInspect`,
-`installSpace`, `emitEvent`, and the internal `consent`
-(`sdk/org/libs/core/src/globals/consent.ts#createConsentRequestGlobal`).
+`installSpace`, `emitEvent`, the six team kinds (`teamContext`, `teamMembers`,
+`teamChannels`, `teamHistory`, `teamPost`, `teamPinApp` —
+`sdk/org/libs/core/src/globals/team.ts#TeamYieldKind`, injected only on a team pod), and the
+internal `consent` (`sdk/org/libs/core/src/globals/consent.ts#createConsentRequestGlobal`).
 
 **Non-yielding globals** are plain synchronous host calls marshalled across the QuickJS
 bridge — they do not end the turn. This is the whole host-tools substrate
@@ -117,20 +120,27 @@ The profile has seven boolean flags plus the parsed app grants
 
 `intersectAppCaps` (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`) is the read-only-fork
 gate: a `explore`/`plan` role keeps only `db:read`, `api:call`, `connections:use`,
-`store:read`; every mutating/authoring grant (`db:write`, `db:schema`,
-`pages:write`, `api:write`, `hooks:write`, `store:install`, `events:emit`, and `fs:scratch`)
-is **dropped before the profile is built**, so it can neither be injected nor declared —
-which is why a read-only fork's `scratchFs` is false.
+`store:read`, `team:read`; every mutating/authoring grant (`db:write`, `db:schema`,
+`pages:write`, `views:write`, `api:write`, `hooks:write`, `store:install`, `events:emit`,
+`team:post`, and `fs:scratch`) is **dropped before the profile is built**, so it can neither
+be injected nor declared — which is why a read-only fork's `scratchFs` is false.
 
-### The 13 app capabilities
+### The 15 app capabilities
 
 `CapabilityId` (`sdk/org/libs/core/src/spaces/capabilities.ts#CapabilityId`) —
-`db:read`, `db:write`, `db:schema`, `pages:write`, `api:write`, `hooks:write`, `api:call`,
-`connections:use`, `project:manage`, `store:read`, `store:install`,
-`events:emit`, `fs:scratch`. Parsing is fail-loud (`parseCapabilities`, `:245-336`): an
+`db:read`, `db:write`, `db:schema`, `pages:write`, `views:write`, `api:write`, `hooks:write`,
+`api:call`, `connections:use`, `knowledge:write`, `project:manage`, `store:read`,
+`store:install`, `events:emit`, `fs:scratch`, plus the two **team-pod-only** ids `team:read`
+and `team:post`. Parsing is fail-loud (`parseCapabilities`,
+`sdk/org/libs/core/src/spaces/capabilities.ts#parseCapabilities`): an
 unknown id, an unknown config key, a config on a bare-only cap, or a bare `api:call`/
 `connections:use` (their allowlists are **required** — "there is no *call
-anything*", `:190`) all throw at space load.
+anything*") all throw at space load.
+
+The two team ids are the one conditional pair: they are always *known* (so a space file
+declaring one loads anywhere), but the **grant** is dropped at the end of parsing unless
+`sdk/org/libs/core/src/spaces/capabilities.ts#isTeamPod`, so on a personal pod the six team
+globals are neither injected nor declared — see [team.md](./team.md).
 
 | Capability | Config | Globals it earns | Doc |
 |---|---|---|---|
@@ -147,6 +157,8 @@ anything*", `:190`) all throw at space load.
 | `store:install` | bare | `installSpace` (**consent-marked**) | [store-and-consent.md](./store-and-consent.md) |
 | `events:emit` | bare | `emitEvent` | [events-and-integrations.md](./events-and-integrations.md) |
 | `fs:scratch` | bare | `createScratch` + a scratch-jailed generic fs/shell (the engineer's code sandbox; the ONLY generic filesystem on the model surface) | [session-and-utils.md](./session-and-utils.md) · [../system-spaces/README.md](../system-spaces/README.md) |
+| `team:read` | bare, **team pods only** | `teamContext`, `teamMembers`, `teamChannels`, `teamHistory` | [team.md](./team.md) |
+| `team:post` | bare, **team pods only** | `teamPost`, `teamPinApp` (editor callers only; no DM writer — THING has no user id) | [team.md](./team.md) |
 
 Injection: `sdk/org/libs/core/src/exec/bootstrap.ts:175-235` (yielding app globals) and
 `sdk/org/libs/core/src/exec/app-globals.ts#injectAppGlobals` (synchronous `db` + writers); the
@@ -187,7 +199,12 @@ storeSearch is not available here: no store resolver configured                 
 storeInspect is not available here: no store resolver configured                 (:273)
 installSpace is not available here: no store resolver configured                 (:286)
 emitEvent is not available here: no event resolver configured (project-rooted sessions only)  (:339)
+<teamKind> is not available here: this turn is not running in a team channel
 ```
+
+The team arm is the one whose absence is *normal*: the grants are pod-wide but the caller and
+channel are per-turn, so a THING session in Studio or `/chat` on a team pod holds the
+capability with no channel to answer in (`sdk/org/libs/core/src/eval/yield-router.ts#routeCommonYield`).
 
 ---
 

@@ -184,7 +184,12 @@ leaves a team that can be retried rather than a running namespace nothing owns.
 Most of the model is unit-tested, but three things only a live deployment can
 prove: that the edge routes a team token to the team's pod and refuses a
 personal one, that a viewer really is read-only *inside* the workspace, and that
-THING remembers a channel thread across two different members.
+THING remembers a channel thread across two different members. Inside a channel THING also
+knows the team it is in — who is in the directory, what channels exist, what was said in
+them, and how to post into a channel other than the thread it was called from — all of it
+resolved against the member who asked, and none of it present on a personal pod
+`sdk/org/libs/core/src/globals/team.ts`; see
+[runtime-globals/team.md](../runtime-globals/team.md).
 
 `devops/scripts/verify-teams.sh` walks exactly that, against a real deployment:
 it registers two accounts, creates a team, adds one as a viewer, mints both

@@ -278,7 +278,15 @@ export function renderLoginEmail(opts: {
   return { subject: `${spaced} is your lmthing sign-in code`, text, html };
 }
 
-function escapeHtml(s: string): string {
+/**
+ * Shared by every outbound template.
+ *
+ * Exported rather than copied: a second template with its own escaper is how one
+ * of them ends up missing a case. Team-invite mail interpolates a team NAME and
+ * an inviter's address — both user-controlled — so this is load-bearing there in
+ * a way it is not here.
+ */
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

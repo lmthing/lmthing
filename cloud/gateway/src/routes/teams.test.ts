@@ -30,9 +30,14 @@ vi.mock("../lib/stripe.js", () => ({
 }));
 vi.mock("../lib/litellm.js", () => ({ createUser: vi.fn(async () => ({})) }));
 vi.mock("../lib/zitadel.js", () => ({ getUserByEmail: vi.fn() }));
+vi.mock("../lib/email.js", () => ({
+  isEmailConfigured: vi.fn(() => true),
+  sendEmail: vi.fn(async () => undefined),
+}));
 
 const db = await import("../lib/db.js");
 const zitadel = await import("../lib/zitadel.js");
+const email = await import("../lib/email.js");
 const litellm = await import("../lib/litellm.js");
 const { default: teams } = await import("./teams.js");
 
@@ -43,6 +48,10 @@ let authHeader: string;
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  // `clearAllMocks` clears calls but KEEPS implementations, so the "no mailer"
+  // case below would otherwise leak `false` into every test declared after it.
+  vi.mocked(email.isEmailConfigured).mockReturnValue(true);
+  vi.mocked(email.sendEmail).mockResolvedValue(undefined);
   const { access_token } = await signTokens(CALLER.id, CALLER.email);
   authHeader = `Bearer ${access_token}`;
 });
@@ -224,6 +233,143 @@ describe("teams routes — membership changes", () => {
     });
     expect(res.status).toBe(400);
     expect(vi.mocked(db.upsertTeamMember)).not.toHaveBeenCalled();
+    // Nothing happened, so nobody should be told anything happened.
+    expect(vi.mocked(email.sendEmail)).not.toHaveBeenCalled();
+  });
+
+  // ── telling the invitee ────────────────────────────────────────────────────
+  //
+  // An invite nobody is told about is not an invite. Before this the inviter had
+  // to share the link by hand, which the route's own comment admitted.
+
+  it("emails someone who has no account, telling them how to claim it", async () => {
+    vi.mocked(zitadel.getUserByEmail).mockRejectedValue(new Error("not found"));
+    vi.mocked(db.getTeam).mockResolvedValue({
+      id: "t1",
+      name: "Acme",
+      owner_id: CALLER.id,
+      stripe_customer_id: null,
+      tier: "free",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    } as never);
+    vi.mocked(db.upsertTeamInvite).mockResolvedValue({
+      id: "i1",
+      team_id: "t1",
+      email: "new@example.com",
+      role: "viewer",
+      invited_by: CALLER.id,
+      expires_at: "2026-02-01T00:00:00Z",
+      accepted_at: null,
+      created_at: "2026-01-01T00:00:00Z",
+    });
+
+    const res = await call("/t1/members", {
+      method: "POST",
+      body: { email: "new@example.com" },
+    });
+    expect(await res.json()).toMatchObject({ status: "invited", emailed: true });
+
+    const sent = vi.mocked(email.sendEmail).mock.calls[0]![0];
+    expect(sent.to).toBe("new@example.com");
+    expect(sent.subject).toContain("Acme");
+    expect(sent.subject).toContain(CALLER.email);
+    // The claim is made by signing in with the address — if the mail does not say
+    // so, a recipient with no account has no idea what is being asked of them.
+    expect(sent.text).toContain("sign in with this email address");
+    expect(sent.text).toContain("https://lmthing.team/team");
+  });
+
+  it("tells an existing account it was ADDED, not that it must accept", async () => {
+    vi.mocked(zitadel.getUserByEmail).mockResolvedValue({
+      id: "user-2",
+      email: "b@example.com",
+    });
+    vi.mocked(db.getTeam).mockResolvedValue({ id: "t1", name: "Acme" } as never);
+
+    const res = await call("/t1/members", {
+      method: "POST",
+      body: { email: "b@example.com", role: "editor" },
+    });
+    expect(await res.json()).toMatchObject({ status: "added", emailed: true });
+
+    const sent = vi.mocked(email.sendEmail).mock.calls[0]![0];
+    expect(sent.subject).toContain("added to Acme");
+    // They are already a member; telling them to accept an invite sends them
+    // hunting for a button that is not there.
+    expect(sent.text).not.toContain("accept");
+    expect(sent.text).toContain("already on your account");
+  });
+
+  it("escapes a team name so an inviter cannot inject markup into the mail", async () => {
+    vi.mocked(zitadel.getUserByEmail).mockRejectedValue(new Error("not found"));
+    vi.mocked(db.getTeam).mockResolvedValue({
+      id: "t1",
+      name: '<img src=x onerror="alert(1)">',
+    } as never);
+    vi.mocked(db.upsertTeamInvite).mockResolvedValue({
+      id: "i1",
+      team_id: "t1",
+      email: "new@example.com",
+      role: "viewer",
+      invited_by: CALLER.id,
+      expires_at: null,
+      accepted_at: null,
+      created_at: "2026-01-01T00:00:00Z",
+    } as never);
+
+    await call("/t1/members", { method: "POST", body: { email: "new@example.com" } });
+    const sent = vi.mocked(email.sendEmail).mock.calls[0]![0];
+    expect(sent.html).not.toContain("<img");
+    expect(sent.html).toContain("&lt;img");
+  });
+
+  it("a dead relay does not lose the invite — it reports emailed:false", async () => {
+    // The row is already committed and is claimable by signing in, so failing the
+    // request would invite a retry that re-sends rather than fixing anything.
+    vi.mocked(zitadel.getUserByEmail).mockRejectedValue(new Error("not found"));
+    vi.mocked(db.getTeam).mockResolvedValue({ id: "t1", name: "Acme" } as never);
+    vi.mocked(db.upsertTeamInvite).mockResolvedValue({
+      id: "i1",
+      team_id: "t1",
+      email: "new@example.com",
+      role: "viewer",
+      invited_by: CALLER.id,
+      expires_at: null,
+      accepted_at: null,
+      created_at: "2026-01-01T00:00:00Z",
+    } as never);
+    vi.mocked(email.sendEmail).mockRejectedValueOnce(new Error("relay down"));
+
+    const res = await call("/t1/members", {
+      method: "POST",
+      body: { email: "new@example.com" },
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ status: "invited", invite_id: "i1", emailed: false });
+  });
+
+  it("a deployment with no mailer still invites, and says it did not send", async () => {
+    vi.mocked(email.isEmailConfigured).mockReturnValue(false);
+    vi.mocked(zitadel.getUserByEmail).mockRejectedValue(new Error("not found"));
+    vi.mocked(db.getTeam).mockResolvedValue({ id: "t1", name: "Acme" } as never);
+    vi.mocked(db.upsertTeamInvite).mockResolvedValue({
+      id: "i1",
+      team_id: "t1",
+      email: "new@example.com",
+      role: "viewer",
+      invited_by: CALLER.id,
+      expires_at: null,
+      accepted_at: null,
+      created_at: "2026-01-01T00:00:00Z",
+    } as never);
+
+    const res = await call("/t1/members", {
+      method: "POST",
+      body: { email: "new@example.com" },
+    });
+    expect(await res.json()).toMatchObject({ status: "invited", emailed: false });
+    expect(vi.mocked(email.sendEmail)).not.toHaveBeenCalled();
   });
 
   it("reports the last-editor guard as a conflict", async () => {

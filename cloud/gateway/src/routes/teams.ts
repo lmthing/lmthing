@@ -7,6 +7,8 @@ import * as db from "../lib/db.js";
 import { TIERS } from "../lib/tiers.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { signTeamToken } from "../lib/tokens.js";
+import { isEmailConfigured, sendEmail } from "../lib/email.js";
+import { renderTeamInviteEmail } from "../lib/team-invite-email.js";
 import {
   ensurePod,
   getPodStatus,
@@ -240,8 +242,8 @@ teams.post("/:teamId/members", async (c) => {
   const user = c.get("user");
 
   // Someone with an account joins immediately; someone without gets a pending
-  // invite they claim after signing up (there is no mailer — the inviter shares
-  // the lmthing.team link).
+  // invite they claim by signing in with this address. Both are told by email —
+  // an invite nobody is told about is not an invite.
   let existing: { id: string; email: string } | null = null;
   try {
     existing = await zitadel.getUserByEmail(email);
@@ -249,20 +251,82 @@ teams.post("/:teamId/members", async (c) => {
     existing = null;
   }
 
+  const team = await db.getTeam(teamId);
+  const teamName = team?.name ?? "a team";
+
   if (existing) {
     await db.upsertTeamMember(teamId, existing.id, email, role, user.id);
-    return c.json({ status: "added", user_id: existing.id, email, role });
+    const emailed = await notifyInvitee({
+      kind: "added",
+      to: email,
+      teamName,
+      invitedBy: user.email,
+    });
+    return c.json({ status: "added", user_id: existing.id, email, role, emailed });
   }
 
   const invite = await db.upsertTeamInvite(teamId, email, role, user.id);
+  const emailed = await notifyInvitee({
+    kind: "invited",
+    to: email,
+    teamName,
+    invitedBy: user.email,
+    expiresAt: invite.expires_at ? new Date(invite.expires_at) : null,
+  });
   return c.json({
     status: "invited",
     invite_id: invite.id,
     email,
     role,
     expires_at: invite.expires_at,
+    emailed,
   });
 });
+
+/** Where an invitee lands: the teams list, which shows pending invites to accept. */
+function teamAppUrl(): string {
+  return process.env.TEAM_APP_URL?.trim() || "https://lmthing.team/team";
+}
+
+/**
+ * Tell the invitee, without letting the telling fail the invite.
+ *
+ * The membership (or invite row) is already committed by the time this runs, and
+ * it is valid whether or not the mail leaves — a claim is made by signing in with
+ * the address, not by clicking anything in the message. So a dead relay must not
+ * turn a successful invite into a 500 that invites the caller to retry and
+ * re-send. The outcome is reported as `emailed` instead, so the UI can offer to
+ * share the link by hand rather than silently implying a mail arrived.
+ */
+async function notifyInvitee(opts: {
+  kind: "added" | "invited";
+  to: string;
+  teamName: string;
+  invitedBy: string;
+  expiresAt?: Date | null;
+}): Promise<boolean> {
+  if (!isEmailConfigured()) return false;
+  try {
+    const message = renderTeamInviteEmail({
+      kind: opts.kind,
+      teamName: opts.teamName,
+      invitedBy: opts.invitedBy,
+      link: teamAppUrl(),
+      expiresAt: opts.expiresAt ?? null,
+    });
+    await sendEmail({
+      to: opts.to,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
+    });
+    return true;
+  } catch (err) {
+    // The relay's own text can name the host and the account it authenticated as.
+    console.error("team invite email failed:", err);
+    return false;
+  }
+}
 
 // PUT /:teamId/members/:userId — change a member's role
 teams.put("/:teamId/members/:userId", async (c) => {

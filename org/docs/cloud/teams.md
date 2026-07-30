@@ -120,16 +120,30 @@ blip doesn't strand the caller.
 ### Adding people
 
 `POST /:teamId/members` takes `{email, role}` (role defaults to `viewer`, the least privilege)
-and branches on whether that email already has an account `cloud/gateway/src/routes/teams.ts:226-265`:
+and branches on whether that email already has an account `cloud/gateway/src/routes/teams.ts#teams`:
 
 - **It does** (`zitadel.getUserByEmail` resolves) → they become a member immediately, returning
   `{status:"added"}`.
 - **It doesn't** → a pending invite row, returning `{status:"invited"}`.
 
-**There is no mailer in this repo.** An invite is claimed on next login: the inviter shares the
-lmthing.team link out of band, the invitee signs up through the existing flows, and
-`GET /api/teams` surfaces the invites addressed to their session email
-`cloud/gateway/src/routes/teams.ts:148-170`.
+**Both branches email the address** `cloud/gateway/src/routes/teams.ts#notifyInvitee`. An invite
+nobody is told about is not an invite — before the gateway had a mail transport the inviter had to
+share the lmthing.team link out of band, which is what this replaces.
+
+The two messages say different things on purpose `cloud/gateway/src/lib/team-invite-email.ts#renderTeamInviteEmail`:
+an existing account is told it **was added** and where to open the team, because there is nothing
+for it to accept and telling it otherwise sends it hunting for a button that isn't there; an
+address with no account is told to **sign in with that address** to claim the invite, because it
+has no account and would otherwise not know what is being asked. The link is `TEAM_APP_URL`
+(default `https://lmthing.team/team`), the list that renders a pending invite with its Accept
+button `sdk/org/apps/web/src/routes/team/index.tsx#TeamsIndex`.
+
+Sending is best-effort and **reported rather than fatal**: the row is already committed and is
+claimed by signing in, not by clicking anything in the mail, so a dead relay must not fail an
+invite that actually worked. The response carries `emailed: true|false`; a deployment with no
+transport records the invite and returns `emailed:false`. Either way `GET /api/teams` still
+surfaces invites addressed to the session email, which remains the claim path
+`cloud/gateway/src/routes/teams.ts#teams`.
 
 `POST /invites/:inviteId/accept` is deliberately **not** under `/:teamId` — accepting is what
 makes you a member, so it cannot sit behind `requireMember`. The invite id is the capability, and

@@ -284,6 +284,11 @@ spec:
                   name: lmthing-secrets
                   key: EMAIL_LOGIN_ALLOWED_ORIGINS
                   optional: true
+            # Where a team invite email sends the recipient: the teams list, which
+            # is what shows a pending invite with its Accept button. Not a secret —
+            # only overridden to point a test deploy at a different front end.
+            - name: TEAM_APP_URL
+              value: "https://lmthing.team/team"
             - name: GITHUB_ISSUES_REPO
               value: "lmthing/bug-reports"
             - name: GITHUB_BUGREPORT_REPO

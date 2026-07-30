@@ -81,11 +81,38 @@ charged for tokens (the budget line moves) and receives no answer. It also block
 screenshot work, which is how it was found: three separate attempts to capture a normal
 question-and-answer produced a transcript with the user's message and nothing else.
 
-## Next
+## Fixed (2026-07-30)
 
-Confirm whether 512Mi is simply too small for a THING turn (raise the free-tier limit and re-measure)
-or whether something in the turn leaks — the `mem-watchdog` presence suggests the latter was already
-suspected. Either way the client must not present a killed turn as silence.
+The budget is now derived in one place — `cloud/gateway/src/lib/compute.ts#memoryBudget` — and the
+parts are summed against the limit by `compute.budget.test.ts`, for every tier:
+
+| tier | limit | V8 | sandboxes | baseline | total |
+|---|---|---|---|---|---|
+| free | 512 | 211 | 2×48 = 96 | 128 | 435 (85%) |
+| starter | 768 | 428 | 2×48 = 96 | 128 | 652 (85%) |
+| pro | 1024 | 486 | 4×64 = 256 | 128 | 870 (85%) |
+| max | 2048 | 1356 | 4×64 = 256 | 128 | 1740 (85%) |
+
+against the old free-tier sizing of 128 + 307 + 4×64 = **691 of 512 — 135%**. Small pods now buy
+FEWER sandboxes rather than a smaller heap, because a V8 cap under ~128MiB makes the host itself
+thrash. The gateway passes its answer down as `LM_VM_MEMORY_MB` and `LM_MAX_CONCURRENT_FORKS` so
+the pod cannot quietly use different numbers.
+
+## Still open
+
+- **Does `runtime.setMemoryLimit` actually bound a QuickJS arena in this build?** Unresolved, and
+  it matters: if it does not, the arena term above is a planning figure rather than a ceiling.
+  Measured directly — a 1MiB runtime refuses a 64MiB allocation, an 8MiB one appears to accept it.
+  `evalScript` returns `{ok: true}` with no `value` even for a plain `b.length`, so its result
+  cannot distinguish success from a failed allocation; a proper answer needs
+  `computeMemoryUsage()`, not the eval result.
+- **A killed turn still presents as silence.** Independent of sizing, and arguably the worse half:
+  the user spent budget and got nothing, with no error and no retry.
+- **Nothing rehydrates a persisted session on demand**, so a container death is unrecoverable even
+  though the history is on disk.
+- **The claim in `tiers.ts` that the watchdog makes OOMKill impossible** ("turns limit-pressure into
+  graceful, recoverable session eviction (never an OOMKill)") is false as written and should be
+  corrected or made true.
 
 ## Related
 

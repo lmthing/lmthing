@@ -104,12 +104,87 @@ function memToMiB(mem: string): number {
   }
 }
 
-/** V8 old-space cap (~60% of the memory LIMIT) so the JS heap GCs before the
- *  cgroup OOMs. QuickJS WASM VMs live in off-heap ArrayBuffers, so this bounds the
- *  host-heap portion; the in-pod watchdog bounds the rest. */
+/**
+ * How a pod's memory LIMIT is divided between the three things that consume it.
+ *
+ * This used to be one line — V8 gets 60% of the limit — with a comment noting that QuickJS WASM
+ * VMs live off-heap and are therefore NOT bounded by it, and that "the in-pod watchdog bounds the
+ * rest". Both halves of that were true and the sum was still fatal: nothing ever added the parts
+ * up against the ceiling.
+ *
+ * On the free tier the arithmetic was
+ *
+ *     307 (V8 may grow to this)  +  64 (one QuickJS VM)  +  ~60 (Node baseline)  =  431 of 512
+ *
+ * — 84% consumed with ONE sandbox. A single `delegate()` makes a second (97%), and
+ * `maxConcurrentForks` permits four (623, i.e. over the limit before anything has gone wrong).
+ * A free pod was OOMKilled mid-turn on an ordinary research question: the user's budget was spent,
+ * the container died, the session died with it and the reply never arrived
+ * (.issues/session-lost-when-pod-recycles.md).
+ *
+ * The watchdog cannot cover this and it is worth saying why, because its existence is what made the
+ * gap look handled: it polls every 5s while a VM allocates its arena in milliseconds, and its only
+ * remedy is evicting an IDLE session — during a single turn on a fresh session there is nothing
+ * idle to evict.
+ *
+ * So the budget is now derived, and {@link memoryBudget} is the only place that decides. Every
+ * consumer of a number here — the V8 cap, the per-VM arena, the fork fan-out — is handed a value
+ * from the same division, and `compute.budget.test.ts` asserts the parts fit inside the limit for
+ * every tier.
+ */
+
+/** Node's own RSS before any agent work: the interpreter, the loaded bundle, sockets, buffers. */
+const NODE_BASELINE_MIB = 128;
+
+/**
+ * Fraction of the LIMIT the budget is allowed to plan for. The remainder absorbs what no
+ * accounting can predict — allocator fragmentation, a GC that has not run yet, native module
+ * overhead — and is the difference between running hot and being killed.
+ */
+const PLANNING_HEADROOM = 0.85;
+
+/** A QuickJS arena small enough that a free pod can afford two, large enough for real work. */
+const VM_MIB_SMALL = 48;
+const VM_MIB_LARGE = 64;
+
+export interface MemoryBudget {
+  /** `--max-old-space-size`, i.e. what V8's old space may grow to. */
+  v8MiB: number;
+  /** Per-QuickJS-VM arena, off-heap. Passed to the pod so it stops taking a hardcoded default. */
+  vmMiB: number;
+  /** How many sandboxes may exist at once. The multiplier on `vmMiB`. */
+  maxConcurrentForks: number;
+}
+
+export function memoryBudget(pod: PodConfig): MemoryBudget {
+  const limitMiB = memToMiB(pod.mem);
+  const plannable = Math.floor(limitMiB * PLANNING_HEADROOM) - NODE_BASELINE_MIB;
+
+  // Small pods buy fewer and smaller sandboxes rather than a smaller heap: a V8 cap under ~128MiB
+  // makes the host itself thrash, and a host that cannot run is worse than one that delegates less.
+  const vmMiB = limitMiB >= 1024 ? VM_MIB_LARGE : VM_MIB_SMALL;
+  const maxConcurrentForks = limitMiB >= 1024 ? 4 : 2;
+
+  const v8MiB = Math.max(128, plannable - vmMiB * maxConcurrentForks);
+  return { v8MiB, vmMiB, maxConcurrentForks };
+}
+
+/** V8 old-space cap — see {@link memoryBudget} for why it is not simply a fraction of the limit. */
 function nodeOptionsFor(pod: PodConfig): string {
-  const capMiB = Math.max(128, Math.floor(memToMiB(pod.mem) * 0.6));
-  return `--max-old-space-size=${capMiB}`;
+  return `--max-old-space-size=${memoryBudget(pod).v8MiB}`;
+}
+
+/**
+ * The sandbox half of the budget, as pod env. Without these the runtime falls back to its own
+ * defaults (a 64MiB arena and 4 concurrent forks) which is exactly the drift this exists to stop —
+ * the gateway would be sizing V8 against numbers the pod did not agree to.
+ */
+function sandboxEnvFor(pod: PodConfig): Array<{ name: string; value: string }> {
+  const { vmMiB, maxConcurrentForks } = memoryBudget(pod);
+  return [
+    { name: "LM_VM_MEMORY_MB", value: String(vmMiB) },
+    { name: "LM_MAX_CONCURRENT_FORKS", value: String(maxConcurrentForks) },
+  ];
 }
 
 /** nodeSelector + tolerations for the user pool, or `{}` when the pool is not
@@ -305,6 +380,7 @@ function deployment(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_CONFIG) {
                 { name: "IDLE_TTL_MINUTES", value: String(pod.idleTtlMinutes) },
                 // Bound the V8 heap under the Burstable limit (GC before OOM).
                 { name: "NODE_OPTIONS", value: nodeOptionsFor(pod) },
+                ...sandboxEnvFor(pod),
                 // Turns on the pod's caller-identity + role guard. Deliberately a
                 // CONTAINER env var, not a `user-env` key: PUT /env is replace-all,
                 // so a team editor could otherwise drop this key and silently
@@ -802,6 +878,7 @@ export async function ensurePod(
                       value: String(pod.idleTtlMinutes),
                     },
                     { name: "NODE_OPTIONS", value: nodeOptionsFor(pod) },
+                    ...sandboxEnvFor(pod),
                     ...teamModeEnv(p),
                   ],
                   // Migrate existing pods to the startup probe and REMOVE the old

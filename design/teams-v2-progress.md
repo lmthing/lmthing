@@ -77,10 +77,11 @@ screenshot gate must show. Part B is this lane:
 | | |
 |---|---|
 | B3 ✅ | **verified sound** — `blocks` do preserve structure, same `renderDescriptor` as `/chat`, no source-as-answer fallback |
+| **B6** ✅ | **fixed** (`db5989cd`) — the crash path dropped the `mentions` stamp *and* the `deliver()` call, so the one outcome you most need telling about was the only one that never badged you or reached your phone. Distinct from `ok:false`, which returns normally and was stamped all along; only a **throw** lost the address. Test verified failing first |
+| **B10** ✅ | **fixed** (`70d8ea81`) — `readMessages` discarded an unmatched `before` (`void reachedBefore`) and returned the **newest** window while answering `hasMore: true`, so a client paginating with a bad cursor looped forever over the same page. The log is append-only and read whole, so there is no stale-cursor case to be kind to |
 | B4 S1 | a parked ask has no `askId`, no `waiting` status, no timeout; **any** reply consumes it silently |
-| B9 S2 | `hasUnread` is derived from the log file's **mtime**, so sitting in a channel while someone talks never marks it read — invisible in testing because your own posts do mark read |
+| B9 S2 | `hasUnread` is derived from the log file's **mtime**, so sitting in a channel while someone talks never marks it read — invisible in testing because your own posts do mark read. The smaller fix is client-side (a debounced re-`markRead` while the channel is on screen), which is the concurrent session's lane |
 | B8 S2 | no ordering key (unserialized append, read in file order, client never sorts) and no idempotency key, so a retry duplicates |
-| B6 S2 | the crash path drops the `mentions` stamp, so the person who asked is never badged about the failure |
 | B5 S2 | the app card fires only when a project *gains* `pages/` — an **update** produces nothing |
 | B2 S1 | `thing_status`/`activity` are never persisted: join mid-turn and you see nothing |
 | B1 S1 | the socket has no message-update frame, no presence, no connection state, no resume cursor |

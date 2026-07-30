@@ -468,3 +468,60 @@ but neither tested nor wired into anything that calls it yet:
 
 NATIVE-VERIFY (the fourth stopped agent) is blocked on the `ENOSPC` sysctl limit above regardless of
 who resumes it.
+
+### The pipeline built a clean app — and could not tell anyone
+
+Run 4 of `13-plant-care` is the first end-to-end model-driven build that produced a working app, and
+the first in which **all three gates actually executed**: `verify.built=true`,
+`viewsValidated=true`, `renderSmoked=true`, `verify` running 4× across the fix loop. Ground truth:
+all 4 pages on disk as `.view.json` specs plus `_shell.view.json`, only `AUTO-GENERATED` wrappers as
+`.tsx`, `appCheck ok=true errorCount=0`, root page 200. Six endpoints landed as `plants-create`,
+`plants-detail`, … — every one of those names unspellable before the kebab fix.
+
+Then three separate mechanisms conspired to report it as broken, and the last one laundered that
+back into a false success. All three are now fixed, and the shape of the answer matters more than
+the individual bugs: **the save-time layer was never the weak point.** View specs are ajv- and
+contract-validated by their writers; api handlers are rejected at save by typecheck (the live run
+shows a `Record<string, unknown>` annotation and a misplaced `total_count` both refused). Every
+prompt fix the live-run agent made is teaching the model to avoid a rejection that *already exists*.
+The weak points were all at **node and agent boundaries**, where a model's word was taken for a fact.
+
+**1. A gate could never see its own last repair** (`libs/core/src/tasklist/orchestrator.ts`, fixed in
+`b9004363`). In the gate→repair topology — `onFail` on the repair node with a predicate reading the
+gate it depends on (`fix.onFail = {goto: verify, when: "verify.ok == false"}`) — the repair runs
+*after* the gate, so every recorded gate value predates the repair answering it. On budget
+exhaustion `maybeResume` returned silently, handing `finalize` a value one full round stale. A run
+needing exactly `maxAttempts` rounds could therefore **never** report success, however clean it
+ended up. Proven: a standalone re-run of `validateAppViews` against the finished project returned
+`{ok: true, errorCount: 0, checked: 4}`. Now the gate is re-measured once on exhaustion — the gate
+only, not `resumeSet`, so no unbudgeted extra repair attempt. The frozen appbuilder shares this
+engine and had the same latent bug; the fix improves it in the same direction.
+
+**2. A relay could report success over its own pipeline's verdict**
+(`libs/core/src/delegate/delegate.ts`, fixed in `d4904780`). `currentTaskResolve` overwrote
+`capturedResult`, so the automator's `{ok: true, degraded: true, summary: "…app built…"}` silently
+replaced `finalize`'s computed `ok: false` — while listing the two broken endpoints in the same
+object. The instruct had already been patched **twice** in prose for this exact failure, which is
+what made it structural. The envelope is now kept separately and a claimed success over a failed run
+is put back to false with `okOverriddenBy`, keeping the agent's own summary and error list. One
+subtlety worth recording: `envelope.ok` is *orchestration* success and was `true` here (the pipeline
+ran to completion and concluded the app was broken) — the verdict is `envelope.data.ok`, and the
+first cut of the check, reading only the outer one, would not have caught the bug it was written for.
+
+**3. `fix.ok` was a demand for a claim nobody reads** (fixed in `75d5bd9e`). Three `fix` nodes
+resolved a hardcoded `ok: true` after losing the binding (`Cannot find name 'w'`) they needed to
+compute it. `17-fix.md` spent ten lines forbidding this, justified by "the gate downstream trusts
+your `ok`" — which is false: `verify` cannot read `fix` at all (DAG cycle) and re-reads every
+artifact off disk, `18-finalize.md` names `verify` as ground truth, and the ratchet's
+retries-per-write derives from trace events plus artifacts. **So host-computing `fix.ok` was
+commissioned and then deliberately not built** — there is no safety payoff behind a field nothing
+consumes, and fix 1 guarantees `verify` now postdates the last repair, which is what made `fix.ok`
+redundant all along. The prompt now tells the truth and asks for `ok: false` when a landing can't be
+established.
+
+Note how 1 and 2 masked each other: a false-negative gate, laundered into a true-ish positive. Two
+bugs cancelling is the worst way to pass.
+
+Verified: 1129/1129 in `libs/core`, 331/331 in `libs/core/src/spaces`, 86/86 in
+`libs/core/src/tasklist`, and every new test confirmed to FAIL with its fix reverted. The pipeline
+has not yet been re-run with all three in place — that is the next thing worth doing.

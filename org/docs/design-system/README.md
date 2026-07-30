@@ -85,15 +85,15 @@ applied at `:94`) — these hold raw values by design:
   org/src
   ```
 
-- **CI hard gate**: `.github/workflows/design-tokens.yml` runs the same linter
-  (`design-tokens.yml:39-43`) on every `pull_request` and on `push` to `main`
-  (`design-tokens.yml:6-27`), but only when files under `sdk/org/**`, `com/** … casa/**`
-  change (the path filter). A violation fails the check and blocks the merge.
+- **CI hard gate**: `.github/workflows/design-tokens.yml` runs the same linter over the same roots
+  as the root `pnpm lint:tokens`, on every `pull_request`, on `push` to `main`, and on demand via
+  `workflow_dispatch`. A violation fails the check and blocks the merge.
 
-  **CI and the root script are not identical**: the workflow passes only the ten
-  product roots (`design-tokens.yml:41-43`) — it omits `org/src`, and `org/**` is not in
-  the path filter (`design-tokens.yml:6-27`). So the lmthing.org docs SPA is linted by
-  `pnpm lint:tokens` locally but is **not** gated by CI.
+  The path filter lists `sdk/org` **and** `sdk/org/**`. The bare entry is the load-bearing one:
+  `sdk/org` is a submodule, so bumping it changes the single gitlink path `sdk/org`, which
+  `sdk/org/**` does not match — and a submodule bump is how essentially all `sdk/org` source
+  reaches this repo. While that entry was missing the gate simply did not run for those commits.
+  Changing the workflow file itself also triggers it, so the gate always runs the gate.
 
 > Note: `@lmthing/css`'s own `pnpm --filter @lmthing/css lint`/`lint:tokens`
 > (`sdk/org/libs/css/package.json:28-29`) only scans that package's `src`; the repo-wide
@@ -117,8 +117,8 @@ a raw color there will ship un-flagged:
   (they sit under `libs/core`, which is not a lint root).
 - **`cloud/`** — the backend (gateway + LiteLLM). No product frontend, not scanned.
 - **`devops/ gh-pages/ automation/ app-specifications/ scratch/`** — not scanned.
-- **`org/src`** — scanned by the root `pnpm lint:tokens` (`package.json:14`) but **not** by CI
-  (`design-tokens.yml:41-43`), so violations there only surface if someone runs the script.
+- **`org/**` outside `org/src`** — the published docs themselves are prose, not a surface; only
+  `org/src` (the lmthing.org SPA) is walked, and it is gated by CI as well as by the root script.
 - **Non-`src` subtrees of a scanned product** — e.g. `com/public/…`; only `com/src` is walked.
 - **Extensions other than `.css .tsx .ts .jsx`** — e.g. inline `<style>` in `.html`,
   `.mjs` config (`lint-design-tokens.mjs:27`).

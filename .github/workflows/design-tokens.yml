@@ -3,9 +3,15 @@ name: Design tokens
 # Hard gate: fail if any source uses a raw color instead of a design-system token.
 # See org/docs/design-system/ for the rules and escape hatches (ds-lint-ok / ds-lint-file-ok).
 
+# `sdk/org` is listed WITHOUT a trailing `/**` as well, and that is not redundant: it is a
+# submodule, so bumping it changes the single gitlink path `sdk/org`, which `sdk/org/**` does not
+# match. Without the bare entry a submodule bump — the way essentially all `sdk/org` source reaches
+# this repo — silently skipped the gate.
 on:
+  workflow_dispatch:
   pull_request:
-    paths:
+    paths: &token_paths
+      - 'sdk/org'
       - 'sdk/org/**'
       - 'com/**'
       - 'social/**'
@@ -13,18 +19,12 @@ on:
       - 'space/**'
       - 'blog/**'
       - 'casa/**'
+      - 'org/src/**'
       - 'automation/app/**'
+      - '.github/workflows/design-tokens.yml'
   push:
     branches: [main]
-    paths:
-      - 'sdk/org/**'
-      - 'com/**'
-      - 'social/**'
-      - 'store/**'
-      - 'space/**'
-      - 'blog/**'
-      - 'casa/**'
-      - 'automation/app/**'
+    paths: *token_paths
 
 jobs:
   lint-tokens:
@@ -36,8 +36,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      # Keep this list identical to the root `lint:tokens` script in package.json — it used to omit
+      # `org/src`, so the lmthing.org SPA was gated locally and not in CI.
       - name: Lint design tokens
         run: >
           node sdk/org/libs/css/scripts/lint-design-tokens.mjs
           sdk/org/libs/css/src sdk/org/libs/ui/src sdk/org/apps/web/src
-          com/src social/src store/src space/src blog/src casa/src automation/app/src
+          com/src social/src store/src space/src blog/src casa/src org/src automation/app/src

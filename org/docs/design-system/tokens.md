@@ -126,7 +126,7 @@ The gate's own behaviour is tested end-to-end against fixtures, most of it guard
 
 **Files exempt by path** — the token definitions themselves: any `theme.css`, `tokens.json`, `tokens.manifest.json`, and anything under a `scripts/` dir (`ALLOW_FILE`, `lint-design-tokens.mjs:30-34`).
 
-> CI runs the same linter as a hard gate: `.github/workflows/design-tokens.yml:39-43` invokes `node sdk/org/libs/css/scripts/lint-design-tokens.mjs` over the ten product `src` roots on every `pull_request` and on `push` to `main` (`design-tokens.yml:6-27`). Note it omits `org/src`, which the root `pnpm lint:tokens` does scan (`package.json:14`) — full breakdown of what is and is not gated → [README](./README.md).
+> CI runs the same linter as a hard gate: `.github/workflows/design-tokens.yml` invokes `node sdk/org/libs/css/scripts/lint-design-tokens.mjs` over the same roots as the root `pnpm lint:tokens`, on every `pull_request`, on `push` to `main`, and on demand via `workflow_dispatch`. Its path filter must list `sdk/org` as well as `sdk/org/**`, since a submodule bump changes only the bare gitlink path — full breakdown of what is and is not gated → [README](./README.md).
 
 ---
 

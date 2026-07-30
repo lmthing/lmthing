@@ -142,16 +142,38 @@ targets honour it.
 
 The signed-in app opens on **Home**, not on chat: a dashboard that shows the three things a person
 moves between — conversations, projects, teams — so "where was I?" is answered by looking rather
-than by navigating (`sdk/org/libs/ui/src/dashboard/DashboardHome.tsx`). A tab bar switches Home and
-Chat and hands off to the teams surface
-(`sdk/org/libs/ui/src/elements/nav/bottom-nav/index.tsx`).
+than by navigating (`sdk/org/libs/ui/src/dashboard/DashboardHome.tsx`).
 
-It is ONE component for both targets. `apps/mobile` renders it as a tab
+It is ONE component for both targets. `apps/mobile` renders it as a pane
 (`sdk/org/apps/mobile/App.tsx`) and the web app as the `/home` route
 (`sdk/org/apps/web/src/routes/home/index.tsx`); navigation is supplied as props, so the surface
-itself cannot tell a tab switch from a router push. The tab bar is likewise responsive rather than
-forked — it renders below the `md` breakpoint and disappears above it, where the sidebar already
-does that job.
+itself cannot tell a pane switch from a router push.
+
+### Switching surfaces
+
+Home / Chat / Teams live in `SurfaceSwitcher`
+(`sdk/org/libs/ui/src/elements/nav/surface-switcher/index.tsx`), a pill row in the SIDEBAR — the
+same slot that used to link Studio / Computer / Team. There is **no bottom tab bar**: a bar pinned
+across the foot of the screen is a permanent slice of a phone's shortest dimension spent on
+navigation used seconds at a time, and it sat under the chat composer, pushing the one
+constantly-used control up off the keyboard.
+
+One component serves both targets, and the `onSwitch` prop is the seam:
+
+| `onSwitch` | Target | Renders | Behaviour |
+|---|---|---|---|
+| supplied | native | Home · Chat · Teams | switches panes in-process — there is no router |
+| omitted | web | Chat · Teams | hyperlinks via `crossAppOrigin`; **Home is dropped** |
+
+Home is absent on web because there is no `lmthing.home` surface for `crossAppOrigin` to resolve —
+`/home` is a route inside the unified app — and linking it somewhere wrong is worse than leaving
+the dashboard to the route that already reaches it.
+
+On mobile, Chat reaches the switcher through `AppShell`'s existing mobile sidebar drawer; Home and
+Teams have no sidebar of their own, so `App.tsx` supplies a hamburger and the same `Drawer` for
+them (`sdk/org/apps/mobile/App.tsx`). Its `badges` prop carries the team mention count that the tab
+bar used to show — the Teams pane stays mounted while hidden, so it keeps hearing its channel
+socket and remains the only thing that can report a mention arriving elsewhere.
 
 Three facts shape the data layer (`sdk/org/libs/ui/src/dashboard/use-dashboard-data.ts`):
 
@@ -423,8 +445,8 @@ in [`design/teams-mobile-ux.md`](../../../design/teams-mobile-ux.md); what the s
   `sdk/org/apps/web/src/routes/team/$teamId/route.tsx#TeamChrome`). As one top row — a back link,
   four tabs and a role badge — nothing could shrink below about 576px, so a 390px phone grew its
   layout viewport to fit and rendered every screen zoomed out with `Members` clipped and `Settings`
-  off the edge, reachable by no other route. `nav/bottom-nav` is now the app shell's three tabs
-  rendered through the same bar.
+  off the edge, reachable by no other route. These are the TEAM WORKSPACE's own four tabs; the app
+  shell's three surfaces are not a bar at all — see [Switching surfaces](#switching-surfaces).
 - **The sidebar names the team and switches between them**
   (`sdk/org/libs/ui/src/team/sidebar.tsx#SidebarHeader`). It is the one piece of chrome both targets
   have: the native screen renders `TeamChannelsView` and nothing else, so it opened `teams[0]`

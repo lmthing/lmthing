@@ -25,8 +25,8 @@ on:
         options: [production, staging]
         default: staging
       rollout:
-        description: 'Percent of devices to offer it to (start small; raise by re-running)'
-        required: true
+        description: 'Percent of devices to offer it to, 1-99 (start small; raise by re-running). Leave EMPTY for 100%.'
+        required: false
         default: '10'
       message:
         description: 'What this update changes (shown in the eoas dashboard)'
@@ -89,12 +89,18 @@ jobs:
           # And app.config.js reads the same variable for the `expo-channel-name` header
           # it compiles into a build, so a bundle and the binary that asks for it agree.
           EXPO_OTA_APP_ID: 9a2ba224-69e6-4629-a894-4f42eb305a45
+        # `--rollout-percentage` takes 1-99; the CLI REJECTS 100 ("Expected an integer
+        # less than or equal to 99"), because a full rollout is the absence of a
+        # rollout, not a rollout of everyone. So an empty input drops the flag rather
+        # than passing a number eoas will refuse.
         run: |
-          npx eoas publish \
-            --branch "${{ github.event.inputs.branch }}" \
-            --rollout-percentage "${{ github.event.inputs.rollout }}" \
-            --message "${{ github.event.inputs.message }}" \
-            --nonInteractive
+          args=(--branch "${{ github.event.inputs.branch }}"
+                --message "${{ github.event.inputs.message }}"
+                --nonInteractive)
+          if [ -n "${{ github.event.inputs.rollout }}" ]; then
+            args+=(--rollout-percentage "${{ github.event.inputs.rollout }}")
+          fi
+          npx eoas publish "${args[@]}"
 
       - name: Summary
         run: |

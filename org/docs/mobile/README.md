@@ -780,3 +780,45 @@ config reads the same `RELEASE_CHANNEL` for the `expo-channel-name` header it co
 into a build, so the bundle and the binary asking for it cannot drift apart.
 
 Rolling back beats publishing a fix — it is instant, and it does not need a green build.
+
+`--rollout-percentage` accepts **1–99**. A full rollout is expressed by omitting the flag,
+not by passing `100`, which the CLI rejects before it does any work.
+
+### A channel is not a branch, and nothing links them for you
+
+The binary asks by **channel** (`expo-channel-name`, compiled in); `eoas publish` writes to
+a **branch** (`--branch`). On a server that has never been published to, no mapping exists
+between them, and the failure is not an error at publish time — the publish succeeds, and
+every device asking for that channel gets `404 No branch mapping found`. The same lookup
+guards `/assets`, so an unmapped channel fails the bundle download too.
+
+The mapping is created once per channel, against the control-plane API:
+
+```bash
+# body key is channelName, NOT name — `{"name": …}` answers "Channel name is empty"
+curl -X POST https://lmthing.cloud/ota/api/apps/$APP_UUID/channels \
+  -H "authorization: Bearer $DASHBOARD_TOKEN" -H 'content-type: application/json' \
+  -d '{"channelName":"production","branchName":"production"}'
+```
+
+### Proving an update would actually be applied, without a device
+
+Every step below is a place the chain breaks silently in the field, and all of them are
+checkable from a laptop. Send the request a device sends — the app id, the channel and the
+runtime version are all required, and `expo-channel-name` must be on the **asset** request
+too, not only the manifest one:
+
+```bash
+curl -sD- https://lmthing.cloud/ota/manifest \
+  -H "expo-app-id: $APP_UUID" -H 'expo-channel-name: production' \
+  -H "expo-runtime-version: $RTV" -H 'expo-platform: android' \
+  -H 'expo-protocol-version: 1' -H 'expo-expect-signature: true' \
+  -H 'accept: multipart/mixed'
+```
+
+A 200 `multipart/mixed` whose manifest part carries `expo-signature: sig="…", keyid="main"`
+is the only answer that means anything. Then verify that signature against
+`certs/certificate.pem` — the copy in the binary — with `crypto.verify('RSA-SHA256', …)`
+over the manifest part's **raw bytes**; re-serialising the JSON invalidates it. Finally
+fetch `launchAsset.url` and check its sha256 against `launchAsset.hash` (url-safe base64,
+no padding). Confirmed for the first published update on 2026-07-30.

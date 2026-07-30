@@ -91,3 +91,50 @@ export function trackSseClose(ip: string) {
 }
 
 export function getSseGlobalCount(): number { return sseGlobalCount; }
+
+// ─── Fixed-window limiter for unauthenticated write endpoints ────────────────
+//
+// `statusRateLimit` is a 60/min read budget — far too generous for an endpoint
+// that sends mail on an anonymous request. This is a separate, much smaller
+// budget with its own bucket map, so a burst of sign-in attempts cannot spend
+// the status budget or vice versa.
+//
+// Per-IP is the coarse half of the throttle; the per-mailbox half lives in
+// Postgres (`countRecentEmailLoginCodes`), because a distributed sender rotating
+// IPs would slip past an in-memory bucket while still hammering one inbox.
+
+const limiters = new Map<string, Map<string, { count: number; resetAt: number }>>();
+
+export function ipRateLimit(name: string, max: number, windowMs: number) {
+  let hits = limiters.get(name);
+  if (!hits) {
+    hits = new Map();
+    limiters.set(name, hits);
+  }
+  const buckets = hits;
+
+  return async function ipRateLimitMiddleware(c: Context, next: Next) {
+    const ip = getIp(c);
+    const now = Date.now();
+
+    // Sweep on write rather than on a timer: this map only grows when the
+    // endpoint is actually used, and a stale window is cheap to drop inline.
+    if (buckets.size >= MAX_MAP_SIZE) {
+      for (const [key, b] of buckets) if (b.resetAt <= now) buckets.delete(key);
+    }
+
+    let bucket = buckets.get(ip);
+    if (!bucket || bucket.resetAt <= now) {
+      bucket = { count: 0, resetAt: now + windowMs };
+      buckets.set(ip, bucket);
+    }
+
+    if (bucket.count >= max) {
+      c.header("Retry-After", String(Math.ceil((bucket.resetAt - now) / 1000)));
+      return c.json({ error: "Too many requests — try again in a few minutes" }, 429);
+    }
+
+    bucket.count++;
+    return next();
+  };
+}

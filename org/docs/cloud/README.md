@@ -53,7 +53,7 @@ updates budget windows on tier change, and lists/revokes keys — all via the Li
 
 | Mount | Module | Purpose | Doc |
 |---|---|---|---|
-| `/api/auth` | `routes/auth.ts` | register, login, GitHub OAuth (Zitadel IDP Intent), provision, me, refresh, SSO | [auth.md](./auth.md) |
+| `/api/auth` | `routes/auth.ts` | register, login, passwordless email sign-in (code + magic link), GitHub OAuth (Zitadel IDP Intent), provision, me, refresh, SSO | [auth.md](./auth.md) |
 | `/api/keys` | `routes/keys.ts` | list / create / revoke the user's LiteLLM API keys | [routes.md](./routes.md) |
 | `/api/billing` | `routes/billing.ts` | Stripe checkout, customer portal, usage, checkout status | [billing-and-tiers.md](./billing-and-tiers.md) |
 | `/api/stripe/webhook` | `routes/webhook.ts` | Stripe subscription webhook → tier changes + pod lifecycle | [billing-and-tiers.md](./billing-and-tiers.md) |
@@ -119,7 +119,7 @@ scripts: `stripe:create-products`, `litellm:generate-models`, `litellm:resync-bu
 ## Sub-docs
 
 - [routes.md](./routes.md) — every gateway HTTP route + its auth scheme
-- [auth.md](./auth.md) — token types, Zitadel identity, GitHub OAuth, SSO
+- [auth.md](./auth.md) — token types, Zitadel identity, passwordless email sign-in, GitHub OAuth, SSO
 - [billing-and-tiers.md](./billing-and-tiers.md) — tiers, budget windows, Stripe flows
 - [teams.md](./teams.md) — teams: the principal model, membership, roles, the team token
 - [litellm.md](./litellm.md) — the `/v1/*` LLM proxy, models, tier enforcement

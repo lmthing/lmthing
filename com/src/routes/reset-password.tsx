@@ -5,8 +5,8 @@ export const Route = createFileRoute('/reset-password')({
   component: ResetPassword,
 })
 
-// Password reset is not available with GitHub-only authentication.
-// Redirects to login page.
+// There are no passwords to reset: sign-in is either a mailed one-time code or
+// GitHub. Redirects to the sign-in page, which offers both.
 function ResetPassword() {
   const navigate = useNavigate()
 

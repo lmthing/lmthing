@@ -182,3 +182,46 @@ export function billingPortal() {
 export function getUsage() {
   return cloudFetch('/api/billing/usage')
 }
+
+// ── Passwordless email sign-in ────────────────────────────────
+//
+// Two calls: ask the gateway to mail a 6-digit code + magic link, then hand the
+// code back. There is no separate signup — any address that can receive the code
+// gets an account on first use, and an address that already signed in with GitHub
+// resolves to that same account.
+
+export interface EmailLoginStart {
+  sent: boolean
+  /** Masked (`a••••@example.com`) — the gateway never echoes the address back in full. */
+  email: string
+  expires_at: number
+  /** Present only on a dev deployment with no mail transport configured. */
+  dev_code?: string
+  dev_link?: string
+}
+
+/**
+ * `redirectUri` is where the magic link lands when it is clicked — this app's
+ * `/callback`, which reads the token fragment. The gateway validates it against
+ * an origin allowlist, so it must be a real origin and not a bare path.
+ */
+export function startEmailLogin(email: string, redirectUri?: string) {
+  return cloudFetchPublic('/api/auth/email/start', {
+    method: 'POST',
+    body: JSON.stringify({ email, ...(redirectUri ? { redirect_uri: redirectUri } : {}) }),
+  }) as Promise<EmailLoginStart>
+}
+
+export async function verifyEmailLogin(email: string, code: string) {
+  const data = await cloudFetchPublic('/api/auth/email/verify', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
+  })
+  storeTokens(data)
+  return data as {
+    access_token: string
+    refresh_token: string
+    expires_at: number
+    user: { id: string; email: string }
+  }
+}

@@ -217,6 +217,73 @@ spec:
                   name: lmthing-secrets
                   key: GITHUB_OAUTH_CLIENT_SECRET
                   optional: true
+            # Passwordless email sign-in. All optional: with none of them set the
+            # mailer resolves to its `console` transport, reports configured:false,
+            # and POST /api/auth/email/start answers 503 instead of pretending it
+            # sent a code. Setting RESEND_API_KEY *or* SMTP_HOST is the only step
+            # needed to turn email sign-in on.
+            - name: EMAIL_PROVIDER
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: EMAIL_PROVIDER
+                  optional: true
+            - name: EMAIL_FROM
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: EMAIL_FROM
+                  optional: true
+            - name: EMAIL_FROM_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: EMAIL_FROM_NAME
+                  optional: true
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: RESEND_API_KEY
+                  optional: true
+            - name: SMTP_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: SMTP_HOST
+                  optional: true
+            - name: SMTP_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: SMTP_PORT
+                  optional: true
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: SMTP_USER
+                  optional: true
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: SMTP_PASSWORD
+                  optional: true
+            - name: SMTP_SECURITY
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: SMTP_SECURITY
+                  optional: true
+            # Overrides the magic-link redirect allowlist (comma-separated exact
+            # origins). Unset ⇒ https on any lmthing.* host, plus local dev hosts.
+            - name: EMAIL_LOGIN_ALLOWED_ORIGINS
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: EMAIL_LOGIN_ALLOWED_ORIGINS
+                  optional: true
             - name: GITHUB_ISSUES_REPO
               value: "lmthing/bug-reports"
             - name: GITHUB_BUGREPORT_REPO

@@ -99,14 +99,22 @@ What lives in which namespace, the routing model, per-user pods and scale-to-zer
 
 ## Testing on production / creating a test user — practical
 
-The production apps require a logged-in user. `POST https://lmthing.cloud/api/auth/register`
-creates one, but **`POST /api/auth/login` is broken** (Zitadel "password not supported" —
+The production apps require a logged-in user. The normal way in is **passwordless email
+sign-in** — `POST /api/auth/email/start {email}` mails a 6-digit code plus a magic link to
+any address, `POST /api/auth/email/verify {email,code}` returns a gateway session, and the
+account is created on first sign-in ([org/docs/cloud/auth.md](./org/docs/cloud/auth.md)).
+It needs a mail transport in `lmthing-secrets` (`RESEND_API_KEY` or the `SMTP_*` group); if
+none is set, `/email/start` answers `503`.
+
+`POST /api/auth/register` also creates a user, but **`POST /api/auth/login` is broken**
+(Zitadel "password not supported" —
 see [.issues/zitadel-password-login-disabled.md](./.issues/zitadel-password-login-disabled.md)).
-To get a session: mint a gateway HS256 JWT with `GATEWAY_JWT_SECRET` (from the
-`lmthing-secrets` k8s secret; shape in `cloud/gateway/src/lib/tokens.ts`) for the
-registered `user_id`, then inject `localStorage.lmthing_session = {accessToken,
-refreshToken, expiresAt, userId, email, githubRepo:null, githubUsername:null}` on the
-target SPA and reload. `POST /api/compute/ensure` provisions the free-tier pod;
+So when no mailer is configured, fall back to minting a session by hand: sign a gateway
+HS256 JWT with `GATEWAY_JWT_SECRET` (from the `lmthing-secrets` k8s secret; shape in
+`cloud/gateway/src/lib/tokens.ts`) for the registered `user_id`, then inject
+`localStorage.lmthing_session = {accessToken, refreshToken, expiresAt, userId, email,
+githubRepo:null, githubUsername:null}` on the target SPA and reload.
+`POST /api/compute/ensure` provisions the free-tier pod;
 `PUT /api/compute/env {vars}` loads API keys (it **replaces** all vars — GET + merge first;
 source keys in `sdk/org/.env`). Drive the browser with the chrome-devtools MCP.
 

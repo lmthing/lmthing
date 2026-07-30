@@ -311,6 +311,80 @@ export async function refreshTokens(refreshToken: string): Promise<{
   };
 }
 
+// ─── Passwordless email identities ───────────────────────────────────────────
+
+/**
+ * Create a human user with NO credential at all.
+ *
+ * `createUser` above requires a password, which the passwordless email flow does
+ * not have and must not invent: a random password nobody knows is a credential
+ * that can still be reset or brute-forced, and it makes the account look like a
+ * password account to Zitadel. Omitting `password` is what keeps proof-of-mailbox
+ * the only way in. `isVerified: true` is correct here for the same reason it is
+ * on the GitHub path — the gateway has just verified the address itself by
+ * delivering a code to it, so a second Zitadel verification mail would be noise.
+ */
+export async function createPasswordlessUser(
+  email: string,
+): Promise<{ userId: string }> {
+  const res = await fetch(`${ZITADEL_URL}/v2/users/human`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getServiceToken()}`,
+    },
+    body: JSON.stringify({
+      username: email,
+      profile: { givenName: "User", familyName: "." },
+      email: { email, isVerified: true },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: "Unknown error" }));
+    throw new Error(
+      (err as { message?: string }).message || "Failed to create user",
+    );
+  }
+
+  const data = (await res.json()) as { userId: string };
+  return { userId: data.userId };
+}
+
+/**
+ * The Zitadel user for `email`, creating a passwordless one on first sign-in.
+ *
+ * There is no separate "register" step on this path — proving control of a
+ * mailbox IS the signup. An address that already has an account (registered with
+ * a password, or created by the GitHub IDP link, which stores the GitHub login as
+ * the username but the same email) resolves to that same user, so email sign-in
+ * lands people in the account they already have instead of forking a second one.
+ *
+ * The create is retried as a lookup on failure: two sign-in requests for a brand
+ * new address can race, and the loser must return the winner's user rather than
+ * failing the sign-in.
+ */
+export async function findOrCreateUserByEmail(
+  email: string,
+): Promise<{ id: string; email: string }> {
+  try {
+    return await getUserByEmail(email);
+  } catch {
+    // No such user yet — fall through and create one.
+  }
+
+  try {
+    const { userId } = await createPasswordlessUser(email);
+    return { id: userId, email };
+  } catch (err) {
+    try {
+      return await getUserByEmail(email);
+    } catch {
+      throw err;
+    }
+  }
+}
+
 // RFC 8693 Token Exchange — generates a Zitadel token for a user via service account impersonation.
 // Requires "Token Exchange" feature enabled in Zitadel instance settings.
 export async function exchangeTokenForUser(userId: string): Promise<{

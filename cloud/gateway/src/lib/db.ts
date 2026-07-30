@@ -244,6 +244,30 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user
       ON public.push_subscriptions (user_id)
   `;
+  // Passwordless email sign-in — one row per issued code, holding only HASHES of
+  // the 6-digit code and the magic-link token. Mirror of
+  // cloud/migrations/012_email_login_codes.sql.
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.email_login_codes (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      email text NOT NULL,
+      code_hash text NOT NULL,
+      link_hash text NOT NULL UNIQUE,
+      redirect_uri text,
+      attempts int NOT NULL DEFAULT 0,
+      expires_at timestamptz NOT NULL,
+      consumed_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_email_login_codes_live
+      ON public.email_login_codes (email, created_at DESC) WHERE consumed_at IS NULL
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_email_login_codes_created
+      ON public.email_login_codes (created_at)
+  `;
 }
 
 export interface PushSubscription {
@@ -892,4 +916,133 @@ export async function getTeamByStripeCustomer(
     SELECT * FROM teams WHERE stripe_customer_id = ${customerId} LIMIT 1
   `;
   return rows[0] ?? null;
+}
+
+// ─── Passwordless email sign-in (email_login_codes) ──────────────────────────
+//
+// One row per issued sign-in code. It stores only the SHA-256 of the 6-digit
+// code (bound to the mailbox) and of the magic-link token, so a database dump
+// contains no usable credential. The row is the single-use unit: consuming it
+// through either credential invalidates the other.
+//
+// Every read is bounded by `consumed_at IS NULL AND expires_at > now()` in SQL
+// rather than in the handler, so an expired or already-spent row is invisible to
+// the verification paths by construction.
+
+export interface EmailLoginCode {
+  id: string;
+  email: string;
+  code_hash: string;
+  link_hash: string;
+  redirect_uri: string | null;
+  attempts: number;
+  expires_at: string;
+  consumed_at: string | null;
+  created_at: string;
+}
+
+/**
+ * Store a freshly issued code, superseding any live code for the same mailbox.
+ *
+ * Superseding is what makes "resend" behave the way a user expects: after asking
+ * again, only the newest code works. Without it the older code stays valid for
+ * its full TTL and the two are indistinguishable in the inbox.
+ */
+export async function insertEmailLoginCode(input: {
+  email: string;
+  codeHash: string;
+  linkHash: string;
+  redirectUri: string | null;
+  expiresAt: Date;
+}): Promise<void> {
+  await sql.begin(async (tx) => {
+    await tx`
+      UPDATE email_login_codes SET consumed_at = now()
+      WHERE email = ${input.email} AND consumed_at IS NULL
+    `;
+    await tx`
+      INSERT INTO email_login_codes (email, code_hash, link_hash, redirect_uri, expires_at)
+      VALUES (${input.email}, ${input.codeHash}, ${input.linkHash},
+              ${input.redirectUri}, ${input.expiresAt.toISOString()})
+    `;
+  });
+}
+
+/** Sends to this mailbox since `since` — the per-mailbox send throttle. */
+export async function countRecentEmailLoginCodes(
+  email: string,
+  since: Date,
+): Promise<number> {
+  const rows = await sql<{ n: string }[]>`
+    SELECT count(*) AS n FROM email_login_codes
+    WHERE email = ${email} AND created_at > ${since.toISOString()}
+  `;
+  return Number(rows[0]?.n ?? 0);
+}
+
+/** The live code row for a mailbox, newest first. */
+export async function findLiveEmailLoginCode(
+  email: string,
+): Promise<EmailLoginCode | null> {
+  const rows = await sql<EmailLoginCode[]>`
+    SELECT * FROM email_login_codes
+    WHERE email = ${email} AND consumed_at IS NULL AND expires_at > now()
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+/** The live row a magic-link token addresses. */
+export async function findLiveEmailLoginCodeByLink(
+  linkHash: string,
+): Promise<EmailLoginCode | null> {
+  const rows = await sql<EmailLoginCode[]>`
+    SELECT * FROM email_login_codes
+    WHERE link_hash = ${linkHash} AND consumed_at IS NULL AND expires_at > now()
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+/**
+ * Spend the row. Returns false when someone else already did.
+ *
+ * The `consumed_at IS NULL` predicate lives in the UPDATE, so single-use is
+ * enforced by the row lock rather than by a read-then-write in the handler —
+ * two simultaneous submissions of the same code cannot both win.
+ */
+export async function consumeEmailLoginCode(id: string): Promise<boolean> {
+  const rows = await sql`
+    UPDATE email_login_codes SET consumed_at = now()
+    WHERE id = ${id} AND consumed_at IS NULL AND expires_at > now()
+    RETURNING 1 AS consumed
+  `;
+  return rows.length > 0;
+}
+
+/**
+ * Count a wrong guess, burning the row once the cap is reached. Returns the new
+ * attempt count so the caller can tell "wrong, try again" from "start over".
+ */
+export async function recordEmailLoginAttempt(
+  id: string,
+  maxAttempts: number,
+): Promise<number> {
+  const rows = await sql<{ attempts: number }[]>`
+    UPDATE email_login_codes
+    SET attempts = attempts + 1,
+        consumed_at = CASE WHEN attempts + 1 >= ${maxAttempts} THEN now() ELSE consumed_at END
+    WHERE id = ${id}
+    RETURNING attempts
+  `;
+  return rows[0]?.attempts ?? maxAttempts;
+}
+
+/** Drop rows that can no longer be used by anyone. Called opportunistically. */
+export async function purgeExpiredEmailLoginCodes(): Promise<void> {
+  await sql`
+    DELETE FROM email_login_codes
+    WHERE created_at < now() - interval '1 day'
+  `;
 }

@@ -6,7 +6,26 @@ import * as zitadel from "../lib/zitadel.js";
 import * as db from "../lib/db.js";
 import { TIERS } from "../lib/tiers.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { ipRateLimit } from "../middleware/rate-limit.js";
 import { signTokens, verifyRefreshToken } from "../lib/tokens.js";
+import { isEmailConfigured, sendEmail } from "../lib/email.js";
+import {
+  CODE_TTL_MS,
+  MAX_ATTEMPTS,
+  MAX_SENDS_PER_WINDOW,
+  SEND_WINDOW_MS,
+  generateLinkToken,
+  generateOtp,
+  hashCode,
+  hashLinkToken,
+  hashesEqual,
+  isAllowedRedirect,
+  maskEmail,
+  normalizeEmail,
+  normalizeOtp,
+  redirectWithTokens,
+  renderLoginEmail,
+} from "../lib/email-login.js";
 import type { Env } from "../types.js";
 
 const auth = new Hono<Env>();
@@ -314,5 +333,238 @@ auth.get("/demo-token", async (c) => {
   );
   return c.json({ access_token, expires_at });
 });
+
+// ═══════════════════════════════════════════════════════════════
+// EMAIL — passwordless sign-in (magic link + one-time code)
+// ═══════════════════════════════════════════════════════════════
+//
+// Any address can sign in, and there is no separate registration: proving
+// control of the mailbox IS the account. One request issues two credentials for
+// one single-use row — a 6-digit code to type back into the page, and an opaque
+// link to click from the inbox — so the flow completes whether the mail is read
+// on the same device or another one. Details of the policy (TTLs, attempt caps,
+// where a link may redirect) are in lib/email-login.ts; the mail transports are
+// in lib/email.ts.
+//
+// This sits alongside GitHub OAuth, it does not replace it: an address that
+// already has an account — password-registered, or created by the GitHub IDP
+// link — resolves to that same Zitadel user, so both doors open the same account.
+
+// POST /email/start — send a sign-in code + magic link to any email
+auth.post(
+  "/email/start",
+  ipRateLimit("email-login", 10, 15 * 60_000),
+  async (c) => {
+    const body = await c.req
+      .json<{ email?: unknown; redirect_uri?: unknown }>()
+      .catch(() => ({}) as { email?: unknown; redirect_uri?: unknown });
+
+    const email = normalizeEmail(body.email);
+    if (!email) return c.json({ error: "A valid email address is required" }, 400);
+
+    // Where the magic link lands. Unvalidated, this would hand a token pair to
+    // any host an attacker named, so an unknown origin is rejected outright
+    // rather than silently replaced with a default.
+    const requested = typeof body.redirect_uri === "string" ? body.redirect_uri.trim() : "";
+    let redirectUri: string | null = null;
+    if (requested) {
+      if (!isAllowedRedirect(requested, process.env.EMAIL_LOGIN_ALLOWED_ORIGINS)) {
+        return c.json({ error: "redirect_uri is not an allowed origin" }, 400);
+      }
+      redirectUri = requested;
+    }
+
+    // A deployment with no mail transport cannot deliver a code, and answering
+    // "sent" would be a lie that looks like a working login. EMAIL_DEV_ECHO
+    // (dev/CI only) is the explicit opt-in that returns the credentials in the
+    // response instead.
+    const echo = process.env.EMAIL_DEV_ECHO === "true" || process.env.LOCAL_DEV === "true";
+    if (!isEmailConfigured() && !echo) {
+      return c.json(
+        { error: "Email sign-in is not configured on this deployment" },
+        503,
+      );
+    }
+
+    const since = new Date(Date.now() - SEND_WINDOW_MS);
+    try {
+      const recent = await db.countRecentEmailLoginCodes(email, since);
+      if (recent >= MAX_SENDS_PER_WINDOW) {
+        return c.json(
+          { error: "Too many sign-in emails for this address — try again shortly" },
+          429,
+        );
+      }
+    } catch (err) {
+      console.error("email login throttle check failed:", err);
+      return c.json({ error: "Sign-in is temporarily unavailable" }, 503);
+    }
+
+    const code = generateOtp();
+    const linkToken = generateLinkToken();
+    const expiresAt = new Date(Date.now() + CODE_TTL_MS);
+
+    try {
+      await db.insertEmailLoginCode({
+        email,
+        codeHash: hashCode(email, code),
+        linkHash: hashLinkToken(linkToken),
+        redirectUri,
+        expiresAt,
+      });
+    } catch (err) {
+      console.error("insertEmailLoginCode failed:", err);
+      return c.json({ error: "Failed to start email sign-in" }, 500);
+    }
+
+    const link = `${process.env.BASE_URL}/api/auth/email/callback?token=${encodeURIComponent(linkToken)}`;
+    const message = renderLoginEmail({
+      code,
+      link,
+      ttlMinutes: Math.round(CODE_TTL_MS / 60_000),
+    });
+
+    try {
+      await sendEmail({
+        to: email,
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+      });
+    } catch (err) {
+      // Log the real reason, tell the client only that delivery failed — an SMTP
+      // error string can carry the relay host and account name.
+      console.error("sign-in email delivery failed:", err);
+      return c.json({ error: "Could not send the sign-in email" }, 502);
+    }
+
+    void db.purgeExpiredEmailLoginCodes().catch(() => null);
+
+    return c.json({
+      sent: true,
+      email: maskEmail(email),
+      expires_at: Math.floor(expiresAt.getTime() / 1000),
+      // Dev/CI only — lets a test or a local run finish the flow without a relay.
+      ...(echo && !isEmailConfigured() ? { dev_code: code, dev_link: link } : {}),
+    });
+  },
+);
+
+// POST /email/verify — exchange the 6-digit code for a gateway session
+auth.post(
+  "/email/verify",
+  ipRateLimit("email-verify", 30, 15 * 60_000),
+  async (c) => {
+    const body = await c.req
+      .json<{ email?: unknown; code?: unknown }>()
+      .catch(() => ({}) as { email?: unknown; code?: unknown });
+
+    const email = normalizeEmail(body.email);
+    const code = normalizeOtp(body.code);
+    if (!email || !code) {
+      return c.json({ error: "email and a 6-digit code are required" }, 400);
+    }
+
+    const row = await db.findLiveEmailLoginCode(email).catch((err) => {
+      console.error("findLiveEmailLoginCode failed:", err);
+      return null;
+    });
+    if (!row) {
+      return c.json({ error: "That code has expired — request a new one" }, 401);
+    }
+
+    if (!hashesEqual(row.code_hash, hashCode(email, code))) {
+      const attempts = await db
+        .recordEmailLoginAttempt(row.id, MAX_ATTEMPTS)
+        .catch(() => MAX_ATTEMPTS);
+      const remaining = Math.max(0, MAX_ATTEMPTS - attempts);
+      return c.json(
+        {
+          error:
+            remaining > 0
+              ? "That code is not right"
+              : "Too many incorrect attempts — request a new code",
+          attempts_remaining: remaining,
+        },
+        401,
+      );
+    }
+
+    // Spend the row BEFORE minting anything: if two requests submit the same
+    // correct code, exactly one gets a session.
+    if (!(await db.consumeEmailLoginCode(row.id))) {
+      return c.json({ error: "That code has already been used" }, 401);
+    }
+
+    const session = await mintEmailSession(email);
+    if (!session) return c.json({ error: "Could not complete sign-in" }, 500);
+    return c.json(sessionBody(session, email));
+  },
+);
+
+// GET /email/callback — the magic link; redirects with tokens in the URL fragment
+auth.get("/email/callback", async (c) => {
+  const token = c.req.query("token");
+  if (!token) return c.json({ error: "Missing token" }, 400);
+
+  const row = await db.findLiveEmailLoginCodeByLink(hashLinkToken(token)).catch((err) => {
+    console.error("findLiveEmailLoginCodeByLink failed:", err);
+    return null;
+  });
+  if (!row) {
+    return c.json({ error: "This sign-in link has expired or was already used" }, 401);
+  }
+  if (!(await db.consumeEmailLoginCode(row.id))) {
+    return c.json({ error: "This sign-in link was already used" }, 401);
+  }
+
+  const session = await mintEmailSession(row.email);
+  if (!session) return c.json({ error: "Could not complete sign-in" }, 500);
+
+  // No redirect_uri was recorded (an API-only caller): there is nowhere to send
+  // the browser, so hand the session back directly.
+  if (!row.redirect_uri) return c.json(sessionBody(session, row.email));
+
+  return c.redirect(redirectWithTokens(row.redirect_uri, session.tokens));
+});
+
+interface EmailSession {
+  userId: string;
+  tokens: { access_token: string; refresh_token: string; expires_at: number };
+}
+
+/**
+ * Resolve the identity for a proven mailbox and mint a gateway session; null when
+ * the identity store could not be reached.
+ *
+ * Shared by the code and the link paths, which differ only in how the mailbox was
+ * proven. Both create the account on first sign-in, and both provision
+ * LiteLLM/Stripe best-effort — exactly as the OAuth path does, because a LiteLLM
+ * or Stripe hiccup must not cost the user a session they have already proven they
+ * own.
+ */
+async function mintEmailSession(email: string): Promise<EmailSession | null> {
+  let userId: string;
+  try {
+    const user = await zitadel.findOrCreateUserByEmail(email);
+    userId = user.id;
+  } catch (err) {
+    console.error("findOrCreateUserByEmail failed:", err);
+    return null;
+  }
+
+  const tokens = await signTokens(userId, email);
+  await provisionUser(userId, email).catch(() => null);
+  return { userId, tokens };
+}
+
+function sessionBody(session: EmailSession, email: string) {
+  return {
+    access_token: session.tokens.access_token,
+    refresh_token: session.tokens.refresh_token,
+    expires_at: session.tokens.expires_at,
+    user: { id: session.userId, email },
+  };
+}
 
 export default auth;

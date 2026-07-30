@@ -127,6 +127,9 @@ VITE_CLOUD_BASE_URL=http://localhost:5199 VITE_COMPUTER_BASE_URL=http://localhos
 ```
 
 These apps are served by `vp` (vite-plus), which does **not** load `.env*` or expose `VITE_`-prefixed keys on `import.meta.env` the way stock Vite does — so for a while every one of those overrides was `undefined` at runtime and pointing the SPA at a local rig meant hand-editing `config.ts` and remembering not to commit it. The shared factory now loads them itself and injects them as `define` replacements, which is what stock Vite compiles `import.meta.env.VITE_*` to anyway (`sdk/org/libs/utils/src/vite.mjs#viteEnvDefines`). Only keys that are actually set are injected, so an unset override still falls through the `??` chain to `resolveApiOrigin`.
+### Exercising the real sign-in flow locally
+
+Demo mode above skips auth entirely. To drive the **actual** passwordless email flow against a local gateway with no mail relay, run it with `LOCAL_DEV=true` (which `make` already sets) or `EMAIL_DEV_ECHO=true`: with no transport configured, the mailer falls back to its `console` transport (the message is printed to the gateway log) and `POST /api/auth/email/start` additionally returns `dev_code` + `dev_link` in the response body, which `/login` renders as a clickable "Dev only: open the sign-in link" (`cloud/gateway/src/lib/email.ts#mailerKind`, `cloud/gateway/src/routes/auth.ts:381`, `com/src/lib/auth/SignInPanel.tsx#SignInPanel`). Point `SMTP_HOST`/`SMTP_PORT` at a local catch-all relay (with `SMTP_SECURITY=none`) to test real delivery instead. Full model → [../cloud/auth.md](../cloud/auth.md), section "Passwordless email sign-in".
 
 ## Full local backend + compute pod (minikube)
 

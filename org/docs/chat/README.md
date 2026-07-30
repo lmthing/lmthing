@@ -48,7 +48,7 @@ All chat state lives in one Zustand store composed from session / replay / prici
 
 ## The live session
 
-A conversation is a **pod session** streamed over a WebSocket. Selecting a chat closes the old socket, resets the store, opens `WS /api/ws?sessionId=<id>&access_token=<jwt>` and publishes the sender on `window.__LM_SEND__` — the seam every component uses to send (`sdk/org/libs/ui/src/chat/app/Sidebar.tsx#switchSession`).
+A conversation is a **pod session** streamed over a WebSocket. Selecting a chat closes the old socket, resets the store, opens `WS /api/ws?sessionId=<id>&access_token=<jwt>` and publishes the sender on `window.__LM_SEND__` — the seam every component uses to send (`sdk/org/libs/ui/src/chat/app/session-control.ts#switchSession`).
 
 ```ts
 activeConn = connectLive(`${proto}//${window.location.host}/api/ws?sessionId=${encodeURIComponent(sessionId)}${wsTokenSuffix()}`);

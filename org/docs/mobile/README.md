@@ -175,6 +175,49 @@ them (`sdk/org/apps/mobile/App.tsx`). Its `badges` prop carries the team mention
 bar used to show — the Teams pane stays mounted while hidden, so it keeps hearing its channel
 socket and remains the only thing that can report a mention arriving elsewhere.
 
+### The chat surface with no conversation open
+
+`NoSessionPane` is what the chat surface shows before a conversation is selected
+(`sdk/org/libs/ui/src/chat/app/NoSessionPane.tsx#NoSessionPane`, rendered by
+`sdk/org/libs/ui/src/chat/app/AppShell.tsx#AppShell`). It carries a `+ New chat` button and, where
+the sidebar is a drawer, a `Your conversations` button that opens it.
+
+It used to be the single sentence "Select or start a chat from the sidebar", which is true on web
+— the sidebar is a docked column beside it — and false on a phone, where the sidebar is an overlay.
+Closing that overlay left a blank screen holding one instruction that named something not on it and
+nothing to press, which is indistinguishable from a broken app.
+
+The word "sidebar" therefore never appears in the mobile arrangement, and the pane owns the actions
+rather than describing them. Starting a chat is the same call the sidebar's own button makes
+(`sdk/org/libs/ui/src/chat/app/session-control.ts#startSession`) — that module exists because
+opening a session used to be private to `Sidebar.tsx`, so only the sidebar could do it. Its failure
+is caught and shown: a pod that has scaled to zero answers 503 for the ~20s it takes to wake, so
+the press most likely to fail is the first one after opening the app, and an uncaught rejection
+there is a full-screen red box on a device.
+
+### The composer's one-line ⇄ stacked arrangement
+
+Past one line the message text takes the full width and the controls move to a row beneath it
+(`sdk/org/libs/ui/src/chat/app/Composer.tsx#Composer`). Two things about it are load-bearing on a
+phone and invisible on web:
+
+- **Both arrangements are ONE tree.** The field stays the same Row's second child in each; the
+  buttons beside it render as `null`, which holds their slots. Written as two branches the field
+  changed PARENT, and React reconciles by position — a `key` only disambiguates siblings — so
+  crossing that boundary remounted the input, destroying the native `TextInput` and dismissing the
+  keyboard mid-sentence.
+- **The height of one line is measured, not declared, and measured while the box is EMPTY**
+  (`Composer.tsx#ONE_LINE_CEILING`). An RN `TextInput` reports `contentSize.height` in the
+  platform's own terms — Android adds its internal padding — so a fixed threshold read "already
+  wrapped" for a box with one character in it. Taking the smallest measurement seen instead fails
+  the other way: a freshly mounted field first reports its `minHeight` clamp, below what an empty
+  box settles at, so an *empty* composer measured as wrapped and stayed stacked after every send.
+  An empty box cannot lie about its own height.
+
+The growth itself lives in the native primitive, not the surface
+(`sdk/org/libs/ui/src/elements/primitives/controls.native.tsx#TextArea`): `multiline` alone does
+not auto-grow, and `Composer` cannot ask "am I on a phone?" without becoming two components.
+
 Three facts shape the data layer (`sdk/org/libs/ui/src/dashboard/use-dashboard-data.ts`):
 
 - **Teams come from the GATEWAY**, projects and conversations from the **pod** — two origins, so the

@@ -52,6 +52,8 @@ Because the gate has already confirmed the edge is serving, `ChatShell`'s boot f
 
 Sessions are grouped Today / Yesterday / Last 7 days / Older by `lastActivity` (`Sidebar.tsx:56-72`) and each row shows its cost (`totalCostUsd`, or the live store cost for the active session) (`Sidebar.tsx:210-211`). Clicking a **space** navigates out to Studio (`crossAppOrigin('studio')` + `/studio/<projectId>/<spaceId>`, `Sidebar.tsx:179-182`). The footer is the shared `SidebarFooter` — cross-app links plus an account row that opens the global settings dialog (`Sidebar.tsx:243`; see [The shared settings dialog](#the-shared-settings-dialog-sidebar-footer) below).
 
+Opening, switching and ending the live session is `sdk/org/libs/ui/src/chat/app/session-control.ts` — one module owns the socket, so the sidebar is not the only surface that can start a chat (the shell's no-session pane calls the same `startSession`, see [Mobile: the chat surface with no conversation open](../mobile/README.md#the-chat-surface-with-no-conversation-open)).
+
 Both create and resume go through the same pod route — `POST /api/sessions` accepts `{spaceDir?, agentSlug?, spaceRef?, model?, projectId?, resumeSessionId?, budget?}` and answers `201 {sessionId}`; under memory pressure it answers `503` + `Retry-After: 5` (`sdk/org/libs/cli/src/server/routes/sessions.ts#handleCreateSession`) → [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md).
 
 ### The live socket

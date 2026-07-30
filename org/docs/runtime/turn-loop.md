@@ -523,6 +523,20 @@ emitted a top-level `display()`, tracked by the Session's per-turn `displayedThi
 `onDisplay` hook (`sdk/org/libs/core/src/session/session.ts#Session.displayedThisTurn`). A resolved
 `ask` yield also counts as visible interaction (`didAsk`, set at `turn-loop.ts:783`).
 
+> **"Interactive" here means *somebody reads the output*, not *somebody can answer*.** Those came
+> apart with THING-in-a-team-channel: several people are watching a thread, and none of them has a
+> client that could answer an `ask()`. Because the run is a headless single-shot the guard was off, so
+> a turn that did real work and displayed nothing settled `done` in silence and the thread got no
+> answer at all. `BuildSessionArgs.visibleToUser`
+> (`sdk/org/libs/cli/src/server/session-manager.ts#BuildSessionArgs`) turns the guard on for exactly
+> that case without granting the consent prompter, which genuinely does need an answerer and still
+> fails closed. `defaultBuildSession` ORs the two into `SessionOpts.interactive`; hooks, webhooks,
+> code-node runs and spawns set neither and stay unguarded
+> (`sdk/org/libs/cli/src/server/routes/team-channels.ts#runThingReply`).
+>
+> The consequence is deliberate: a channel turn that stays output-less after its one nudge now ends
+> `'error'` and posts a visible failure, where before it ended quietly with nothing to show.
+
 **Delegate structural termination** (`shouldStop`, `turn-loop.ts:307`, checked at `turn-loop.ts:427`). A
 delegate's main loop sets no `beforeTurn` and, left alone, would re-prompt forever after its action
 tasklist resolves — only a real model voluntarily emits no further statements; a weak or looping model

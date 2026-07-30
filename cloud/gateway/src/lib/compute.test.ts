@@ -117,6 +117,46 @@ describe("createPod — user principal (regression: unchanged shape)", () => {
     });
   });
 
+  /**
+   * The provisioned model env, pinned as a whole.
+   *
+   * A fresh pod used to get `LM_MODEL=openai:gpt-5.4-nano` plus `OPENAI_BASE_URL`/`OPENAI_API_KEY`
+   * pointed at LiteLLM, while every per-role alias was an Azure DeepSeek model. So a freeform THING
+   * turn ran on openai/gpt and its own forks and delegates ran on azure — the DEFAULT was the odd
+   * one out, and a stall on the default model was indistinguishable from a stall anywhere else.
+   * (Observed 2026-06-28; the issue file is deleted now that this case stands in for it.)
+   *
+   * The provider refactor fixed it by DELETING the bare default rather than setting it: with
+   * `LM_MODEL` absent, `bin.ts` falls back to the alias `M`, which `resolveAlias` reads from
+   * `LM_MODEL_M` — the same value a fork resolves. The default cannot diverge from the aliases
+   * because it IS one of them. Setting `LM_MODEL` here again would reintroduce the divergence, so
+   * its ABSENCE is the assertion.
+   */
+  it("provisions no default model that can diverge from the role aliases", () => {
+    // The user-env secret BY NAME. `sent("/secrets")` finds the ACR image-pull secret first,
+    // which carries none of these keys — so a test written against it passes no matter what the
+    // model env contains, which is the trap this comment exists to stop.
+    const envSecret = calls.find(
+      (c) => c.method === "POST" && c.path.includes("/secrets") && c.body?.metadata?.name === "user-env",
+    );
+    const data = envSecret!.body.data as Record<string, string>;
+
+    // A bare LM_MODEL is a second source of truth for "which model" — see above.
+    expect(Object.keys(data)).not.toContain("LM_MODEL");
+
+    // The OpenAI-shaped vars are gone entirely; model traffic goes through the
+    // `lmthingcloud:` provider, which bills against the user's own LiteLLM key.
+    expect(Object.keys(data).filter((k) => k.startsWith("OPENAI_"))).toEqual([]);
+
+    // And every alias that IS provisioned names that provider, so none of them can quietly
+    // reach a different one.
+    const aliases = Object.keys(data).filter((k) => /^LM_(MODEL|TRANSCRIBE)_/.test(k));
+    expect(aliases.length).toBeGreaterThan(0);
+    for (const key of aliases) {
+      expect(Buffer.from(data[key]!, "base64").toString()).toMatch(/^lmthingcloud:/);
+    }
+  });
+
   it("does NOT put a user pod into team mode", () => {
     const env = sent("/deployments")!.body.spec.template.spec.containers[0].env;
     expect(env.map((e: any) => e.name)).not.toContain("LMTHING_TEAM_MODE");

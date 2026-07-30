@@ -543,8 +543,23 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add devops/argocd/core/
           git diff --staged --quiet || git commit -m "ci: update image tags to $SHA [skip ci]"
-          git pull --rebase origin main
-          git push
+
+          # Retry the rebase+push. `concurrency` above serializes build-images runs against each
+          # OTHER, which is not the race that kept failing this job: the status/build-data
+          # automation pushes to main from a different workflow, entirely outside this group. The
+          # push was rejected AFTER the images were already in ACR, so the run had to be re-run by
+          # hand to land tags for artifacts that existed. A rebase is safe to repeat — the commit is
+          # ours and touches only devops/argocd/core/.
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push; then
+              echo "pushed on attempt $attempt"
+              exit 0
+            fi
+            echo "push attempt $attempt lost the race; retrying in $((attempt * 5))s"
+            sleep $((attempt * 5))
+          done
+          echo "::error::could not push image-tag updates after 5 attempts"
+          exit 1
 
       - name: Trigger ArgoCD sync
         env:
@@ -552,7 +567,21 @@ jobs:
           ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
         run: |
           [ -z "$ARGOCD_SERVER_URL" ] && exit 0
-          curl -sf -X POST "$ARGOCD_SERVER_URL/api/v1/applications/lmthing/sync" \
-            -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"prune": false, "dryRun": false}' || true
+          # `lmthing-core` and `lmthing-envoy` — there is no Application called `lmthing`, which is
+          # what this POSTed to. It 404'd every run straight into the `|| true`, so the explicit
+          # sync has never once happened: deploys landed only because `lmthing-core` has automated
+          # selfHeal and reconciled on its own poll, which is the sync LATENCY filed alongside this
+          # (.issues/argocd-no-webhook-sync-latency.md).
+          #
+          # Still tolerant of failure — a sync that cannot be triggered must not fail a run whose
+          # images are already published — but a 404 is now reported instead of silently swallowed.
+          for app in lmthing-core lmthing-envoy; do
+            if curl -sf -X POST "$ARGOCD_SERVER_URL/api/v1/applications/$app/sync" \
+              -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"prune": false, "dryRun": false}' >/dev/null; then
+              echo "synced $app"
+            else
+              echo "::warning::could not trigger ArgoCD sync for $app (selfHeal will reconcile)"
+            fi
+          done

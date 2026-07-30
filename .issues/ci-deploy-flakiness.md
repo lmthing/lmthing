@@ -1,38 +1,41 @@
-# CI/CD deploy flakiness (build-images.yml + ArgoCD)
+# CI/CD deploy flakiness — fixes in, awaiting a first real run
 
-Three independent papercuts hit repeatedly while deploying this session
-(`.github/workflows/build-images.yml`). All are recoverable by hand but should
-be fixed for hands-off deploys.
+Three papercuts in `.github/workflows/build-images.yml`. **All three are now fixed in the
+workflow**; this file survives only because the fixes cannot be proven without a real `main` push,
+and CI is the one gate that has no offline equivalent. Delete it after the first hands-off deploy
+that lands tags and syncs without manual help.
 
-## 1. `update-manifests` loses a git push race
-The `update-manifests` job commits the image-tag bumps, `git pull --rebase`, then
-`git push` — but the concurrent **`status-data`** / build-data automation pushes
-to `main` in the same window, so the push is rejected (`! [rejected] … fetch
-first`) and the job fails **after** images are already built+pushed to ACR.
-Workaround used: `gh run rerun <id> --failed` (usually succeeds on retry).
-Fix: push with a retry loop (`git pull --rebase && git push` up to N times), or
-serialize the data-publishing workflows, or have them commit to a branch/orphan
-ref instead of `main`.
+What was wrong and what changed:
 
-## 2. ArgoCD sync curl targets the wrong app name
-The "Trigger ArgoCD sync" step POSTs to `…/api/v1/applications/**lmthing**/sync`,
-but the actual Argo app is **`lmthing-core`** (also `lmthing-envoy`). The call
-404s and is swallowed by `|| true`, so the explicit sync never happens — deploys
-only land because `lmthing-core` has `automated` (selfHeal) auto-sync, which
-reconciles on its own poll interval. Manual force used:
-`kubectl annotate app lmthing-core -n argocd argocd.argoproj.io/refresh=hard --overwrite`.
-Fix: change the app name to `lmthing-core` (and/or sync both core + envoy).
+1. **`update-manifests` lost a git push race** — fixed with a 5-attempt `git pull --rebase && git
+   push` loop with backoff. The `concurrency` group above the jobs was NOT the fix and never could
+   be: it serializes `build-images` runs against each other, while the race is against the
+   status/build-data automation pushing to `main` from a *different* workflow, outside the group.
+   The push was rejected AFTER images were in ACR, so a re-run was needed to land tags for
+   artifacts that already existed.
 
-## 3. Submodule-pointer-only commits don't trigger a build
-The `paths:` filter lists `sdk/org/**`, which matches files *under* the submodule
-but **not** a parent commit that only bumps the `sdk/org` gitlink (the changed
-path is `sdk/org` itself). So a parent commit that only advances the submodule
-pointer produces no `build-images` run. Workaround: `gh workflow run
-build-images.yml --ref main` (workflow_dispatch builds the full matrix).
-Fix: add `sdk/org` (no `/**`) to the paths filter, or detect submodule bumps.
+2. **The ArgoCD sync POSTed to an Application that does not exist** — `…/applications/lmthing/sync`,
+   404, swallowed by `|| true`. Confirmed against the cluster: the Applications are `lmthing-core`
+   and `lmthing-envoy`. So the explicit sync had never once fired, and deploys landed only because
+   `lmthing-core` has automated selfHeal and reconciled on its own poll — which is exactly the
+   latency filed in [argocd-no-webhook-sync-latency.md](./argocd-no-webhook-sync-latency.md). Now
+   syncs both apps, still tolerant of failure (a sync that cannot fire must not fail a run whose
+   images are published) but a failure is `::warning::`-reported instead of silent.
 
-## Bonus: user compute pods need a manual restart for new `compute:latest`
-User pods run `compute:latest` (imagePullPolicy Always) but a *running* pod won't
-re-pull on a new build — `kubectl rollout restart deployment/lmthing -n user-<id>`
-is required. The chat app's "New version available / Upgrade" interstitial is the
-user-facing path, driven by the gateway's advertised `COMPUTE_IMAGE_TAG`.
+3. **Submodule-pointer-only commits did not trigger a build** — already fixed before this pass:
+   `sdk/org` (no `/**`) is in the `paths:` filter and in every per-image `changed()` list.
+
+## Verified so far
+
+Offline only: the YAML parses, and every `run:` block in `update-manifests` passes `bash -n`. The
+ArgoCD app names are confirmed live (`kubectl get applications -n argocd`). What is NOT verified is
+the retry actually winning a real race, and the sync returning 2xx with the real
+`ARGOCD_SERVER_URL`/`ARGOCD_AUTH_TOKEN` — both need a genuine run, and triggering one deploys to
+production, so it waits for the next real change rather than a probe.
+
+## Still open (separate concern, not a workflow bug)
+
+User compute pods run `compute:latest` with `imagePullPolicy: Always`, but a *running* pod does not
+re-pull on a new build — `kubectl rollout restart deployment/lmthing -n user-<id>` is required. The
+user-facing path is the chat app's "New version available / Upgrade" interstitial, driven by the
+gateway's advertised `COMPUTE_IMAGE_TAG`.

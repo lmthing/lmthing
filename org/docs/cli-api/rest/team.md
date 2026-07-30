@@ -282,6 +282,43 @@ needs to know it has landed.
 A failed turn is posted into the channel as a `system` message rather than
 disappearing.
 
+### `ask()` in a thread — the question is a message, the reply is the answer
+
+In `/chat` a client renders an `ask()` form and posts the value back. A channel
+has no such client, and a top-level session grants `ask` regardless (only
+delegates set `omitAsk`), so THING was being offered an interaction the channel
+could not service: `ask()` emitted `ask_start` to a `WebRenderHost` with **zero
+clients** and returned a promise nothing could settle, hanging the turn and
+holding that thread's `runExclusive` lock against every later message.
+
+Now the run is built on a host the channel owns
+`sdk/org/libs/cli/src/rpc/server.ts#WebRenderHost.onEvent`. An `ask_start` posts
+the descriptor into the thread as a `thing` message (stored as `blocks`, the same
+way a JSX answer is), and the next message in that thread **resolves** the ask
+instead of starting a second turn
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#answerPendingAsk`. The value
+is the raw text: a channel reply is prose, and that is what a person would say.
+
+The turn is held **indefinitely** — the owner's decision, taken over a flagged
+objection that an unanswered ask pins a session. In practice a thread heals
+itself, because every reply in a THING thread addresses THING, so the first thing
+anybody says resolves it; only a thread nobody returns to stays suspended, and a
+pod restart clears those.
+
+> A parked turn is deliberately **not** counted as work in flight
+> `sdk/org/libs/cli/src/server/routes/team-channels.ts#beginThingReply`. It is
+> waiting on a human and may wait forever, so leaving it in `inFlight` made
+> `settleChannelWork` never return — one unanswered question would have hung the
+> pod's graceful shutdown. The run continues untracked and posts when answered.
+
+### Live activity
+
+`thing_status` carries an `activity` label while a turn runs, fed from the
+tracer's `activity` events (every `setActivity()` the agent makes)
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#runThingReply`. A build runs
+for minutes; with nothing on screen a reader cannot tell it apart from a hang.
+The thread shows it beside THING's name and clears it on `done`/`error`.
+
 ### The reply is what the agent DISPLAYED — never what it wrote
 
 `runHeadless` returns `result` from the turn's `display()` calls and nothing else

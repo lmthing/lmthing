@@ -1,4 +1,27 @@
+/*
+ * Tailwind, then the design system.
+ *
+ * This app is NOT migrated off Tailwind — it carries hundreds of utility classNames plus `@apply`
+ * below. It used to get Tailwind transitively, because `@lmthing/css/theme.css` opened with
+ * `@import "tailwindcss"`; phase 4 of the Tamagui migration removed that (correctly — `apps/web`
+ * has no Tailwind left), which silently took every utility in this app with it. So the import
+ * belongs here, in the app that actually uses it, rather than back in the shared theme.
+ *
+ * Preflight comes from `theme.css` (it imports `preflight.css` into `layer(base)`), so Tailwind is
+ * pulled in as theme + utilities ONLY — importing plain `"tailwindcss"` would ship a second copy.
+ *
+ * The `@layer` line must stay first and must list all four: layer precedence is decided by
+ * declaration order, and without it `base` would be declared last (via theme.css) and preflight
+ * would outrank every utility.
+ */
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
 @import "@lmthing/css/theme.css";
+/* Registers the design tokens WITH Tailwind, which is what makes `bg-primary`,
+   `text-muted-foreground`, `border-border`, … exist at all. See the file's own header. */
+@import "@lmthing/css/tailwind-theme.css";
 
 @font-face {
   font-family: 'TypeMates Cera Round Pro Bold';

@@ -28,6 +28,46 @@ Every SPA has the identical stack and build, differing only in `name` and routes
   aliases every `@lmthing/*` import to the submodule's `libs/*/src` sources, dedupes React, and stubs
   the server-only `@ai-sdk/*`/`vm2` packages so the browser bundle builds
   (`sdk/org/libs/utils/src/vite.mjs`, `createViteConfig`). `store` passes an extra plugin (below).
+  It also installs a build-time guard that fails the build if a bundle ships Tamagui components
+  without the Tamagui config — see [Theme provider](#theme-provider)
+  (`sdk/org/libs/utils/src/vite.mjs#tamaguiConfigGuardPlugin`).
+
+### Stylesheet entry
+
+Each SPA's `src/index.css` opens with the same block, and every line of it is load-bearing
+(`com/src/index.css`):
+
+```css
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "@lmthing/css/theme.css";
+@import "@lmthing/css/tailwind-theme.css";
+```
+
+- **Tailwind is imported here, not by the shared theme.** These SPAs are not migrated off Tailwind —
+  they carry hundreds of utility classNames plus `@apply`. They used to get Tailwind transitively
+  because `@lmthing/css/theme.css` opened with `@import "tailwindcss"`; phase 4 of the Tamagui
+  migration removed that (correctly — `apps/web` has no Tailwind left), which silently took every
+  utility in all seven apps with it.
+- **theme + utilities only, not plain `"tailwindcss"`.** Preflight already arrives through
+  `theme.css`, which imports `preflight.css` into `layer(base)`; importing the full bundle would
+  ship a second copy.
+- **`tailwind-theme.css` is what makes `bg-primary` exist.** Tailwind learns colours from `@theme`,
+  never from `:root` — see [design-system/tokens](../design-system/tokens.md).
+- **The `@layer` line must stay first and list all four.** Layer precedence follows declaration
+  order; without it `base` is declared last (via `theme.css`) and preflight outranks every utility.
+
+### Theme provider
+
+Each SPA's `src/main.tsx` wraps its router in `UiThemeProvider` (`com/src/main.tsx`), the theme
+context every `@lmthing/ui` element requires (`sdk/org/libs/ui/src/theme/provider.tsx#UiThemeProvider`).
+The catalogue is built on Tamagui primitives and every one of them calls `useTheme()`; without a
+provider at the root the whole SPA renders its page-level error boundary on every route rather than
+degrading visually. Two separate failures hide behind that one symptom — `Err0` when
+`createTamagui()` is missing from the bundle, and `Missing theme.` when only the context is — and
+mounting this fixes both, because it takes the config as a value.
 - **Design system (mandatory, enforced)** — every SPA uses `@lmthing/css` tokens + `@lmthing/ui`
   and must never write a raw color; enforced by `pnpm lint:tokens` (a hard CI gate). Each
   `CLAUDE.md` restates the rule (e.g. `social/CLAUDE.md` "Design system"). Full spec →

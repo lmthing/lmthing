@@ -5,7 +5,18 @@ import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe
 import { useAuth } from '@/lib/auth/AuthProvider'
 import { createCheckout, getCheckoutStatus } from '@/lib/cloud'
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+/**
+ * `VITE_STRIPE_PUBLISHABLE_KEY` is NOT wired into any build (`com/Dockerfile` passes no build args
+ * for it), so in production this is `undefined`. `loadStripe(undefined)` does not return a rejected
+ * promise you can handle — it throws inside Stripe's own `.then`, producing an unhandled rejection
+ * at MODULE scope. This route is bundled into the single entry chunk, so that fired on every page
+ * of lmthing.com, not just `/checkout`.
+ *
+ * Guarded the same way `apps/web` does it (`src/routes/team/$teamId/settings.tsx`): no key means no
+ * Stripe, and `/checkout` says so instead of mounting a checkout that cannot work.
+ */
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined
+const stripePromise = STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null
 
 export const Route = createFileRoute('/checkout')({
   component: Checkout,
@@ -46,9 +57,15 @@ function CheckoutForm({ tier }: { tier: string }) {
     <div className="mx-auto max-w-xl px-6 py-12">
       <h1 className="mb-8 text-2xl font-bold">Subscribe to {tier.charAt(0).toUpperCase() + tier.slice(1)}</h1>
       <div id="checkout">
-        <EmbeddedCheckoutProvider stripe={stripePromise} options={{ fetchClientSecret }}>
-          <EmbeddedCheckout />
-        </EmbeddedCheckoutProvider>
+        {stripePromise ? (
+          <EmbeddedCheckoutProvider stripe={stripePromise} options={{ fetchClientSecret }}>
+            <EmbeddedCheckout />
+          </EmbeddedCheckoutProvider>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Checkout is unavailable right now. Please try again later.
+          </p>
+        )}
       </div>
     </div>
   )

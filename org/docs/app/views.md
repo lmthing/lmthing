@@ -198,8 +198,11 @@ const client = createViewClient({ baseUrl, getToken, endpoints })
 ```
 
 `ViewThemeProvider` is the theme context the renderer's `Prim.*` primitives require — every one of
-them calls Tamagui's `useTheme()`, which throws `Missing theme.` outside a provider
-`sdk/org/libs/ui/src/view/provider.tsx#ViewThemeProvider`. A host that already has one does **not**
+them calls Tamagui's `useTheme()`, which throws `Missing theme.` outside a provider. It is the
+generated wrapper's alias for `UiThemeProvider`, which every `@lmthing/ui` host needs and which
+therefore lives with the config it mounts `sdk/org/libs/ui/src/theme/provider.tsx#UiThemeProvider`;
+the alias stays because the name is baked into the codegen, the DTS shim and the validator
+`sdk/org/libs/ui/src/view/provider.tsx:15`. A host that already has one does **not**
 wrap it (the unified web SPA at `sdk/org/apps/web/src/routes/__root.tsx:22-29`, the mobile app at
 its own root); the **generated web wrapper** does, because a project-app page bundle has no root of
 its own `sdk/org/libs/cli/src/app/view-spec/wrapper.ts#renderViewWrapper`.

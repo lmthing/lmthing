@@ -38,14 +38,15 @@ Key anchors: the five brand letters `brand-1..5` = `#f5c815 #f9a94a #f38358 #ed9
 
 ### The generator: `generate-theme.mjs`
 
-`scripts/generate-theme.mjs` reads `tokens.json` and emits **two generated files — never hand-edit either** (`sdk/org/libs/css/scripts/generate-theme.mjs:6-8`):
+`scripts/generate-theme.mjs` reads `tokens.json` and emits **three generated files — never hand-edit any of them** (`sdk/org/libs/css/scripts/generate-theme.mjs`):
 
-1. **`src/theme.css`** — a Tailwind v4 theme with four generated sections (`generate-theme.mjs:74-102`):
-   - `@custom-variant dark (&:is([data-theme="dark"] *))` — the dark variant wired to the `$meta.darkSelector` (`generate-theme.mjs:73,77`).
-   - `@theme { … }` — the `--radius-*` / `--font-*` scales (`generate-theme.mjs:66,80-82`).
-   - `@theme inline { --color-<name>: var(--<name>); }` — exposes every color token as a **Tailwind color utility** (`bg-primary`, `text-agent`, `border-border`, …) (`generate-theme.mjs:67,86-88`).
-   - `:root { --<name>: <light>; }` and `[data-theme="dark"] { --<name>: <dark>; }` — the light values, then only the tokens whose `dark !== light` as overrides (`generate-theme.mjs:68-71,92-100`).
-2. **`tokens.manifest.json`** — a flat, machine-readable index of scales + colors with `cssVar`, `utility`, light/dark, description (`generate-theme.mjs:106-130`).
+1. **`src/theme.css`** — **plain CSS**, no Tailwind directives (`generate-theme.mjs#css`):
+   - `@layer base, components, utilities;` + `@import "./preflight.css" layer(base)` — the base resets Tailwind used to inject. The layer is load-bearing: unlayered preflight would outrank an app's own `@layer base`.
+   - `:root { … }` — the `--radius-*` / `--font-*` scales.
+   - `:root { --color-<name>: var(--<name>); }` — the aliases SPIKE A1 needs, since every Tamagui `$color` resolves through `var(--color-<name>)`.
+   - `:root { --<name>: <light>; }` and `[data-theme="dark"] { --<name>: <dark>; }` — the light values, then only the tokens whose `dark !== light` as overrides.
+2. **`src/tailwind-theme.css`** — one `@theme inline { --color-<name>: var(--<name>); }` block, which is what registers every color as a **Tailwind color utility** (`bg-primary`, `text-agent`, `border-border`, …) (`generate-theme.mjs#tailwindTheme`). Separate from `theme.css` because Tailwind learns colors from `@theme` and never from `:root`, and only the product SPAs still use Tailwind — `apps/web` does not. Full rationale → [../design-system/tokens.md](../design-system/tokens.md).
+3. **`tokens.manifest.json`** — a flat, machine-readable index of scales + colors with `cssVar`, `utility`, light/dark, description.
 
 **Spectrum interpolation** (`buildSpectrum`, `generate-theme.mjs:32-47`): the 50-stop ramp places the five brand anchors at indices 1, 14, 27, 40, 53 (spacing 13) and does a linear RGB lerp between consecutive anchors, rounded to hex. The result is appended to the color list as `spectrum-1..50` (same in light and dark, `generate-theme.mjs:54-63`) so `--spectrum-N` / `--color-spectrum-N` utilities exist.
 
@@ -84,7 +85,7 @@ no longer describe anything on disk.
 
 ## `@lmthing/ui` — the React package
 
-`type: module`, `sideEffects: false` (`sdk/org/libs/ui/package.json:4,29`). Entry points (`sdk/org/libs/ui/package.json:8-19`):
+`type: module`. `sideEffects` is an **allow-list, not `false`** (`sdk/org/libs/ui/package.json`): it names `**/*.css` and `./src/theme/tamagui.config.ts`. That second entry is load-bearing — the config module's only job is the `createTamagui()` call that registers the global config, and it re-exports `styled`/`View`/`Text`/`createComponent` verbatim from `@tamagui/core`, so a bundler resolves those bindings transitively and would drop the module as a side-effect-free orphan under a blanket `sideEffects: false`. Every page then throws `Err0` at first paint. Entry points (`sdk/org/libs/ui/package.json`):
 
 | Export | Resolves to | Contents |
 |---|---|---|
@@ -172,9 +173,10 @@ These surfaces are documented per-product under [../chat/](../chat/README.md), [
 
 An app imports the theme **once** and then imports elements/components, whose modules pull in their own CSS. The unified web app does exactly this: `sdk/org/apps/web/src/index.css:1` is just `@import "@lmthing/css/theme.css";`.
 
-1. `@import "@lmthing/css/theme.css"` — brings in Tailwind v4 + all token utilities + light/dark `:root`.
-2. `import { Button } from '@lmthing/ui/elements/forms/button'` — the module side-imports `@lmthing/css/elements/forms/button/index.css`.
-3. `applyTheme('dark')` from `@lmthing/ui/theme` flips `data-theme` on `<html>`.
+1. `@import "@lmthing/css/theme.css"` — preflight + all token custom properties + the light/dark `:root` blocks. A **product SPA** additionally imports Tailwind and `@lmthing/css/tailwind-theme.css`, which is what gives it `bg-primary` and friends → [../product-spas/README.md](../product-spas/README.md).
+2. Mount `UiThemeProvider` from `@lmthing/ui/theme` at the app root (`sdk/org/libs/ui/src/theme/provider.tsx#UiThemeProvider`). Every element is a Tamagui component and calls `useTheme()`; without it the app renders its error boundary rather than degrading visually. A host that mounts its own `TamaguiProvider` — `apps/web`, the mobile app — must not also mount this.
+3. `import { Button } from '@lmthing/ui/elements/forms/button'` — the module side-imports `@lmthing/css/elements/forms/button/index.css`.
+4. `applyTheme('dark')` from `@lmthing/ui/theme` flips `data-theme` on `<html>`.
 
 ---
 

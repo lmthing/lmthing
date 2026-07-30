@@ -1,34 +1,44 @@
 # The Token System
 
-The lmthing design system has **one source of truth**: `sdk/org/libs/css/src/tokens/tokens.json`. A generator turns it into a Tailwind v4 stylesheet (`theme.css`) and a flat machine-readable index (`tokens.manifest.json`). Every web surface — the `sdk/org` studio/chat/computer app and the product SPAs (`com`, `social`, `team`, `store`, `space`, `blog`, `casa`) — imports the generated `theme.css` and styles exclusively against these tokens. **Never write a raw color; never hand-edit `theme.css`.**
+The lmthing design system has **one source of truth**: `sdk/org/libs/css/src/tokens/tokens.json`. A generator turns it into a plain-CSS stylesheet (`theme.css`), a Tailwind registration file (`tailwind-theme.css`), and a flat machine-readable index (`tokens.manifest.json`). Every web surface — the `sdk/org` studio/chat/computer app and the product SPAs (`com`, `social`, `store`, `space`, `blog`, `casa`, `org`) — imports the generated `theme.css` and styles exclusively against these tokens. **Never write a raw color; never hand-edit `theme.css` or `tailwind-theme.css`.**
 
 See [./README.md](./README.md) for the design-system overview and [./components.md](./components.md) for the BEM component layer that consumes these tokens.
 
 ---
 
-## Pipeline: `tokens.json` → generator → `theme.css` + manifest
+## Pipeline: `tokens.json` → generator → `theme.css` + `tailwind-theme.css` + manifest
 
 ```
-src/tokens/tokens.json   ── node scripts/generate-theme.mjs ──▶  src/theme.css          (Tailwind v4: @theme + @theme inline + :root + [data-theme="dark"])
-   (edit here)                                               └▶  tokens.manifest.json   (flat: name, cssVar, utility, light, dark, description)
+src/tokens/tokens.json   ── node scripts/generate-theme.mjs ──▶  src/theme.css           (plain CSS: preflight + :root scales + --color-* aliases + [data-theme="dark"])
+   (edit here)                                               ├▶  src/tailwind-theme.css  (@theme inline — registers the colors WITH Tailwind)
+                                                             └▶  tokens.manifest.json    (flat: name, cssVar, utility, light, dark, description)
 ```
 
 - **Edit only** `sdk/org/libs/css/src/tokens/tokens.json`, then regenerate. The `$meta.description` field states this rule inline: "Edit this file, then run `pnpm --filter @lmthing/css generate` … Do NOT hand-edit theme.css." (`sdk/org/libs/css/src/tokens/tokens.json:4`).
 - **Regenerate:** `pnpm --filter @lmthing/css generate` runs `generate-theme.mjs` then `generate-components-catalog.mjs` (`sdk/org/libs/css/package.json` `scripts.generate`). It also runs automatically on `prebuild` (`scripts.prebuild`), so a fresh build always has current outputs.
-- The generator reads the JSON, builds the interpolated spectrum, and writes both `src/theme.css` and `tokens.manifest.json`; it prints a summary line with the token/override counts (`sdk/org/libs/css/scripts/generate-theme.mjs:104-134`).
+- The generator reads the JSON, builds the interpolated spectrum, and writes `src/theme.css`, `src/tailwind-theme.css` and `tokens.manifest.json`; it prints a summary line with the token/override counts (`sdk/org/libs/css/scripts/generate-theme.mjs`).
 
 ### What the generator emits into `theme.css`
 
-`generate-theme.mjs` assembles the file from four token sections plus two `@import`s and a dark `@custom-variant` (`sdk/org/libs/css/scripts/generate-theme.mjs#css`):
+`theme.css` is **plain CSS** — no Tailwind directives. It used to open with `@import "tailwindcss"` and express its tokens as `@theme` / `@theme inline` blocks; phase 4 of the Tamagui migration removed Tailwind from `apps/web` and the blocks became the `:root` rules they always compiled to (`sdk/org/libs/css/scripts/generate-theme.mjs#css`):
 
-1. `@import "tailwindcss";` and `@import "tw-animate-css";` (`theme.css:1-2`; both are `peerDependencies` in `package.json`).
-2. `@custom-variant dark (&:is([data-theme="dark"] *));` — derived from `$meta.darkSelector` (`generate-theme.mjs:73,77`). This makes Tailwind's `dark:` variant key off the `data-theme` attribute rather than the OS preference.
-3. `@theme { … }` — the non-color scales (`--radius-*`, `--font-*`), emitted verbatim from `tokens.theme` (`generate-theme.mjs:66,80-82`; output `theme.css:7-17`).
-4. `@theme inline { … }` — one `--color-<name>: var(--<name>);` per color, which is what registers each color as a **Tailwind utility** (e.g. `bg-primary`, `text-agent`) (`generate-theme.mjs:67,86-88`; output `theme.css:21-121`).
-5. `:root { … }` — the **light** values, one `--<name>: <light>;` per color (`generate-theme.mjs:68,92-94`; output `theme.css:124-224`).
-6. `[data-theme="dark"] { … }` — **only** the colors whose `dark` value differs from `light` (`generate-theme.mjs:69-71,98-100`; output `theme.css:227-266`). Colors identical across modes (brand, spectrum, primary, ring) are simply not overridden.
+1. `@layer base, components, utilities;` then `@import "./preflight.css" layer(base);` — the base resets Tailwind used to inject. **The layer line is load-bearing:** importing preflight unlayered would make it stronger than an app's own `@layer base` block, so `border: 0 solid` would beat `* { border-color: var(--border) }`.
+2. `:root { … }` — the non-color scales (`--radius-*`, `--font-*`), emitted verbatim from `tokens.theme`.
+3. `:root { … }` — one `--color-<name>: var(--<name>);` alias per color. **SPIKE A1 depends on every one of these**: each Tamagui `$color` token resolves to `var(--color-<name>)`, so if they stop being emitted every colour in the app resolves to nothing.
+4. `:root { … }` — the **light** values, one `--<name>: <light>;` per color.
+5. `[data-theme="dark"] { … }` — **only** the colors whose `dark` value differs from `light`. Colors identical across modes (brand, spectrum, primary, ring) are simply not overridden.
 
-Every generated block is bracketed by `/* Auto-generated … by generate-theme.mjs */` … `/* End Auto-generated … */` comments so the "do not hand-edit" boundary is visible in the file itself (`theme.css:6-18,20-121,123-224,226-266`).
+Every generated block is bracketed by `/* Auto-generated … by generate-theme.mjs */` … `/* End Auto-generated … */` comments so the "do not hand-edit" boundary is visible in the file itself.
+
+### What the generator emits into `tailwind-theme.css` — and why it is a separate file
+
+`tailwind-theme.css` is one `@theme inline { … }` block with the same `--color-<name>: var(--<name>);` lines (`sdk/org/libs/css/scripts/generate-theme.mjs#tailwindTheme`). It exists because **`:root` and `@theme` are not interchangeable**: Tailwind emits a utility only for a colour it knows about, and it learns colours from `@theme`, never from `:root`. A plain custom property gives you `var(--color-primary)` and no `bg-primary`.
+
+That distinction is not academic. When phase 4 converted these blocks to `:root`, the seven product SPAs — which were **not** migrated off Tailwind and carry ~330 token utilities between them (`text-muted-foreground`, `bg-primary`, `border-border`, …) — silently stopped receiving a single one. They shipped with the base reset and nothing else: content in source order, no layout, no colour.
+
+`inline` is the load-bearing keyword. It makes the utility emit the token's **value** (`var(--primary)`) rather than a reference to Tailwind's own copy (`var(--color-primary)`), which is what keeps `bg-primary` following `data-theme="dark"` and a space's runtime `--lm-*` overrides instead of freezing at the light value — the same indirection SPIKE A1 relies on.
+
+Only the product SPAs import it; `apps/web` has no Tailwind left to register with. See [product-spas](../product-spas/README.md#stylesheet-entry) for the exact import block.
 
 ### What the generator emits into `tokens.manifest.json`
 
@@ -118,7 +128,7 @@ Adherence is a **hard CI gate**: `pnpm lint:tokens` at repo root and the `@lmthi
 
 ## Quick reference
 
-- **Use a color:** the CSS var `var(--foreground)` or its Tailwind utility `bg-primary` / `text-agent` / `border-border` (utilities exist because of the `@theme inline` `--color-*` block, `theme.css:21-121`).
-- **Change a color:** edit `sdk/org/libs/css/src/tokens/tokens.json`, run `pnpm --filter @lmthing/css generate`, commit the regenerated `theme.css` + `tokens.manifest.json`. Never touch `theme.css` by hand.
+- **Use a color:** the CSS var `var(--foreground)` or, in a product SPA, its Tailwind utility `bg-primary` / `text-agent` / `border-border` (the utilities exist only because `tailwind-theme.css` registers the colors with Tailwind — see above).
+- **Change a color:** edit `sdk/org/libs/css/src/tokens/tokens.json`, run `pnpm --filter @lmthing/css generate`, commit the regenerated `theme.css` + `tailwind-theme.css` + `tokens.manifest.json`. Never touch the generated files by hand.
 - **Add a spectrum stop count / re-anchor:** edit `tokens.json` `spectrum` (`steps`, `from`, `to`) and regenerate; note the anchor spacing constant (`13`) in `buildSpectrum` assumes 5 anchors at 1/14/27/40/53 (`generate-theme.mjs:33-35`).
 - **Full palette table with dark values:** the authored entries in `sdk/org/libs/css/src/tokens/tokens.json:30-88` (each with a `description` naming its semantic role), or the generated flat index `sdk/org/libs/css/tokens.manifest.json` — which adds the interpolated `spectrum-1..50` and each token's `cssVar` + `utility` (`generate-theme.mjs:120-128`).

@@ -523,5 +523,46 @@ Note how 1 and 2 masked each other: a false-negative gate, laundered into a true
 bugs cancelling is the worst way to pass.
 
 Verified: 1129/1129 in `libs/core`, 331/331 in `libs/core/src/spaces`, 86/86 in
-`libs/core/src/tasklist`, and every new test confirmed to FAIL with its fix reverted. The pipeline
-has not yet been re-run with all three in place — that is the next thing worth doing.
+`libs/core/src/tasklist`, and every new test confirmed to FAIL with its fix reverted.
+
+### Run 7 — the ratchet moves, measured
+
+Re-ran `13-plant-care` with all three fixes plus the live-run agent's prompt fixes. Every metric the
+ratchet tracks moved the right way, and the numbers come from `scenarios/metrics/dashboard.mjs`
+reading the run's own artifacts:
+
+| | run 3 | run 4 | **run 7** |
+|---|---|---|---|
+| app state | **bricked** — 11 typecheck errors, root 404 | usable | **usable** |
+| bricking rate | 1 · FAIL | 0 · PASS | **0 · PASS** |
+| retries per write | 1.75 · FAIL | 1 · PASS | **0.60 · PASS** |
+| `buildApp` findings | 11 · FAIL | 0 · PASS | **0 · PASS** |
+| `validateAppViews` | null — never ran | 0 · PASS | **0 · PASS** |
+| `renderSmokeViews` | null — never ran | 7 · FAIL | **1 · FAIL** |
+| layout-override rate | — | — | **0 · PASS** |
+
+The layout-override rate is the quiet win: **zero** — the archetype and shell predictors chose
+correctly for all four pages and the model never had to override either. `viewFacts` is also now
+present in real step evidence (the harness wiring earning its keep on its first live run): 4 specs,
+`shellAuthored`, 7 endpoints, six section kinds including `timeline`, `wrapperBannersOk: true`,
+`handAuthoredPages: []`, `routesWithoutSpec: []`, and a detected master-detail pair.
+
+**The automator relayed the envelope verbatim** — `currentTask.resolve(result)`, with its diagnosis in
+comments rather than in a rewritten `ok`. `okOverriddenBy` never appears in the run, so the prompt
+fix held and the delegate backstop was not needed. Belt and braces, in the right order.
+
+**The one remaining gate failure is the mechanism working, not failing.** `renderSmokeViews` reports
+exactly one finding, correctly routed to the ENDPOINT rather than the view:
+
+> `api/dashboard-stats/GET.ts` — *"sections[0].query: pages/index sections[0]: dashboard-stats
+> answered 500, so this section renders its error state on every load. Fix the endpoint
+> (smoke_endpoints reports the same call)."*
+
+That is the "structurally-valid zeros" class the gate exists for — a spec whose every name resolves
+and whose every binding is contract-valid, in front of an endpoint that 500s — named with its file,
+its symptom, and a corroborating gate. 7 findings down to 1, and the survivor is a real handler bug
+for the api-author lane, not a defect in the spec pipeline.
+
+(Run 6 is a dud: a concurrent root-level `pnpm install` wiped a native binding mid-run. The dashboard
+reports it `unknown` with a reason rather than as a pass — the null-vs-zero discipline paying off on
+its first real chance to mislead.)

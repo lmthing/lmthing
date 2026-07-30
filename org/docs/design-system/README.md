@@ -125,12 +125,14 @@ a raw color there will ship un-flagged:
 
 ### Escape hatches
 
-When a raw color is genuinely non-brand (terminal ANSI palettes, syntax-highlight themes):
+First check whether you need one: **comments are not scanned**, so prose mentioning a hex or
+`rgb()` is not a violation (`lint-design-tokens.mjs#stripComments`). Reach for a hatch only when the
+raw color is genuinely non-brand *code* (terminal ANSI palettes, syntax-highlight themes, or a test
+whose whole point is that a non-token color passes through untouched):
 
-- Put `ds-lint-ok` in a comment on the offending line — that single line is skipped
-  (`lint-design-tokens.mjs:99`).
-- Put `ds-lint-file-ok` anywhere in the file — the whole file is skipped
-  (`lint-design-tokens.mjs:96`).
+- Put `ds-lint-ok` in a comment on the offending line — that single line is skipped.
+- Put `ds-lint-file-ok` anywhere in the file — the whole file is skipped. Prefer the per-line form:
+  a file-level skip also hides every future violation in that file.
 
 ## Changing a color (the only supported workflow)
 

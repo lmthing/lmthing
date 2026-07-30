@@ -116,9 +116,13 @@ Adherence is a **hard CI gate**: `pnpm lint:tokens` at repo root and the `@lmthi
 - Token-based functions: any `rgb/hsl(var(--…))` (arg contains `var(`) (`lint-design-tokens.mjs:45`).
 - **Achromatic** overlays/scrims/shadows with alpha < 1: `rgba(0,0,0,.5)`, `rgba(255,255,255,.7)`, or `hsl` with 0 saturation and alpha < 1 (`funcAllowed`, `lint-design-tokens.mjs:46-56`).
 
-**Escape hatches** (`lint-design-tokens.mjs:96,99`):
-- `ds-lint-ok` in a comment on the offending line skips that line.
+**Comments are not scanned** (`lint-design-tokens.mjs#stripComments`). A comment cannot style anything, and the code most likely to *describe* `rgb()` or a hex in prose is usually the code that got colour handling right — `view/icons.tsx` resolves `$token` paints to a real `rgb()` because React Native SVG cannot parse tokens, and the JSDoc explaining why used to trip the gate on the word alone. Comments are blanked in place (positions preserved, so `file:line:col` stays accurate) and string literals are tracked, so a `//` inside a URL is not mistaken for a comment and a violation after it is still reported. `//` in a `.css` file is content, not a comment.
+
+**Escape hatches**:
+- `ds-lint-ok` in a comment on the offending line skips that line. Matched against the original line, since the marker itself lives in a comment.
 - `ds-lint-file-ok` anywhere in a file skips the whole file (for terminal ANSI palettes, syntax-highlight themes, and other genuinely non-brand color sets).
+
+The gate's own behaviour is tested end-to-end against fixtures, most of it guarding the *false-negative* direction — a comment-stripper that is slightly too eager stops reporting real violations and the gate goes quietly green (`sdk/org/libs/css/src/__tests__/lint-design-tokens.test.ts`).
 
 **Files exempt by path** — the token definitions themselves: any `theme.css`, `tokens.json`, `tokens.manifest.json`, and anything under a `scripts/` dir (`ALLOW_FILE`, `lint-design-tokens.mjs:30-34`).
 

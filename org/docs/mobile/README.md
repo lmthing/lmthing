@@ -171,9 +171,54 @@ the dashboard to the route that already reaches it.
 
 On mobile, Chat reaches the switcher through `AppShell`'s existing mobile sidebar drawer; Home and
 Teams have no sidebar of their own, so `App.tsx` supplies a hamburger and the same `Drawer` for
-them (`sdk/org/apps/mobile/App.tsx`). Its `badges` prop carries the team mention count that the tab
-bar used to show — the Teams pane stays mounted while hidden, so it keeps hearing its channel
-socket and remains the only thing that can report a mention arriving elsewhere.
+them (`sdk/org/apps/mobile/App.tsx#HomeShell`). Its `badges` prop carries the team mention count
+that the tab bar used to show — the Teams pane stays mounted while hidden, so it keeps hearing its
+channel socket and remains the only thing that can report a mention arriving elsewhere. The
+hamburger is 48×48pt (Android's stated minimum, above Apple's 44) rather than the 32×32 it used to
+be — a hit-test that small under-shoots both platforms' own guidance.
+
+**Tapping a TEAMS row or an INVITATIONS card used to do nothing.** `DashboardHome`'s `onOpenTeam`
+defaults to a cross-app browser hand-off — `openTeamsSurface` → `crossAppOrigin('team')`
+(`sdk/org/libs/ui/src/lib/app-urls.ts#crossAppOrigin`) — which resolves to `''` off the web
+(`isWeb()` is false on native) and silently no-ops. `App.tsx` now passes `onOpenTeam`
+(`sdk/org/apps/mobile/App.tsx#HomeShell`), switching to the Teams pane and telling `TeamScreen`
+which team was tapped. `TeamScreen` used to always open `teams[0]` regardless of which row was
+pressed; it now takes an `openTeamId` (and an `openChannelId`, for the push deep link below) and
+resolves the request against the member's own list rather than trusting it blindly — a stale
+invite id or a team since left is ignored, not honoured, so the screen never silently swaps onto
+some OTHER team (`sdk/org/apps/mobile/src/team-focus.ts#resolveFocusTeamId`,
+`sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`).
+
+**The Android back button did nothing for a full-screen project app** — `Drawer`/`Dialog`
+(`libs/ui`) already wire it to their own `onDismiss`, but `AppScreen` had no listener, so with
+nothing claiming the event the OS default (background, or exit) took over and the only way out was
+the small corner `×`. `AppScreen` now closes on back the same way
+(`sdk/org/apps/mobile/src/AppScreen.tsx#AppScreen`). Back also now steps from Chat or Teams to Home
+instead of exiting the app outright, registered only while neither the nav drawer nor a full-screen
+app is open — the guard keeps it from ever competing with `Drawer`'s or `AppScreen`'s own listener,
+rather than relying on Android's LIFO dispatch to sort out several active ones
+(`sdk/org/apps/mobile/App.tsx#HomeShell`). Chat's own thread rail (`AppShell`'s mobile sidebar,
+`libs/ui`) is invisible to this shell, so THAT case still relies on ordering: its listener registers
+strictly after this one, only while its own rail is open, so it is asked first.
+
+**The nav `Drawer`'s width was a CSS `rem` string** (`width="16rem"`), meaningless on Yoga —
+`nativeSafeProps` deliberately excludes `width` from its numeric cast (`libs/ui`), so the string
+reached the native view unparsed and the drawer sized to its content instead of 16rem wide. The call
+site now passes a Tamagui token, `width="$64"` — `size['64']` in
+`sdk/org/libs/css/src/tamagui/tokens.generated.ts` is exactly 256, the same 256 sixteen root-em units
+resolve to on web, so this is exact, not an approximation (`sdk/org/apps/mobile/App.tsx#HomeShell`).
+`Drawer`'s own `width` prop accepts exactly that — a Tamagui token or a bare number, never a CSS
+length — for the same reason (`sdk/org/libs/ui/src/chat/components/ui/Drawer.tsx#Drawer`).
+
+**Signing out was unreachable.** `logout()` has existed on `@lmthing/auth` since passwordless
+email sign-in shipped, and `DashboardHome`'s ACCOUNT section (`libs/ui`) offers "Delete account" and
+"Privacy policy" only — there was no way to sign out of the app short of clearing its storage from
+the OS settings. The nav drawer now carries a "Sign out" row below the switcher
+(`sdk/org/apps/mobile/App.tsx#SignOutRow`), confirmed with an `Alert` before it fires. It also calls
+`POST /api/push/unsubscribe` (`sdk/org/apps/mobile/src/push.ts#unregisterPush`,
+`cloud/gateway/src/routes/push.ts`) BEFORE clearing the session — otherwise a signed-out phone keeps
+its subscription row and goes on receiving the account's team notifications the moment anyone else
+signs into the same device, which is a privacy bug rather than a tidiness one.
 
 ### The chat surface with no conversation open
 
@@ -259,6 +304,30 @@ Three things cost real time to learn and none are guessable:
 cannot boot because notifications are unavailable is far worse than no notifications
 (`sdk/org/apps/mobile/src/push.ts#registerForPush`).
 
+### Tapping a notification used to just foreground the app
+
+The gateway always sends `data: { url }` so a tap lands somewhere specific
+(`cloud/gateway/src/lib/push.ts`, `sdk/org/libs/cli/src/server/team-push.ts#pushPayload` —
+`/team/<teamId>/channels?channel=<channelId>`), but nothing native-side ever read it: a tap just
+foregrounded whichever tab was last open.
+
+`watchPushDeepLinks` (`sdk/org/apps/mobile/src/push.ts#watchPushDeepLinks`) covers both ways a tap
+reaches the app — a live `addNotificationResponseReceivedListener` while it is already running, and
+one call to `getLastNotificationResponseAsync` for the cold-start case, where the process did not
+exist yet to have had a listener. `App.tsx` wires the result to switching to the Teams pane and
+naming the team (and channel) to `TeamScreen` (`sdk/org/apps/mobile/App.tsx#HomeShell`); a tapped
+notification also closes whatever full-screen project app was covering the tabs, the same as a
+hardware back press does.
+
+The url is parsed with plain string ops rather than the WHATWG `URL` global
+(`sdk/org/apps/mobile/src/push-deeplink.ts#parseTeamDeepLink`) — this repo avoids `URL` on native
+elsewhere (`sdk/org/libs/auth/src/AuthProvider.tsx`, gated behind `isWeb()`) because Hermes ships
+without an implementation and nothing here pulls in a polyfill. The function is split into its own
+module specifically so it is unit-testable without `react-native` in the import graph at all: `push.ts`
+imports `Platform` from `react-native` at module scope, and Vite/Rollup cannot parse real React
+Native's Flow syntax outside Metro's own babel transform
+(`sdk/org/apps/mobile/src/push-deeplink.test.ts`).
+
 ## Boot order
 
 `App.tsx` holds the tree back until `hydrateAuth()` resolves. `getSession()` is
@@ -284,6 +353,13 @@ boot, which measured well past 25s on a free-tier pod.
 
 `apiBase()` defaults to production, so no configuration is needed for the app to
 reach a real pod (`sdk/org/libs/ui/src/platform/api-base.native.ts`).
+
+**A failure here used to be a dead end.** A bad network, the 120s cold-wake timeout, or a 5xx from
+either call landed on static text with no way back in short of force-quitting the app — `AuthGate`
+latched a ref true on the first attempt and never let a second one start. It now shows an
+`ActivityIndicator` while waiting (a cold wake can take much of that 120s budget, and bare text alone
+read as a hang) and a Retry button on failure, which bumps a counter the effect depends on
+(`sdk/org/apps/mobile/App.tsx#AuthGate`).
 
 ## What the gates prove — and what they do not
 
@@ -364,13 +440,22 @@ Still **not** proven on a device, and stated as a gap rather than implied:
 - the `lmthing://` scheme being registered and its redirect intercepted
   (`sdk/org/apps/mobile/app.json` declares the scheme);
 - the Android back gesture dismissing an overlay
-  (`sdk/org/libs/ui/src/platform/keyboard.native.ts`);
+  (`sdk/org/libs/ui/src/platform/keyboard.native.ts`) — nor, newer and on the same seam, dismissing
+  a full-screen project app or stepping from Chat/Teams back to Home
+  (`sdk/org/apps/mobile/App.tsx#HomeShell`, `sdk/org/apps/mobile/src/AppScreen.tsx#AppScreen`);
 - the **chat** transcript's scrolling *under load*. The swap itself is done —
   the transcript is a `Prim.Scroll` with `stickToEnd`, not the `Box` it was when
   its content was clipped at one screenful
   (`sdk/org/libs/ui/src/chat/app/ChatView.tsx:286-288`) — but no device run has
   put more than a couple of screenfuls through it, so the follow-on-new-output
   behaviour is proven by the primitive's own tests rather than by a phone.
+- the reachability pass documented above (tapping a TEAMS/INVITATIONS row, the push
+  notification deep link, sign-out + push unsubscribe, the pod-start Retry button, `TeamScreen`'s
+  retry/`AppState` refresh, and the `'default'` orientation change) — none of it has run on a device
+  or an emulator. Both native gates are green (`pnpm test:native`, `tsc --noEmit`), which proves the
+  code resolves and typechecks; it proves nothing about what a finger touching a phone actually
+  sees, per [What the gates prove — and what they do not](#what-the-gates-prove--and-what-they-do-not)
+  above.
 
 ## Opening a project app
 
@@ -398,6 +483,14 @@ A TEAM app opens in the rail beside the conversation, pinned there by THING when
 building. A PERSONAL app has no conversation to sit beside, so it opens full screen from the
 project on Home (`sdk/org/apps/mobile/src/AppScreen.tsx#AppScreen`) — before that, `DashboardHome`'s
 `onOpenProject` was never passed and tapping a project did nothing at all.
+
+Three reachability fixes on that screen: the Android back button now closes it, the same way the
+corner `×` always has, via the same `onDismiss` seam `Drawer`/`Dialog` already use
+(`sdk/org/apps/mobile/src/AppScreen.tsx#AppScreen`,
+`sdk/org/libs/ui/src/platform/keyboard.native.ts#onDismiss`); the `×` itself is 48×48pt of tap target
+(16px icon + 16px padding a side) rather than the 24×24 `padding="$1"` gave it; and `Opening
+{name}…`, the state before the pod has answered which kind of app this is, now shows an
+`ActivityIndicator` rather than bare text alone.
 
 ### Two builders, and only one of them needs a WebView
 
@@ -542,6 +635,42 @@ in [`design/teams-mobile-ux.md`](../../../design/teams-mobile-ux.md); what the s
   (`sdk/org/apps/mobile/App.tsx#HomeShell`). Note this is the TEAM's own mention count from the live
   socket, not the per-team unread that Home deliberately does not badge (above).
 
+### Loading, error and empty states used to be dead ends
+
+`TeamScreen`'s four non-happy-path renders — loading, a failed `listTeams`, "not on a team yet",
+and "opening the team" — were each a single bare sentence with no spinner and no retry. Worse than
+just unpolished: because this pane is mounted-but-HIDDEN rather than unmounted while somebody is on
+Home or Chat (above), switching away from a failed fetch and back to it never retried — the only way
+past it was force-quitting the app (`sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`). The mount
+effect is now a `refresh` callback a Retry button can call again, loading and "opening the team" show
+an `ActivityIndicator`, and "not on a team yet" also offers `Linking.openURL` to `lmthing.team` — the
+one place a member can actually create or join a team, since there is no such flow natively.
+
+Two more things go stale the same hidden-not-unmounted way, and both are now covered:
+
+- **Coming back from the background.** `TeamScreen` listens for `AppState` turning `'active'` and
+  calls `refresh` again — a member could have been added to, or removed from, a team entirely
+  outside the app while it sat backgrounded (`sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`).
+  `HomeShell` does the same for the Home dashboard, but `DashboardHome` (`libs/ui`) has no reload
+  prop of its own to call — so it is remounted instead, via a `key` bumped on the same `AppState`
+  transition. Remounting a HIDDEN pane costs nothing visible and, unlike `TeamScreen`, does not risk
+  a live socket: `DashboardHome` holds no socket of its own to drop
+  (`sdk/org/apps/mobile/App.tsx#HomeShell`).
+- **A refresh dropping the selected team** (membership revoked, the team deleted) used to read as a
+  permanent "Opening the team…" spinner — `team` stayed `undefined` forever once its id was no
+  longer in the list. Selecting a team now falls back to the first remaining one when the current
+  selection no longer exists, in the same effect that honours an `openTeamId` request, so the two
+  rules cannot race each other's `setTeamId` in one commit
+  (`sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`).
+
+**Not fixed — pull-to-refresh.** Neither the Home dashboard nor the Teams channel list has a
+`RefreshControl`; `apps/mobile` has zero. The actual scrollable region in both cases is owned by a
+shared `libs/ui` component with no `onRefresh`/`refreshing` prop to give one —
+`sdk/org/libs/ui/src/dashboard/DashboardHome.tsx#DashboardHome`'s `Prim.Scroll` and
+`TeamChannelsView`'s channel list (`sdk/org/libs/ui/src/team/channels-view.tsx`) — so wiring a native
+`RefreshControl` genuinely needs a prop added to each, which is a `libs/ui` change outside
+`apps/mobile`'s own surface.
+
 ## Shipping it — Google Play
 
 The app is `org.lmthing.mobile`, an Expo managed build. Its whole configuration is
@@ -584,6 +713,15 @@ converted to RGB.
   inlines every `EXPO_PUBLIC_*` var into the bundle, so the device-verification hatch
   that seeds an already-minted session and skips the login screen would ship *inside* a
   published app as an auth bypass. The build throws rather than producing it.
+- **`orientation` is `'default'`, not `'portrait'`.** `ios.supportsTablet: true`
+  (`sdk/org/apps/mobile/app.config.js:148`) asks for real iPad chrome, and Apple's own review
+  guidance for a tablet-supporting app expects rotation to come with it — locking to portrait while
+  claiming tablet support asked for one without the other. Every screen (Home, Chat, Teams) is
+  Tamagui flex layout with no fixed-portrait assumption, so there was no layout reason for the lock
+  either (`sdk/org/apps/mobile/app.config.js:81`). This is a NATIVE project change — `orientation`
+  is baked into the generated `Info.plist`/`AndroidManifest`, and is therefore inside the
+  `@expo/fingerprint` hash (see [What the fingerprint actually
+  hashes](#what-the-fingerprint-actually-hashes)) — so it ships on the next store build, not an OTA.
 
 ### Building and submitting
 
@@ -822,3 +960,31 @@ is the only answer that means anything. Then verify that signature against
 over the manifest part's **raw bytes**; re-serialising the JSON invalidates it. Finally
 fetch `launchAsset.url` and check its sha256 against `launchAsset.hash` (url-safe base64,
 no padding). Confirmed for the first published update on 2026-07-30.
+
+### Two reasons a correct publish is still not offered
+
+Both look identical from the device — `NoUpdatesAvailable` — and neither is a fault.
+
+**The embedded bundle can be newer than the update.** The selection policy takes the
+newest `createdAt`, and the bundle inside a binary is stamped when that binary was BUILT.
+An update published while a build sits in the EAS queue loses to the build that finishes
+after it. Publish *after* the build completes, not before.
+
+**Byte-identical bundles are deduplicated.** Republishing unchanged JS answers
+`There is no change in the update for android, ignored` and deploys nothing, so a publish
+cannot be used as a "poke". Only genuinely different JS produces a new update.
+
+### What a real device proves that nothing else does
+
+Verified on an Android 13 emulator against the shipped `production` channel, 2026-07-30:
+`Manifest code signing signature verified successfully` in `dev.expo.updates` — the device
+checking the manifest against the certificate compiled into its own APK — then
+`DownloadComplete` / `isUpdatePending`, and on the next launch the new JavaScript running.
+
+The unambiguous evidence is a pair of headers the client sends on every manifest request:
+`Expo-Embedded-Update-Id` never changes (it is what shipped in the binary), while
+`Expo-Current-Update-Id` becomes the published update's id once one has been applied. Two
+ids that differ is the whole proof, and it is visible in the OTA server's own logs without
+instrumenting the app. A JS-only edit does not move the runtimeVersion, so a throwaway
+marker bundle can be published, observed and then replaced by republishing the clean
+bundle of the same commit.

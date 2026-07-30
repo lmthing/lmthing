@@ -132,6 +132,40 @@ keep behaving byte-identically.
 App building in these scenarios routes to **`system-viewbuilder`** (explicit opt-in per the
 app-builder-v2 owner decision), so the apps render natively on the phone.
 
+## What the first live team scenario found, on step 1
+
+`20-studio` run 1. The first team scenario ever played found a defect in its **opening message**.
+
+**THING built a whole app before Ana accepted anything.** `runs/1/data/.lmthing/fold-studio-jobs/`
+has `database/jobs.json`, `api/`, `pages/jobs`, `components/` — while the channel log still held
+only Ana's message, 13 minutes into turn 1, with no reply. This is not a strict `expect`; THING's own
+instruct forbids it in as many words
+(`libs/core/system-spaces/user-thing/agents/thing/instruct.md` ~L781, ~L801):
+
+> frustration is a cue to OFFER, never a licence to build … An OFFER turn ends with a question and
+> contains **zero** authoring delegates … Then STOP and wait. Do not author anything on the same turn
+> as the offer.
+
+Ana's opener is a frustration ("we are drowning a bit").
+
+**What it built was a job-application tracker.** `database/jobs.json` says "Holds job application
+records", with `status` ∈ `saved · applied · interviewing · offered · accepted · rejected ·
+withdrawn`, plus `title` ("e.g. 'Senior Frontend Engineer'"), `company`, `salary_min`, `salary_max`,
+`contact_email`, `applied_at` — and studio fields bolted onto the same table (`client`, `owner`
+"e.g. Almeida, Bo"). "Three jobs running" at a branding studio, alongside three named client
+projects, "waiting on the client" and "goes to print", was read as job hunting.
+
+**Working hypothesis, being tested rather than assumed:** these are one bug. Because it never stopped
+to offer, it never received the answer step 2 was holding (`if_asked` — "with us, with the client, at
+the printer, or done"), so it filled the gap from a stock template. **The restraint failure caused
+the quality failure.**
+
+The experiment that settles it: play the same opener, verbatim, as a plain `/chat` turn on a personal
+pod, several times per surface. A channel turn is `visibleToUser: true` and deliberately **not**
+`interactive`. If channel turns build unasked while chat turns offer, the cause is the surface and
+the fix belongs in `runThingReply`. If both do, it is a general restraint regression affecting every
+user, not just teams — and much more serious.
+
 ## Lane boundary — the team UI is owned by a concurrent session
 
 A separate Claude Code session is doing the team + chat **rendering** pass in this same worktree

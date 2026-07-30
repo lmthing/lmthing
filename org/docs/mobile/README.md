@@ -229,6 +229,36 @@ Three facts shape the data layer (`sdk/org/libs/ui/src/dashboard/use-dashboard-d
 - **Teams carry no unread badge.** Unread state lives on each team's own pod, so an honest badge
   would mean waking every team's pod on every visit to Home.
 
+## Push notifications
+
+Verified end to end on the emulator, 2026-07-30: a notification rendered in the shade with the app
+backgrounded. The chain, and what each link needs, because a break anywhere in it looks identical
+from the app (`registerForPush` returns `null` and push reads as "not implemented"):
+
+| link | needs | where |
+|---|---|---|
+| `FirebaseApp` initialises | `google-services.json` compiled into the build | `sdk/org/apps/mobile/google-services.json`, referenced by `android.googleServicesFile` |
+| `getExpoPushTokenAsync()` returns a token | the EAS project id **and** an FCM v1 credential on EAS | `extra.eas.projectId`; the key is uploaded to EAS, never in this repo |
+| the gateway can target the device | `POST /api/push/subscribe` | row in `push_subscriptions` (`kind` `expo`) |
+| FCM delivers | EAS's FCM v1 service-account key for the Firebase project | Expo servers |
+
+Three things cost real time to learn and none are guessable:
+
+- **`google-services.json` is read at BUILD time.** Adding it is not enough; `android.googleServicesFile`
+  has to name it, and the native project has to be rebuilt (`expo prebuild` copies it to
+  `android/app/`). A JS-only reload cannot pick it up.
+- **A force-stopped app receives nothing.** Android puts a package killed with `am force-stop` into
+  its *stopped* state and FCM will not deliver to it — by design, not a bug. Testing "with the app
+  closed" that way produces a delivered-but-invisible push and looks exactly like a broken
+  credential. Background it with HOME instead.
+- **Expo's `status: ok` on send means QUEUED, not delivered.** The delivery answer is a separate
+  call, `POST /--/api/v2/push/getReceipts` with the send id. A rejected FCM credential shows up
+  there and nowhere else.
+
+`registerForPush` never throws: a declined permission dialog is a normal outcome, and a shell that
+cannot boot because notifications are unavailable is far worse than no notifications
+(`sdk/org/apps/mobile/src/push.ts#registerForPush`).
+
 ## Boot order
 
 `App.tsx` holds the tree back until `hydrateAuth()` resolves. `getSession()` is
@@ -326,14 +356,8 @@ could see:
 
 Still **not** proven on a device, and stated as a gap rather than implied:
 
-- **push itself.** `registerForPush` runs only once signed in, inside the Teams
-  pane (`sdk/org/apps/mobile/src/TeamScreen.tsx`), and
-  `getExpoPushTokenAsync()` needs an EAS project id and an FCM key for
-  `org.lmthing.mobile`; neither is provisioned, so it takes the `catch` and
-  returns `null` (`sdk/org/apps/mobile/src/push.ts#registerForPush`). The
-  emulator itself is not the blocker — this AVD has Google Play services, so it
-  can receive a real push once those credentials exist. Nothing about "the phone
-  buzzes with the app closed" is verified.
+- ~~push itself~~ — **verified on a device 2026-07-30**, see
+  [Push notifications](#push-notifications) below.
 - a real interactive SSO login end-to-end (password login is disabled —
   `.issues/zitadel-password-login-disabled.md` — so verification used an
   already-minted gateway session);

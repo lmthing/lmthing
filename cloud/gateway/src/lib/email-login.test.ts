@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   CODE_TTL_MS,
+  ORIGIN_COOKIE,
+  generateOriginToken,
+  hashOriginToken,
+  originCookie,
+  readOriginCookie,
   generateLinkToken,
   generateOtp,
   hashCode,
@@ -214,5 +219,49 @@ describe("renderLoginEmail", () => {
     // The design system bans raw color literals; a mail client cannot resolve a
     // token, so the template styles type and spacing only.
     expect(rendered.html).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(|color:/);
+  });
+});
+
+describe("the origin cookie", () => {
+  it("is only accepted under a name the browser pins to this origin", () => {
+    // `__Host-` is refused by the browser unless Secure, path `/`, and no Domain —
+    // which is what stops a sibling subdomain from setting one that would be sent
+    // here. Losing the prefix would silently widen who can forge it.
+    expect(ORIGIN_COOKIE.startsWith("__Host-")).toBe(true);
+    const header = originCookie("tok");
+    expect(header).toContain("Secure");
+    expect(header).toContain("HttpOnly");
+    expect(header).toContain("Path=/");
+    expect(header).not.toContain("Domain=");
+    // Lax would simply not be stored: the SPA and the gateway are different sites.
+    expect(header).toContain("SameSite=None");
+  });
+
+  it("outlives the code, so a click a second late is not a different device", () => {
+    const maxAge = Number(originCookie("tok").match(/Max-Age=(\d+)/)![1]);
+    expect(maxAge).toBeGreaterThan(CODE_TTL_MS / 1000);
+  });
+
+  it("finds its cookie among others, and is not fooled by a name that ends the same", () => {
+    expect(readOriginCookie(`a=1; ${ORIGIN_COOKIE}=wanted; z=2`)).toBe("wanted");
+    expect(readOriginCookie(`x${ORIGIN_COOKIE}=spoof`)).toBe(null);
+    expect(readOriginCookie(`${ORIGIN_COOKIE}=`)).toBe(null);
+    expect(readOriginCookie(undefined)).toBe(null);
+    expect(readOriginCookie("")).toBe(null);
+    expect(readOriginCookie("malformed")).toBe(null);
+  });
+
+  it("round-trips through the header it is set with", () => {
+    const token = generateOriginToken();
+    expect(readOriginCookie(originCookie(token).split(";")[0]!)).toBe(token);
+  });
+
+  it("stores only a hash, and two tokens never collide", () => {
+    const a = generateOriginToken();
+    const b = generateOriginToken();
+    expect(a).not.toBe(b);
+    expect(hashOriginToken(a)).not.toBe(hashOriginToken(b));
+    expect(hashOriginToken(a)).toBe(hashOriginToken(a));
+    expect(hashOriginToken(a)).not.toContain(a);
   });
 });

@@ -15,14 +15,18 @@ import {
   MAX_SENDS_PER_WINDOW,
   SEND_WINDOW_MS,
   generateLinkToken,
+  generateOriginToken,
   generateOtp,
   hashCode,
   hashLinkToken,
+  hashOriginToken,
   hashesEqual,
   isAllowedRedirect,
   maskEmail,
   normalizeEmail,
   normalizeOtp,
+  originCookie,
+  readOriginCookie,
   redirectWithTokens,
   renderLoginEmail,
 } from "../lib/email-login.js";
@@ -402,6 +406,10 @@ auth.post(
 
     const code = generateOtp();
     const linkToken = generateLinkToken();
+    // Names THIS browser, so the callback can tell the device that asked from any
+    // other device the mail is read on. Reused when the caller already has one, so
+    // asking twice from the same page does not orphan the first row's binding.
+    const originToken = readOriginCookie(c.req.header("cookie")) ?? generateOriginToken();
     const expiresAt = new Date(Date.now() + CODE_TTL_MS);
 
     try {
@@ -410,6 +418,7 @@ auth.post(
         codeHash: hashCode(email, code),
         linkHash: hashLinkToken(linkToken),
         redirectUri,
+        originHash: hashOriginToken(originToken),
         expiresAt,
       });
     } catch (err) {
@@ -439,6 +448,12 @@ auth.post(
     }
 
     void db.purgeExpiredEmailLoginCodes().catch(() => null);
+
+    // Only lands if the caller sent credentials AND the response carries the
+    // credentialed CORS headers the email routes are mounted with. A caller that
+    // does neither (curl, the native app) simply has no cookie, and its links take
+    // the "different device" path — which is correct: it has no browser waiting.
+    c.header("Set-Cookie", originCookie(originToken));
 
     return c.json({
       sent: true,
@@ -514,6 +529,26 @@ auth.get("/email/callback", async (c) => {
   if (!row) {
     return c.json({ error: "This sign-in link has expired or was already used" }, 401);
   }
+
+  // Is this the browser that asked? A link read on a second device must NOT be
+  // spent here: doing so logs in the wrong device and leaves the one waiting on
+  // the sign-in page logged out, and it makes a forwarded link an account
+  // takeover. The row is left untouched so the code in that same email keeps
+  // working on the device that started the flow.
+  const presented = readOriginCookie(c.req.header("cookie"));
+  // Truthy rather than `!= null`: a row issued before the origin column existed reads
+  // back as undefined, and `hashesEqual` would throw on it — turning "we cannot prove
+  // this is the same device", which has a perfectly good answer, into a 500.
+  const sameDevice =
+    typeof row.origin_hash === "string" &&
+    row.origin_hash.length > 0 &&
+    presented !== null &&
+    hashesEqual(row.origin_hash, hashOriginToken(presented));
+
+  if (!sameDevice) {
+    return c.html(otherDevicePage(), 200);
+  }
+
   if (!(await db.consumeEmailLoginCode(row.id))) {
     return c.json({ error: "This sign-in link was already used" }, 401);
   }
@@ -556,6 +591,43 @@ async function mintEmailSession(email: string): Promise<EmailSession | null> {
   const tokens = await signTokens(userId, email);
   await provisionUser(userId, email).catch(() => null);
   return { userId, tokens };
+}
+
+/**
+ * What a link opened on a device that did not start the sign-in gets.
+ *
+ * Deliberately NOT a session, and deliberately not a new code either: the 6-digit
+ * code is already in the email this link came from, so the only thing missing is
+ * telling the reader where to type it. Nothing is consumed, so the waiting device
+ * can still finish.
+ *
+ * Inlined rather than served from a SPA because it has to render on a phone that
+ * has never loaded lmthing, from the gateway origin, with no build step in front
+ * of it — and because a redirect to a styled page would put the token in a
+ * `Referer`. No user input is interpolated, so there is nothing to escape.
+ */
+function otherDevicePage(): string {
+  return `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finish signing in on the other device</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px; }
+  main { max-width: 30rem; text-align: center; }
+  h1 { font-size: 1.25rem; margin: 0 0 .75rem; }
+  p { margin: 0 0 .75rem; opacity: .8; }
+  strong { white-space: nowrap; }
+</style>
+</head><body><main>
+<h1>Almost there — finish on the other device</h1>
+<p>This link was opened on a different device or browser than the one that asked to sign in, so we
+have not signed anyone in here.</p>
+<p>Go back to the device where you started and enter the <strong>6-digit code</strong> from this same
+email. It is still valid.</p>
+</main></body></html>`;
 }
 
 function sessionBody(session: EmailSession, email: string) {

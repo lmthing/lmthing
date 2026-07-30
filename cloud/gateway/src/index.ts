@@ -18,13 +18,49 @@ import { ensureSchema } from "./lib/db.js";
 
 const app = new Hono();
 
-app.use(
-  "/api/*",
-  cors({
-    origin: "*",
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
-  }),
+// Everything is Bearer-authenticated, so the wildcard is safe: no ambient credential
+// rides along with a cross-origin call and there is nothing for another origin to
+// abuse. `*` is also what lets a user's own pod (a per-user origin) call the gateway.
+const openCors = cors({
+  origin: "*",
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization"],
+});
+
+// The one exception. Passwordless sign-in sets a cookie naming the browser that
+// asked (see lib/email-login.ts#ORIGIN_COOKIE), and a cookie cannot be stored from a
+// cross-site response unless the response says `Allow-Credentials: true` with a
+// CONCRETE origin — the spec forbids pairing credentials with `*`. So these routes
+// get their own policy that reflects only origins we ship, and everything else keeps
+// the wildcard. Reflecting arbitrary origins with credentials is the thing this
+// split exists to avoid.
+const emailCors = cors({
+  origin: (origin) => (isTrustedWebOrigin(origin) ? origin : ""),
+  credentials: true,
+  allowMethods: ["GET", "POST", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization"],
+});
+
+/** Origins the SPAs are actually served from — `lmthing.*`, plus the local dev hosts. */
+function isTrustedWebOrigin(origin: string): boolean {
+  if (!origin) return false;
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  const host = url.hostname.toLowerCase();
+  if (url.protocol === "https:" && /^([a-z0-9-]+\.)*lmthing\.[a-z]{2,}$/.test(host)) return true;
+  return (
+    host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host.endsWith(".test")
+  );
+}
+
+const EMAIL_ROUTES = "/api/auth/email/";
+
+app.use("/api/*", (c, next) =>
+  c.req.path.startsWith(EMAIL_ROUTES) ? emailCors(c, next) : openCors(c, next),
 );
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));

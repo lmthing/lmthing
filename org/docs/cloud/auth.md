@@ -78,7 +78,21 @@ One request issues **two credentials for one single-use row**: a 6-digit code to
 
 2. **`POST /email/verify`** (public, 30 / 15 min) — `{ email, code }` `cloud/gateway/src/routes/auth.ts:454-503`. Reads the newest live row for the mailbox (`db.findLiveEmailLoginCode`, whose `WHERE consumed_at IS NULL AND expires_at > now()` makes a spent or expired row invisible) `cloud/gateway/src/lib/db.ts#findLiveEmailLoginCode`, compares in constant time `cloud/gateway/src/lib/email-login.ts#hashesEqual`, and on a mismatch counts the guess and burns the row at `MAX_ATTEMPTS` = 5 `cloud/gateway/src/lib/db.ts#recordEmailLoginAttempt`. On a match it spends the row *before* minting anything `cloud/gateway/src/lib/db.ts#consumeEmailLoginCode`, then returns `{ access_token, refresh_token, expires_at, user }` `cloud/gateway/src/routes/auth.ts#mintEmailSession`.
 
-3. **`GET /email/callback?token=`** (public) — the magic link `cloud/gateway/src/routes/auth.ts:506-529`. Looks the row up by `hashLinkToken` `cloud/gateway/src/lib/db.ts#findLiveEmailLoginCodeByLink`, consumes it, and `302`-redirects to the `redirect_uri` **recorded at issue time** with the token trio appended as a URL fragment `cloud/gateway/src/lib/email-login.ts#redirectWithTokens` — the same shape `/oauth/callback` produces, which is why `com`'s `/callback` route handles both without knowing which flow it came from. With no `redirect_uri` on the row (an API-only caller) it returns the session as JSON instead.
+3. **`GET /email/callback?token=`** (public) — the magic link `cloud/gateway/src/routes/auth.ts#auth`. Looks the row up by `hashLinkToken` `cloud/gateway/src/lib/db.ts#findLiveEmailLoginCodeByLink`, then asks **which device is this?** before spending anything (below). For the browser that started the flow it consumes the row and `302`-redirects to the `redirect_uri` **recorded at issue time** with the token trio appended as a URL fragment `cloud/gateway/src/lib/email-login.ts#redirectWithTokens` — the same shape `/oauth/callback` produces, which is why `com`'s `/callback` route handles both without knowing which flow it came from. With no `redirect_uri` on the row (an API-only caller) it returns the session as JSON instead.
+
+#### A link opened on a different device does not sign that device in
+
+A magic link is a bearer credential sitting in an inbox, and an inbox is read on whatever device is to hand. Handing a session to whoever opens it is wrong twice: the browser that actually asked is still sitting on the sign-in page logged out, and a **forwarded link becomes an account takeover**.
+
+So `/email/start` sets `__Host-lmthing_email_origin`, an opaque 256-bit token naming that browser, and stores only its hash on the row `cloud/gateway/src/lib/email-login.ts#ORIGIN_COOKIE`. The callback completes a login only when the click carries the cookie back and it hashes to the row's `origin_hash` `cloud/gateway/src/lib/email-login.ts#hashOriginToken`. Any other click — no cookie, or a cookie from a *different* sign-in — gets a plain HTML page telling the reader to type the 6-digit code on the device where they started, and **the row is left unspent** so that device can still finish `cloud/gateway/src/routes/auth.ts#otherDevicePage`.
+
+Nothing is regenerated or displayed on the second device: the code is already in the same email the link came from, so the only thing missing was telling the reader where to type it.
+
+- The comparison is truthy-guarded, not `!= null`: a row issued before `origin_hash` existed reads back `undefined`, and treating that as "cannot prove same device" is the difference between the instructions page and a `500`.
+- The cookie outlives the code (`CODE_TTL_MS * 2`) so a click arriving a moment late is not misread as a different device `cloud/gateway/src/lib/email-login.ts#originCookie`.
+- `__Host-` is refused by the browser unless the cookie is `Secure`, path `/`, and carries no `Domain`, which pins it to the gateway origin and stops a sibling subdomain setting one that would be sent here.
+- **This is why the email routes have their own CORS policy.** The SPA is on `lmthing.com` and the gateway on `lmthing.cloud`, so the response that sets this cookie is cross-site — and a cookie cannot be stored from one unless the response carries `Access-Control-Allow-Credentials: true` with a *concrete* origin. The spec forbids pairing credentials with `*`, so `/api/auth/email/*` reflects only origins we ship while the rest of `/api/*` keeps the wildcard `cloud/gateway/src/index.ts#isTrustedWebOrigin`. Callers must send `credentials: 'include'` or the cookie never lands and every link looks foreign `sdk/org/libs/auth/src/email-login.ts#requestEmailCode`.
+- Native never has this cookie and does not need it: the mobile app has no magic link (see below), and its user types the code.
 
 ### What stops each attack
 
@@ -92,6 +106,8 @@ One request issues **two credentials for one single-use row**: a 6-digit code to
 | Codes are uniformly distributed | `crypto.randomInt`, not `randomBytes % 1e6` `cloud/gateway/src/lib/email-login.ts#generateOtp` |
 | A resend makes the old code dead | the insert supersedes any live row for the mailbox in one transaction `cloud/gateway/src/lib/db.ts#insertEmailLoginCode` |
 | An unconfigured deployment cannot be signed into | no mailer ⇒ 503, not a "sent" that nobody can act on `cloud/gateway/src/lib/email.ts#isEmailConfigured` |
+| A **forwarded magic link is not an account** | the callback signs in only the browser whose `__Host-` cookie hashes to the row's `origin_hash`; anyone else gets instructions and the row is left unspent `cloud/gateway/src/lib/email-login.ts#ORIGIN_COOKIE` |
+| A stale cookie from another sign-in does not pass | the binding is per-row, not "any valid cookie" `cloud/gateway/src/lib/db.ts#EmailLoginCode` |
 
 The default `isAllowedRedirect` allowlist is https on any `lmthing.*` host or subdomain, plus `localhost` / `127.0.0.1` / `0.0.0.0` / `[::1]` / `*.test`; `EMAIL_LOGIN_ALLOWED_ORIGINS` (comma-separated exact origins) replaces it entirely.
 
@@ -99,7 +115,7 @@ The default `isAllowedRedirect` allowlist is https on any `lmthing.*` host or su
 
 ### The `email_login_codes` table
 
-`(id uuid, email text, code_hash, link_hash UNIQUE, redirect_uri, attempts int, expires_at, consumed_at, created_at)`, created idempotently by `ensureSchema()` on boot and mirrored in `cloud/migrations/012_email_login_codes.sql` `cloud/gateway/src/lib/db.ts:247-262`. There is deliberately **no `user_id`** column: the mailbox is the key on this path, and the Zitadel user is resolved only after the code verifies. `TTL` is `CODE_TTL_MS` = 15 minutes `cloud/gateway/src/lib/email-login.ts#CODE_TTL_MS`; spent rows older than a day are purged opportunistically `cloud/gateway/src/lib/db.ts#purgeExpiredEmailLoginCodes`.
+`(id uuid, email text, code_hash, link_hash UNIQUE, redirect_uri, origin_hash, attempts int, expires_at, consumed_at, created_at)`, created idempotently by `ensureSchema()` on boot and mirrored in `cloud/migrations/012_email_login_codes.sql` plus `cloud/migrations/013_email_login_origin.sql` `cloud/gateway/src/lib/db.ts#EmailLoginCode`. There is deliberately **no `user_id`** column: the mailbox is the key on this path, and the Zitadel user is resolved only after the code verifies. `TTL` is `CODE_TTL_MS` = 15 minutes `cloud/gateway/src/lib/email-login.ts#CODE_TTL_MS`; spent rows older than a day are purged opportunistically `cloud/gateway/src/lib/db.ts#purgeExpiredEmailLoginCodes`.
 
 ### Sending the mail
 
@@ -154,6 +170,21 @@ Consumed by the product SPAs. Key session mechanics in `sdk/org/libs/auth/src/cl
 - `refreshSession` `POST`s `/api/auth/refresh` `sdk/org/libs/auth/src/client.ts#refreshSession`; `ensureValidToken` refreshes when within `REFRESH_BUFFER` (60s) of `expiresAt`, clearing the session on failure `sdk/org/libs/auth/src/client.ts:7,118-145`.
 - `authFetch` sets the Bearer header, and on `401` force-refreshes once and retries; it also transparently retries the Envoy activator's `{waking:true}` 503 up to `WAKE_RETRIES` (6 × 1200ms) so a scaled-to-zero pod self-heals `sdk/org/libs/auth/src/client.ts:161-204`.
 - A pod-embedded app reads a bootstrap-injected `window.__LM_ACCESS_TOKEN__` (`getPodInjectedToken`/`isPodEmbedded`) `sdk/org/libs/auth/src/client.ts:229-239`.
+
+#### Email sign-in is the one path with no browser hop — which is what makes it work on a phone
+
+`requestEmailCode` / `verifyEmailCode` are two plain `fetch` calls against `/api/auth/email/*`, so there is nothing to fork per target and **no `platform/` seam at all** `sdk/org/libs/auth/src/email-login.ts#verifyEmailCode`. The mobile app signs a user in *inside the app*: no `WebBrowser.openAuthSessionAsync` sheet, no SSO code, no `state`, and therefore none of the cross-device problems the SSO path has. `AuthProvider` exposes them as `sendEmailCode` / `signInWithEmailCode`, and adopting the returned session flips `isAuthenticated` `sdk/org/libs/auth/src/AuthProvider.tsx#AuthProvider`.
+
+The session it yields is mapped identically to `exchangeSsoCode`'s, deliberately: an address that signs in by email and one that signs in through GitHub resolve to **one** Zitadel user, so a session differing in shape between the two paths would be a latent bug in whatever consumes it `sdk/org/libs/auth/src/sso-exchange.ts#exchangeSsoCode`.
+
+Two target-specific rules, both enforced by the native suite `sdk/org/libs/ui/metro/suites/auth-login.ts`:
+
+- **Native sends no `redirect_uri`.** `isAllowedRedirect` accepts `http`/`https` only, so passing a `lmthing://auth/callback` deep link would `400` the whole request. `AuthProvider` supplies one only when `isWeb()` `sdk/org/libs/auth/src/AuthProvider.tsx#AuthProvider`.
+- **No browser sheet may open.** A test asserts no auth URL is recorded during an email sign-in, so re-routing this through `/auth/sso` later fails loudly rather than silently reintroducing the sheet.
+
+**GitHub sign-in still leaves the app, and must.** An OAuth handoff to an external identity provider has to happen in a real browser session (`ASWebAuthenticationSession` / Custom Tab) — embedding it in a WebView breaks GitHub's policy and is an app-store rejection risk. `platform/sso.native.ts` is the correct primitive, not a workaround. Only the email path can be fully in-app.
+
+Both doors are rendered by one shared `LoginScreen` `sdk/org/libs/ui/src/components/auth/login-screen/index.tsx`. Two cross-platform traps it encodes: the field uses **`inputMode`** rather than RN's `keyboardType` (the one spelling React DOM and `TextInput` both accept, and the only one `InputProps` types), and it sets **no `autoCorrect`** — the DOM types it as a *string* while RN wants a *boolean*, so `"off"` would arrive truthy on a phone and switch autocorrect **on**, corrupting typed addresses.
 
 **Demo mode**: `AuthProvider` uses a hardcoded `DEMO_SESSION` (accessToken `"demo"`, userId `demo-user`, email `demo@lmthing.local`) whenever `import.meta.env.VITE_DEMO_USER === 'true'` **or** `isLocalRun()` is true (localhost/loopback/`*.test`) `sdk/org/libs/auth/src/AuthProvider.tsx:27-40`, `sdk/org/libs/auth/src/client.ts#isLocalRun`. This pairs with the middleware's `"demo"` bypass above.
 

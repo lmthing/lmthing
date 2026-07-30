@@ -208,6 +208,11 @@ export interface EmailLoginStart {
 export function startEmailLogin(email: string, redirectUri?: string) {
   return cloudFetchPublic('/api/auth/email/start', {
     method: 'POST',
+    // The gateway replies with a cookie naming this browser, and only that browser's
+    // click on the magic link completes a login. The cookie is cross-site (com →
+    // cloud), so without `include` it is never stored and every link — including one
+    // clicked right here — looks like it came from a different device.
+    credentials: 'include',
     body: JSON.stringify({ email, ...(redirectUri ? { redirect_uri: redirectUri } : {}) }),
   }) as Promise<EmailLoginStart>
 }

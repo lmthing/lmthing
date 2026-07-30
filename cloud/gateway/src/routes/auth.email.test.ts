@@ -21,6 +21,7 @@ interface Row {
   code_hash: string;
   link_hash: string;
   redirect_uri: string | null;
+  origin_hash: string | null;
   attempts: number;
   expires_at: string;
   consumed_at: string | null;
@@ -41,6 +42,7 @@ const fakeDb = {
       codeHash: string;
       linkHash: string;
       redirectUri: string | null;
+      originHash: string | null;
       expiresAt: Date;
     }) => {
       if (dbDown) throw new Error("db down");
@@ -54,6 +56,7 @@ const fakeDb = {
         code_hash: input.codeHash,
         link_hash: input.linkHash,
         redirect_uri: input.redirectUri,
+        origin_hash: input.originHash,
         attempts: 0,
         expires_at: input.expiresAt.toISOString(),
         consumed_at: null,
@@ -155,6 +158,27 @@ function mailedCode(): string {
   const m = last.text.match(/(\d{3}) (\d{3})/);
   if (!m) throw new Error(`no code in mail body: ${last.text}`);
   return `${m[1]}${m[2]}`;
+}
+
+/**
+ * The `__Host-` cookie naming the browser that asked, as a `Cookie` header value.
+ *
+ * Replaying it on the callback is what makes a click "the same device"; omitting it
+ * is what makes it "some other device". Every same-device assertion below therefore
+ * has to thread this through, exactly as a real browser would.
+ */
+function originCookieFrom(res: Response): string {
+  const setCookie = res.headers.get("set-cookie");
+  if (!setCookie) throw new Error("no Set-Cookie on the start response");
+  return setCookie.split(";")[0]!;
+}
+
+/** Click the magic link, optionally as the browser that requested it. */
+function clickLink(link: string, cookie?: string): Promise<Response> {
+  const url = new URL(link);
+  return app.request(url.pathname + url.search, {
+    headers: cookie ? { cookie } : {},
+  });
 }
 
 function mailedLink(): string {
@@ -424,11 +448,11 @@ describe("POST /email/verify", () => {
 
 describe("GET /email/callback (magic link)", () => {
   it("redirects to the recorded redirect_uri with tokens in the fragment", async () => {
-    await start({
+    const started = await start({
       email: "link@example.com",
       redirect_uri: "https://lmthing.com/callback?next=%2Fauth%2Fsso",
     });
-    const res = await app.request(new URL(mailedLink()).pathname + new URL(mailedLink()).search);
+    const res = await clickLink(mailedLink(), originCookieFrom(started));
 
     expect(res.status).toBe(302);
     const location = new URL(res.headers.get("location")!);
@@ -447,9 +471,8 @@ describe("GET /email/callback (magic link)", () => {
   });
 
   it("returns the session as JSON when no redirect was requested", async () => {
-    await start({ email: "api@example.com" });
-    const link = new URL(mailedLink());
-    const res = await app.request(link.pathname + link.search);
+    const started = await start({ email: "api@example.com" });
+    const res = await clickLink(mailedLink(), originCookieFrom(started));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(await verifyAccessToken(body.access_token)).toEqual({
@@ -459,18 +482,73 @@ describe("GET /email/callback (magic link)", () => {
   });
 
   it("is single-use — the second click fails", async () => {
-    await start({ email: "once@example.com" });
-    const link = new URL(mailedLink());
-    expect((await app.request(link.pathname + link.search)).status).toBe(200);
-    expect((await app.request(link.pathname + link.search)).status).toBe(401);
+    const started = await start({ email: "once@example.com" });
+    const cookie = originCookieFrom(started);
+    expect((await clickLink(mailedLink(), cookie)).status).toBe(200);
+    expect((await clickLink(mailedLink(), cookie)).status).toBe(401);
   });
 
   it("invalidates the typed code too — the row is the single-use unit", async () => {
-    await start({ email: "both@example.com" });
+    const started = await start({ email: "both@example.com" });
     const code = mailedCode();
-    const link = new URL(mailedLink());
-    expect((await app.request(link.pathname + link.search)).status).toBe(200);
+    expect((await clickLink(mailedLink(), originCookieFrom(started))).status).toBe(200);
     expect((await verify({ email: "both@example.com", code })).status).toBe(401);
+  });
+
+  // ── opened somewhere else ──────────────────────────────────────────────────
+  //
+  // The case the link exists for — mail read on a phone while the laptop waits —
+  // and the case that used to hand the session to the wrong device.
+
+  it("does NOT sign in a device that did not ask — it explains instead", async () => {
+    await start({ email: "elsewhere@example.com", redirect_uri: "https://lmthing.com/callback" });
+
+    const res = await clickLink(mailedLink()); // no cookie: a different browser
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/html");
+
+    const body = await res.text();
+    expect(body).toContain("finish on the other device");
+    // The whole point: no credential is handed over here.
+    expect(body).not.toContain("access_token");
+    expect(res.headers.get("location")).toBeNull();
+  });
+
+  it("leaves the row spendable, so the waiting device can still finish", async () => {
+    await start({ email: "waiting@example.com" });
+    const code = mailedCode();
+
+    await clickLink(mailedLink()); // read on a phone…
+
+    // …and the laptop that asked types the code from that same mail. It still works,
+    // which is why nothing has to be regenerated or shown on the phone.
+    const res = await verify({ email: "waiting@example.com", code });
+    expect(res.status).toBe(200);
+    expect(await verifyAccessToken((await res.json()).access_token)).toEqual({
+      userId: "user-1",
+      email: "waiting@example.com",
+    });
+  });
+
+  it("rejects a cookie from a DIFFERENT sign-in, not just a missing one", async () => {
+    // Otherwise any stale cookie would pass: the binding has to be per-row.
+    const other = await start({ email: "other@example.com" });
+    await start({ email: "victim@example.com", redirect_uri: "https://lmthing.com/callback" });
+
+    const res = await clickLink(mailedLink(), originCookieFrom(other));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/html");
+    expect(res.headers.get("location")).toBeNull();
+  });
+
+  it("a forwarded link cannot be spent by the recipient", async () => {
+    // The security half of the same rule: possession of the link is no longer
+    // possession of the account.
+    const started = await start({ email: "forwarded@example.com" });
+    expect((await clickLink(mailedLink())).status).toBe(200); // attacker: instructions only
+
+    // And the rightful owner's own click still completes.
+    expect((await clickLink(mailedLink(), originCookieFrom(started))).status).toBe(200);
   });
 
   it("rejects a missing, unknown or expired token", async () => {

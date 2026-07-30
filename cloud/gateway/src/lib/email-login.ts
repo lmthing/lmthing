@@ -91,6 +91,75 @@ export function hashLinkToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+// ─── Which device asked? ─────────────────────────────────────────────────────
+
+/**
+ * Cookie naming the browser that started this sign-in.
+ *
+ * A magic link is a bearer credential sitting in an inbox, and an inbox is read
+ * on whatever device is to hand — often not the one waiting on the sign-in page.
+ * Redirecting a session to whoever opens the link is therefore both a UX failure
+ * (the browser that asked is still sitting there logged out) and a security one:
+ * a forwarded link hands over an account.
+ *
+ * So the row records a hash of this cookie's value at issue time, and the
+ * callback only completes the login when the click carries it back. A click
+ * without it is answered with instructions rather than a session — the code is
+ * already in that same email, so nothing has to be regenerated or displayed.
+ *
+ * `__Host-` is deliberate: it is refused by the browser unless the cookie is
+ * Secure, path `/`, and carries no Domain, which pins it to exactly this origin
+ * and stops a sibling subdomain from setting one that would be sent here.
+ */
+export const ORIGIN_COOKIE = "__Host-lmthing_email_origin";
+
+/** 256 bits naming this browser. Never leaves the device that asked. */
+export function generateOriginToken(): string {
+  return crypto.randomBytes(32).toString("base64url");
+}
+
+/** Carries its own entropy, so — like the link token — it is hashed unbound. */
+export function hashOriginToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * `Set-Cookie` for {@link ORIGIN_COOKIE}.
+ *
+ * `SameSite=None` is required rather than lax: the SPA lives on `lmthing.com`
+ * and the gateway on `lmthing.cloud`, so the request that sets this is
+ * cross-site and a `Lax` cookie would simply not be stored. That is also why the
+ * email routes carry their own credentialed CORS — `Access-Control-Allow-Origin:
+ * *` cannot be combined with credentials, so the wildcard policy the rest of
+ * `/api/*` uses would silently drop it.
+ *
+ * It outlives the code by design: expiring together would make a click that
+ * arrives a second late look like a different device.
+ */
+export function originCookie(token: string, maxAgeMs = CODE_TTL_MS * 2): string {
+  return [
+    `${ORIGIN_COOKIE}=${token}`,
+    "Path=/",
+    "HttpOnly",
+    "Secure",
+    "SameSite=None",
+    `Max-Age=${Math.floor(maxAgeMs / 1000)}`,
+  ].join("; ");
+}
+
+/** Read {@link ORIGIN_COOKIE} out of a request's Cookie header. */
+export function readOriginCookie(header: string | undefined | null): string | null {
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() !== ORIGIN_COOKIE) continue;
+    const value = part.slice(eq + 1).trim();
+    return value.length > 0 ? value : null;
+  }
+  return null;
+}
+
 /** Constant-time comparison of two hex digests of the same length. */
 export function hashesEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;

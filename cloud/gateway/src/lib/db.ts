@@ -268,6 +268,12 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_email_login_codes_created
       ON public.email_login_codes (created_at)
   `;
+  // Hash of the __Host- cookie naming the browser that asked. Added separately
+  // because the table predates it — see cloud/migrations/013_email_login_origin.sql.
+  await sql`
+    ALTER TABLE public.email_login_codes
+      ADD COLUMN IF NOT EXISTS origin_hash text
+  `;
 }
 
 export interface PushSubscription {
@@ -935,6 +941,8 @@ export interface EmailLoginCode {
   code_hash: string;
   link_hash: string;
   redirect_uri: string | null;
+  /** sha256 of the origin cookie, or null when the request had no browser behind it. */
+  origin_hash: string | null;
   attempts: number;
   expires_at: string;
   consumed_at: string | null;
@@ -953,6 +961,7 @@ export async function insertEmailLoginCode(input: {
   codeHash: string;
   linkHash: string;
   redirectUri: string | null;
+  originHash: string | null;
   expiresAt: Date;
 }): Promise<void> {
   await sql.begin(async (tx) => {
@@ -961,9 +970,9 @@ export async function insertEmailLoginCode(input: {
       WHERE email = ${input.email} AND consumed_at IS NULL
     `;
     await tx`
-      INSERT INTO email_login_codes (email, code_hash, link_hash, redirect_uri, expires_at)
+      INSERT INTO email_login_codes (email, code_hash, link_hash, redirect_uri, origin_hash, expires_at)
       VALUES (${input.email}, ${input.codeHash}, ${input.linkHash},
-              ${input.redirectUri}, ${input.expiresAt.toISOString()})
+              ${input.redirectUri}, ${input.originHash}, ${input.expiresAt.toISOString()})
     `;
   });
 }

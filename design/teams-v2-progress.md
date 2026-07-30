@@ -155,16 +155,44 @@ withdrawn`, plus `title` ("e.g. 'Senior Frontend Engineer'"), `company`, `salary
 "e.g. Almeida, Bo"). "Three jobs running" at a branding studio, alongside three named client
 projects, "waiting on the client" and "goes to print", was read as job hunting.
 
-**Working hypothesis, being tested rather than assumed:** these are one bug. Because it never stopped
-to offer, it never received the answer step 2 was holding (`if_asked` — "with us, with the client, at
-the printer, or done"), so it filled the gap from a stock template. **The restraint failure caused
-the quality failure.**
+### The hypothesis was measured, and refuted
 
-The experiment that settles it: play the same opener, verbatim, as a plain `/chat` turn on a personal
-pod, several times per surface. A channel turn is `visibleToUser: true` and deliberately **not**
-`interactive`. If channel turns build unasked while chat turns offer, the cause is the surface and
-the fix belongs in `runThingReply`. If both do, it is a general restraint regression affecting every
-user, not just teams — and much more serious.
+The guess was that the **channel surface** causes it — a channel turn is `visibleToUser: true` and
+deliberately not `interactive`, so nobody can answer an `ask()`, and an agent that cannot ask might
+reason its way into just building. Measured with `scenarios/harness/probe-offer-restraint.mjs`,
+which judges on the filesystem (did a project directory appear on the offer turn), the one signal
+both surfaces share and the one a model cannot talk its way around:
+
+| surface | authored on the opening turn | ended by asking |
+|---|---|---|
+| personal `/chat` | **0 / 5** | 5 / 5 |
+| team channel, minimal cast | **0 / 6** | 6 / 6 |
+| team channel, full 20-studio cast | **1 / 3** | 2 / 3 |
+
+The identical full-cast configuration that built was replayed twice more and **offered correctly
+both times** — 17 s and 28 s, `display` the only global, no project directory at all.
+
+So: **1 in 14, and not a property of the surface.** The fix does not belong in `runThingReply`. It
+is a low-probability restraint slip in THING itself, which means it reaches `/chat` users too — the
+0/5 personal result is a sample size, not an acquittal.
+
+Filed as [`.issues/thing-builds-on-the-offer-turn.md`](../.issues/thing-builds-on-the-offer-turn.md)
+and, separately, [`.issues/thing-schema-domain-misread-job-tracker.md`](../.issues/thing-schema-domain-misread-job-tracker.md).
+**Two files, not one**: the causal story above is untested, because the misread is n=1 and the 13
+correct replays authored nothing and so produced no schema to compare. The cheap experiment that
+would settle it (`--through 2`, so the offer lands, the `if_asked` answers arrive, and *then* it
+builds) is named in the file.
+
+The verify-a-fix gate requires **N runs, not one green run** — a single passing replay would have
+"proved" this fixed at any point during the investigation.
+
+### One correction to the first reading
+
+"13 minutes into turn 1, no reply" was partly the harness, not the pod: `ThreadSession` waited on
+channel frames, and a channel emits nothing between `setActivity()` calls, so a silent build read as
+a hang. `await` now takes a liveness probe and the budgets are sized for a build. The authoring
+finding is unaffected — it rests on the filesystem timeline (`project.json` 17 s after the opener,
+`database/jobs.json` four minutes *before* Ana's acceptance), not on a timeout.
 
 ## Lane boundary — the team UI is owned by a concurrent session
 

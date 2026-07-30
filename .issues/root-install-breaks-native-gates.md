@@ -1,8 +1,8 @@
 # A root `pnpm install` silently breaks every native gate
 
-**Found:** 2026-07-28, verifying phone-width work on the emulator. **Not a code bug — an install
-trap**, but one that costs an hour if you have not seen it, so it stays written down until the
-layout stops being ambiguous.
+**Found:** 2026-07-28, verifying phone-width work on the emulator. **Not a code bug — a workspace
+layout problem.** Now DIAGNOSED and guarded, but not eliminated; the layout is still ambiguous, so
+this stays open.
 
 ## Symptom
 
@@ -14,46 +14,53 @@ cd sdk/org && pnpm test:native
 #     libs/ui/node_modules   ← it IS there
 ```
 
-The Expo app fails the same way, one module later (`marked`, from the markdown renderer), and shows
-it as a redbox `Failed to compile` on the device. `@lmthing/mobile#typecheck` fails alongside it on
-a Tamagui config type — and `pnpm typecheck` from `sdk/org` can look GREEN while it does, because
-turbo caches that task until something in `apps/mobile` is edited.
+The Expo app fails the same way one module later (`marked`, from the markdown renderer) and shows it
+as a redbox `Failed to compile` on the device. `@lmthing/mobile#typecheck` fails alongside it on a
+Tamagui config type in `App.tsx` — a line nobody edited — and `pnpm typecheck` from `sdk/org` can
+look GREEN while that happens, because turbo caches the task until something in `apps/mobile` changes.
 
-## Cause
+## Cause (confirmed 2026-07-30)
 
-`libs/*` is a member of BOTH pnpm workspaces: the repo root globs `sdk/org/libs/*`, and `sdk/org`
-has a workspace of its own (which is where `apps/mobile` lives — see
-[`pnpm-workspace.yaml`](../pnpm-workspace.yaml)'s comment). So **whichever install ran last decides
-where `libs/ui/node_modules/*` points**:
+**Two pnpm workspaces claim the same packages.** The root `pnpm-workspace.yaml` lists
+`sdk/org/libs/*` and `sdk/org/apps/web` — it needs them to build the SPA images — while
+`sdk/org/pnpm-workspace.yaml` lists `libs/*` and `apps/*`. So `sdk/org/libs/ui` is a member of both,
+each workspace has its own lockfile and its own store, and whichever `pnpm install` ran last owns
+the symlinks in that member's `node_modules`.
 
-| last install | `libs/ui/node_modules/react` → | Metro |
-|---|---|---|
-| `cd sdk/org && pnpm install` | `sdk/org/node_modules/.pnpm/…` | resolves |
-| `pnpm install` (repo root) | `<repo>/node_modules/.pnpm/…` | **fails** |
+That is survivable only while both lockfiles agree, and nothing makes them. `libs/ui` asks for
+`react: ^19.2.0` — a floating range each lockfile resolved independently, at different times:
 
-Metro watches `sdk/org`. A symlink into the OUTER store resolves to a real path outside everything
-it watches, so it reports the package as missing — and helpfully lists the directory the symlink is
-sitting in as a place it looked.
+| lockfile | resolved |
+|---|---|
+| `pnpm-lock.yaml` (root) | react 19.2.4, 19.2.14 |
+| `sdk/org/pnpm-lock.yaml` | react 19.2.7, 19.2.17 |
 
-## Fix
+After a root install, `libs/ui/node_modules/react` points into the **root** store at a version the
+sdk/org tree was never built against. Metro then resolves two copies of React and reports the second
+as missing.
 
-```bash
-cd sdk/org && pnpm install     # re-links libs/* into sdk/org's store
-```
+Pinning both to one patch today would not fix it — the next `pnpm update` on either side diverges
+again, and any floating dependency can do this, not just React.
 
-Both gates go green immediately. Nothing else is affected: the root install is what the SPA images
-need, and re-running it is what breaks native again.
+## Guarded
 
-## What NOT to do
+`sdk/org/scripts/check-workspace-links.mjs` asserts that each member's `react`/`react-dom` resolves
+INSIDE `sdk/org/node_modules` and at a version in sdk/org's own store. It runs as the precondition
+of `test:native` — the loudest of the three symptoms — and prints the cause and the one-line fix
+(`cd sdk/org && pnpm install`). Verified both directions: it passes on a healthy tree, and
+re-pointing `libs/ui/node_modules/react` at the root store's 19.2.4 makes it fail with that path
+named.
 
-Adding the outer `node_modules` to Metro's `watchFolders` makes the resolution succeed and boots the
-app to **"Can't find Tamagui configuration"** — two resolvable copies of `@tamagui/core`, the config
-registered on one and read from the other. Adding it to `nodeModulesPaths` as well is the same fault
-with more ways in. Tried both; the layout has to be single, not tolerated.
+It deliberately does NOT repair anything. Which install is the right one depends on what you are
+about to do — building an SPA image genuinely wants the root workspace — so it says so instead of
+guessing.
 
-## The real fix, when someone wants it
+## Still open — the real fix
 
-Stop `libs/*` being a member of two workspaces. Either the root stops globbing `sdk/org/libs/*` (and
-the SPA images take the libs from `sdk/org`'s install), or `apps/mobile` joins the root workspace —
-which `pnpm-workspace.yaml` explains it deliberately does not, because a root-context Dockerfile
-never stages it and `--frozen-lockfile` could then never be satisfied in both places.
+One of these, none of them small:
+
+- Remove `sdk/org/libs/*` from the ROOT workspace and give the root-context Dockerfiles another way
+  to stage the libs. Structurally correct; touches every SPA image build.
+- Make the two lockfiles share resolution (one catalog, exact pins for every shared singleton) so
+  membership in both is harmless.
+- Move the SPA builds into `sdk/org` so there is only one workspace over that tree.

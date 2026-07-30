@@ -80,6 +80,27 @@ vault_github_oauth_client_secret: ""
 #   openssl rand -base64 32
 vault_connections_enc_key: ""
 
+# ── Passwordless email sign-in (gateway) ─────────────────────
+# Mail transport for the sign-in code + magic link. Set EITHER the Resend key
+# (HTTPS API, no SMTP egress needed) OR the vault_smtp_* group — whichever is
+# present decides the transport. Leave ALL of them blank and email sign-in stays
+# off: POST /api/auth/email/start answers 503 rather than claiming it sent a
+# code. The sender domain must be verified with the provider or mail is dropped.
+#   Resend: resend.com → API Keys (sending access is enough)
+vault_resend_api_key: ""
+vault_email_from: "login@lmthing.com"
+vault_email_from_name: "lmthing"
+# Only needed to force a transport ("resend" | "smtp" | "console"); normally blank.
+vault_email_provider: ""
+vault_smtp_host: ""
+vault_smtp_port: "587"
+vault_smtp_user: ""
+vault_smtp_password: ""
+vault_smtp_security: ""           # tls | starttls | none — blank ⇒ 465 tls, else starttls
+# Comma-separated exact origins the magic link may redirect to. Blank ⇒ https on
+# any lmthing.* host plus the local dev hosts, which is what production wants.
+vault_email_login_allowed_origins: ""
+
 # ── Render service (in-cluster headless-browser used by webSearch google provider) ──
 # Shared bearer token authenticating pod → render service requests. Generate:
 #   openssl rand -base64 32

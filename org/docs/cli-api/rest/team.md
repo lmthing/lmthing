@@ -232,6 +232,28 @@ beside the conversation.
 A message that mentions `@thing` gets an answer in the thread it was asked in
 `sdk/org/libs/cli/src/server/routes/team-channels.ts#runThingReply`.
 
+**Inside a thread THING is already in, every reply reaches it — no second
+`@thing`** `sdk/org/libs/cli/src/server/routes/team-channels.ts#addressesThing`.
+Re-addressing an agent in a thread it is a participant of is not how a
+conversation works, and the effect of requiring it was worse than clumsy: a
+natural follow-up went nowhere at all, so the thread looked dead.
+
+"Already in" is decided by whether the thread has a session, not by scanning the
+channel log for a `thing` message
+`sdk/org/libs/cli/src/server/webhook-threads.ts#getThreadSession`. An entry
+exists exactly when THING has run in that thread, which is O(1) and cannot be
+defeated by a busy channel pushing the thread's root out of any window a scan
+would read. The lookup is deliberately read-only — the question is asked *before*
+deciding to run, so minting an id there would record a conversation that never
+happened and make the next message believe one had.
+
+Two scopes are deliberately unchanged: a **channel-level** post still needs the
+mention (a channel where every message invoked an agent is unusable), and a
+thread THING has never answered in stays between the humans. Threads are what
+makes implicit addressing safe — you opt in by opening one with THING. The
+thread composer stops advertising `@thing` once THING has answered there
+`sdk/org/libs/ui/src/team/channels-view.tsx#TeamChannelsView`.
+
 The mechanism is the one the inbound-webhook dispatcher already uses: a stable
 session id per `(channel, thread)`, resolved through
 `getOrCreateThreadSession` `sdk/org/libs/cli/src/server/webhook-threads.ts#getOrCreateThreadSession`

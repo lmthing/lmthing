@@ -61,9 +61,12 @@ devops/ansible/k8s/envoy/cloud-routes.yaml
 devops/ansible/k8s/envoy/computer-gateway.yaml
 devops/ansible/k8s/envoy/computer-routes.yaml
 devops/ansible/k8s/envoy/tls-certificates.yaml
-.etc/.vault-pass
-.etc/.gateway-secret.json
-.etc/.*
+# `.etc/` is the operator's local material: the vault pass, the gateway JWT secret, OAuth client
+# secrets, a Firebase service-account private key. It was ignored as `.etc/.*` — DOT-files only —
+# so anything landing there under an ordinary name was fully stageable, and a `git add -A` would
+# have committed a live private key. Closed by default now, with the one tracked thing re-admitted.
+.etc/*
+!.etc/scripts/
 .lmthing/
 # lmauto: the live raw event stream of an in-flight attempt. It is APPENDED TO for the whole run, in
 # a tree where autonomous agents run git commands — a stash/checkout would swap the inode out from

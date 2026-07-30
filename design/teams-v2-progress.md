@@ -85,6 +85,21 @@ keep behaving byte-identically.
 App building in these scenarios routes to **`system-viewbuilder`** (explicit opt-in per the
 app-builder-v2 owner decision), so the apps render natively on the phone.
 
+## Lane boundary — the team UI is owned by a concurrent session
+
+A separate Claude Code session is doing the team + chat **rendering** pass in this same worktree
+(`design/team-chat-ux-progress.md`), and has built a screenshot gate — `pnpm shots`,
+`sdk/org/apps/web/tests/surface-shots/` — that photographs the real surfaces at 390×844 and
+1440×900 in both themes. That is the right owner for pixels, so this lane does not touch
+`libs/ui/src/team/**`, `apps/web/src/routes/team/**` or `apps/mobile/**`.
+
+The UX audit therefore lands as a **handover document**, split in two: rendering findings (theirs,
+each with the pass condition their screenshot gate would have to show) and everything that is not
+rendering — the pod, the protocol, what THING knows and does — which is this lane's.
+
+`pnpm test:native` **PASSES** on `main` as of 2026-07-31. The note in the older design docs that
+both native gates are red is out of date; mobile changes are provable again.
+
 ## Standing constraints
 
 - **Everything local.** Per-run isolated `lmthing serve`, own port and data dir. Never prod.

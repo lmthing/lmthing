@@ -566,3 +566,85 @@ for the api-author lane, not a defect in the spec pipeline.
 (Run 6 is a dud: a concurrent root-level `pnpm install` wiped a native binding mid-run. The dashboard
 reports it `unknown` with a reason rather than as a pass — the null-vs-zero discipline paying off on
 its first real chance to mislead.)
+
+### Then we looked at it, and it was blank
+
+Every metric above was green and the app was **completely unusable**. Opened in a real browser, every
+page showed the top bar, the nav and the assistant strip, and **nothing else**.
+
+Root cause: the shell's root Col sized to its CONTENT — 98px, exactly the top bar (56) + assistant
+strip (42) — because the web mount point is a plain `<div>` (`display: block`) under `display:
+contents` theme wrappers, and **a block box is not a flex container**, so `flexGrow: 1` had nothing
+to grow inside. Every descendant divided zero: the scroller `clientHeight: 0` around `scrollHeight:
+719`, and the first list row's buttons at `y: -107`, off-screen and unclickable. One property fixed
+it (`height="100%"`, sdk/org `ce96a7bd`).
+
+**Why this is the most important entry in this file.** It passed `buildApp`, `validateAppViews` AND
+`renderSmokeViews` with zero findings; the ratchet scored it `app: usable`; and the a11y tree
+cheerfully listed all four plants, because the DOM nodes existed — they were 0px tall. So:
+
+> **HTTP 200 + green gates + a11y content is not evidence an app is visible. Only pixels are.**
+
+`renderSmokeViews` cannot ever catch this: it mounts with `renderToStaticMarkup`, a *string* render
+with no DOM, CSS or layout. Its `emptyRender` means "the spec produced no content for the DATA",
+never "the user would see something". That limit is now written into the function itself
+(`777b7abb`) rather than left for the next person to assume otherwise.
+
+### Everything the visual pass then found
+
+Fixing the blank page turned the app from "passes gates" into "actually inspectable", and four more
+real defects fell out immediately — none of which any existing gate had reported:
+
+| defect | where | fixed |
+|---|---|---|
+| shell root had no height ⇒ **every page blank** | `libs/ui/src/view/shell.tsx` | `ce96a7bd` |
+| every **toned icon invisible on native** — `$foreground` reaches `react-native-svg`, which has no token layer, and draws nothing (25× in logcat) | `libs/ui/src/view/icons.tsx` | `269f1694` |
+| a parameterised **subnav captured its static sibling** (`plants/[id]` matched `plants/new`) | `libs/ui/src/view/shell.tsx` | `269f1694` |
+| the **router** did the same thing — `/plants/:id` swallowed `/plants/new`, so the create page was unreachable by any URL | `libs/cli/src/app/runtime/router.tsx` | `719b7ce2` |
+| `create-plant`'s `inputSchema` is `Record<string, unknown>` with no `properties` ⇒ **"Nothing to fill in."** | api contract generation | **open** |
+
+Three of those five are the *same confusion* — **a static segment must beat a parameter** — in three
+different places. `apps/mobile/src/app-views.ts#resolveRoute` had the rule; the shell's prefix match
+and the web router did not. Worth a look wherever else a route is matched.
+
+### T6 — native rendering, verified
+
+A viewbuilder app renders **natively on Android with zero WebView**. Evidence, not impression: 0
+matches for `webview|XWalk|chromium` across 8 `uiautomator` dumps, and the complete class set in the
+hierarchy is `android.view.{View,ViewGroup}` · `android.widget.{FrameLayout,LinearLayout,ScrollView,
+TextView,ImageView}` · `com.horcrux.svg.*`. All four views render; scrolling is a real `ScrollView`;
+tapping a row action round-tripped to the pod (`daysUntilNext -8 → 2`) and the list refetched in
+place, so `invalidates` works natively too. Zero logcat errors.
+
+Two things worth keeping: `height="100%"` does **not** break native (Yoga resolves the shell from
+`flexBasis:0/flexGrow:1` and ignores it — measured, no fork needed); and **process-level evidence is
+the wrong instrument** — `/proc/<pid>/maps` shows chromium libs mapped even on the dev-launcher home
+screen with no bundle loaded, because the dev client loads the provider itself. The view hierarchy is
+the claim.
+
+### The render rig (Workstream D) — the gate that would have caught all of it
+
+`scenarios/harness/lib/render-rig.mjs` (+ 60 tests), zero-dependency CDP over Node 24's native
+`WebSocket`. Six checks per route × two viewports: `blankPage`, `collapsedScroller`,
+`offscreenInteractive`, `horizontalOverflow`, `consoleErrors` (data, never a verdict), `emptyForm`.
+The browser side collects a serialisable snapshot and computes NO verdicts; `analyzeSnapshot` is a
+pure function over it, which is what makes the predicates unit-testable without a browser and stops a
+browser-side throw becoming "no findings".
+
+Two measurement choices came from measuring the real bug rather than guessing, and both matter:
+content is **hit-tested on a grid inside the content region**, not over the whole viewport (the blank
+page scores 5 text elements viewport-wide — the chrome painted perfectly — so a viewport measurement
+would have PASSED it); and reachability counts an **ancestor** hit as unreachable (the first version
+allowed `hit.contains(el)` and reported 0/12 unusable buttons on a page where none could be clicked).
+
+Demonstrated to fail on the known-bad case, reproducing `ce96a7bd`'s own numbers: shell root 98px,
+scroller `clientHeight 0 / scrollHeight 719`, **0 painted elements in-region vs 5 viewport-wide**,
+8/12 interactive elements unusable, findings `empty-render` + `collapsed-scroller` +
+`offscreen-interactive`. A rig not demonstrated to fail is worthless, and this one earned the
+paranoia immediately — its first self-test observed `document.documentElement` inside
+`addScriptToEvaluateOnNewDocument`, where it is **null**, so nothing was ever broken; it reported
+`applied: 0, pass: false` rather than claiming proof.
+
+**Not yet wired**: nothing calls `renderCheck`. Hooking it into `scenarios/lib/evidence.mjs#snapshot`
+or an `open_app` step verb is the remaining step (~7s for 4 routes × 2 viewports, findings already
+`ViewError`-shaped for the merge).

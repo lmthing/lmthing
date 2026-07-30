@@ -58,6 +58,11 @@ replacements:
         fieldPaths:
           - spec.hostnames.0
       - select:
+          kind: HTTPRoute
+          name: cloud-ota-root
+        fieldPaths:
+          - spec.hostnames.0
+      - select:
           kind: Certificate
           name: lmthing-cloud-tls
         fieldPaths:

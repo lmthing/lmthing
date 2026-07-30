@@ -587,11 +587,11 @@ converted to RGB.
 
 ### Building and submitting
 
-`sdk/org/apps/mobile/eas.json` carries three build profiles and a submit profile. The
+`sdk/org/apps/mobile/eas.json` carries four build profiles and a submit profile. The
 production one emits an app bundle and takes its `versionCode` from EAS rather than the
-config (`sdk/org/apps/mobile/eas.json:1-22`), so the number Play orders releases by has
+config (`sdk/org/apps/mobile/eas.json:1-38`), so the number Play orders releases by has
 one owner. Submission targets the internal track as a draft
-(`sdk/org/apps/mobile/eas.json:24-31`).
+(`sdk/org/apps/mobile/eas.json:39-47`).
 
 ```bash
 cd sdk/org/apps/mobile
@@ -600,6 +600,19 @@ eas build --platform android --profile preview      # APK, installable on a phon
 eas build --platform android --profile production   # AAB for the store
 eas submit --platform android --latest
 ```
+
+**Three of the four profiles set `EXPO_OTA_APP_ID`, and that is not only about OTA.**
+The variable is read by `app.config.js`, so it is inside the fingerprint and therefore
+inside the `runtimeVersion` — see [What the fingerprint actually
+hashes](#what-the-fingerprint-actually-hashes). A profile that omits it builds a binary
+on its own runtimeVersion, unreachable by any update published for the others. `preview`
+sets it (`sdk/org/apps/mobile/eas.json:13-20`) so a sideloadable APK lands on the *same*
+runtimeVersion as the store bundle — which is what makes an APK a valid stand-in when
+proving an update reaches a device, instead of the store bundle being the only witness to
+its own OTA path. `staging` sets it plus `RELEASE_CHANNEL=staging`
+(`sdk/org/apps/mobile/eas.json:21-29`), because the publish workflow offers a `staging`
+branch and without a binary asking for that channel nothing could ever receive one.
+`development` sets neither: a dev client loads from Metro and never asks the server.
 
 **`babel-preset-expo` must be an explicit dependency** even though `expo` pulls it in
 (`sdk/org/apps/mobile/package.json:38-44`). `babel.config.js` names it as a preset, and
@@ -667,6 +680,43 @@ never offered the new bundle. Under `appVersion` the same safety depends on a pe
 remembering to bump `version` in the commit that changed native — and forgetting once
 means every installed copy launches JavaScript whose native modules are not there, which
 is a crash loop that only a store release can end.
+
+### What the fingerprint actually hashes
+
+Not just "the native project". `@expo/fingerprint` hashes the **resolved** Expo config,
+and `app.config.js` reads two environment variables while resolving
+(`sdk/org/apps/mobile/app.config.js:41-43` · `sdk/org/apps/mobile/app.config.js:104-113`),
+so both are inside the runtimeVersion. Measured against this app, android, managed
+workflow:
+
+| environment | runtimeVersion |
+|---|---|
+| nothing set | `b6f46592…` |
+| `EXPO_OTA_APP_ID` | `5d1b793a…` |
+| `EXPO_OTA_APP_ID` + `RELEASE_CHANNEL=staging` | `e455f974…` |
+
+`eas.json` itself is a fingerprint source too, under the `easBuild` reason — so editing a
+build profile changes the runtimeVersion of every profile, and binaries already in the
+field stop being offered new bundles until a release carries the new value out. That is
+the safe direction of the failure, but it means an unrelated-looking `eas.json` edit is a
+release-affecting change, not a config tidy-up.
+
+Two rules follow, and both are silent when broken. **A publish must run with the same
+variables as the build it is aimed at** — publishing with `RELEASE_CHANNEL=staging` mints
+a runtimeVersion only a `staging`-profile binary has, so aiming it at production binaries
+reaches nobody while the CLI reports success. And **the number to check is the one EAS
+recorded for the build**, visible as `runtimeVersion` in `eas build:list --json`;
+reproduce it locally with
+
+```bash
+cd sdk/org/apps/mobile
+EXPO_OTA_APP_ID=… node ./node_modules/expo-updates/bin/cli.js \
+  runtimeversion:resolve --platform android --workflow managed
+```
+
+`--workflow managed` is not optional: `android/` exists in a working copy after a local
+prebuild and is gitignored, and hashing it would produce a runtimeVersion no EAS build
+has. `eoas` resolves the workflow from VCS for the same reason.
 
 **The manifest is signed, and the app verifies it.** `codeSigningCertificate` embeds the
 public half in the binary at build time — it is compiled into the Android manifest as

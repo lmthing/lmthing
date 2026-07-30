@@ -56,12 +56,21 @@ spec:
           ports:
             - containerPort: 3000
           env:
-            # Every manifest and asset URL the server hands out is built from BASE_URL,
-            # so it must carry the /ota prefix that Envoy strips on the way in —
-            # otherwise the client is told to fetch assets from https://lmthing.cloud/
-            # and gets the SPA instead of a bundle.
+            # No /ota prefix, even though that is the path Envoy routes on. BASE_URL is
+            # the origin the server hands BACK — asset URLs (`BASE_URL + "/assets"`) and
+            # the `uploadLocalFile` URL it returns to the publishing CLI — and the eoas
+            # CLI resolves its own server address as the ORIGIN of `updates.url`, with the
+            # path discarded. So the CLI looks for the upload endpoint at
+            # `https://lmthing.cloud/<appId>/uploadLocalFile`; a BASE_URL carrying /ota
+            # returns a URL that does not match, the CLI concludes the upload is an
+            # S3-presigned one and PUTs a raw body where the handler wants multipart.
+            #
+            # Keeping these two in agreement is why `cloud-routes.yaml` publishes the
+            # server's `/assets` and `/<appId>/*` at the host ROOT as well as under /ota.
+            # The `/ota` route stays, because `https://lmthing.cloud/ota/manifest` is
+            # compiled into every binary and cannot be moved without a store release.
             - name: BASE_URL
-              value: "https://lmthing.cloud/ota"
+              value: "https://lmthing.cloud"
             - name: PORT
               value: "3000"
             - name: STORAGE_MODE

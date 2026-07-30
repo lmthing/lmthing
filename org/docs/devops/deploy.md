@@ -110,6 +110,10 @@ Two ArgoCD `Application`s in the `argocd` namespace watch this repo (`main`) and
 
 `devops/argocd/core/kustomization.yaml` lists what `lmthing-core` applies: namespace, postgres, zitadel, litellm, render, ota, gateway, computer, compute-pod-template, compute-prepull, studio, chat, and the eight product SPAs (`com`, `social`, `store`, `org`, `space`, `team`, `blog`, `casa`) `devops/argocd/core/kustomization.yaml:4-24`. `ota` is the expo-open-ota server behind `lmthing.cloud/ota` that serves the mobile app's over-the-air updates; its secrets come from the `cloud_secrets` role like every other secret, not from ArgoCD.
 
+It is reached by **two** routes on the same host, and both are load-bearing. `/ota/*` is prefix-stripped to the server (`devops/argocd/envoy/cloud-routes.yaml:149-179`) and exists because `https://lmthing.cloud/ota/manifest` is compiled into every shipped binary. `/assets` and `/<app-uuid>/*` are served at the host ROOT with no rewrite (`devops/argocd/envoy/cloud-routes.yaml:202-229`), because the publishing CLI resolves the server's address as the *origin* of that manifest URL and discards the path — so its `requestUploadUrl`, `markUpdateAsUploaded`, `rollback`, `republish` and `uploadLocalFile` calls are all addressed to the root. `BASE_URL` is correspondingly the bare origin (`devops/argocd/core/ota.yaml:57-70`), which is also what makes the upload URL the server returns match what the CLI expects. Changing either one alone breaks publishing silently: the root has no default backend, so the CLI receives a bodiless 404.
+
+> A new HTTPRoute that writes `DOMAIN_PLACEHOLDER` must also be named in the `replacements` list in `devops/argocd/envoy/kustomization.yaml:37-77`. The list is opt-in — an unlisted route ships the literal placeholder and the API server rejects it against the hostname pattern.
+
 > **Removing a key from a secret task does not remove it from the cluster.** The
 > `cloud_secrets` role applies each Secret with `state: present`, which merges — so a
 > key deleted from `stringData` stays in the live object indefinitely, holding whatever

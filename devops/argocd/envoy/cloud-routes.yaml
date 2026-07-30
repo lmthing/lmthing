@@ -143,8 +143,9 @@ spec:
 # release — it is not a routing detail that can be tidied later.
 #
 # The prefix is stripped here because the server serves `/manifest` and `/assets` at its
-# root. Its BASE_URL carries the `/ota` back, so the asset URLs it hands to a phone
-# return through this same rule.
+# root. This rule exists ONLY for the compiled-in manifest URL; everything else the
+# server needs to expose is published at the host root by `cloud-ota-root` below, because
+# BASE_URL no longer carries the prefix back.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -169,6 +170,56 @@ spec:
             path:
               type: ReplacePrefixMatch
               replacePrefixMatch: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: ota
+          namespace: lmthing
+          port: 3000
+          weight: 1
+
+---
+# The update server's own paths, at the HOST ROOT — /assets and /<appId>/*
+#
+# The eoas CLI does not use `updates.url`; it uses that URL's ORIGIN and throws the path
+# away (`resolveServerUrl` in the CLI returns `parsedUrl.origin`). So every publishing
+# call — requestUploadUrl, markUpdateAsUploaded, rollback, republish, uploadLocalFile —
+# is addressed to `https://lmthing.cloud/<appId>/…`, never to `/ota/<appId>/…`. Under the
+# `/ota`-only routing above those requests reached nothing: the root has no default
+# backend, so the CLI got a bodiless 404 and reported `Failed to request upload URL:`
+# with nothing after the colon. Publishing had never been attempted, so the gap survived
+# the server being stood up, an app being provisioned and its certificate being embedded.
+#
+# `/assets` is here for the matching reason on the device side: the manifest hands out
+# asset URLs built as `BASE_URL + "/assets"`, and BASE_URL is now the bare origin.
+#
+# No URLRewrite — unlike the `/ota` rule, these paths are already what the server serves.
+#
+# Scoped to the one Application UUID rather than a bare `/` catch-all, so this grants the
+# update server exactly the paths it needs and leaves every other root path 404ing. The
+# UUID is `extra.eas.projectId`'s counterpart on the update server and appears in
+# `sdk/org/apps/mobile/eas.json` as EXPO_OTA_APP_ID; a second app means a second rule.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: cloud-ota-root
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: cloud-https
+  hostnames:
+    - DOMAIN_PLACEHOLDER
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /assets
+        - path:
+            type: PathPrefix
+            value: /9a2ba224-69e6-4629-a894-4f42eb305a45
       backendRefs:
         - group: ""
           kind: Service

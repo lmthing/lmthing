@@ -50,18 +50,37 @@ THING-in-thread defects fixed 2026-07-31 (`design/thing-thread-parity-progress.m
 | HARNESS | `scenarios/harness/**` | `TeamPod` (per-member identity headers), a channel-thread THING driver, team-mode `startRun`, and a `team-smoke.mjs` actually run against a live LLM |
 | UX-AUDIT | read-only | `design/teams-ux-audit.md` — ranked, every finding cited `path:line`, with the THING-in-channel vs `/chat` gap list and a 390px/320px pass |
 
-## Planned scenarios (Wave 2)
+### Found while authoring, before any agent reported
+
+**A team channel has no attachment path, and half of one shipped.**
+`libs/cli/src/server/team-channels.ts` has no attachment handling and
+`libs/ui/src/team/composer.tsx` contains no reference to one, while `/chat` accepts vision, audio and
+files. But `team-guard.ts:84` already whitelists `POST /api/uploads` for a **viewer**, with the
+reason written in the code as *"attach a file to a message"* — so the permission for the feature is
+in, and the feature is not. That is why 20-studio opens with a conversation rather than a file dump:
+writing an attachment beat would have tested a path that does not exist.
+
+## Scenarios (Wave 2) — authored
+
+| # | Scenario | The promise it proves | State |
+|---|---|---|---|
+| [20-studio](../sdk/org/scenarios/20-studio/scenario.yaml) | the THREAD is the unit of memory — Bo replies in Ana's thread with no `@thing` and must be answered with Ana's context | ✅ authored, 12 steps |
+| [21-newsroom](../sdk/org/scenarios/21-newsroom/scenario.yaml) | the TEAM is the unit of work — a scheduled turn posts into a channel while nobody is typing, THING makes a room for a story and tells the two people on it, a DM answered from the same state | ✅ authored, 10 steps |
+| [22-crossfire](../sdk/org/scenarios/22-crossfire/scenario.yaml) | concurrency — two uncoordinated changes must BOTH land, and a genuine contradiction must be surfaced to the people in it rather than decided by whoever finished last | ✅ authored, 8 steps |
+
+All three parse with the repo's own YAML parser. The verb vocabulary they need beyond the shared
+set: `as` · `in` · `dm` · `reply_to` · `answer_ask` · `concurrent`.
+
+21-newsroom step 2 carries a deliberate **negative**: "readable on a phone" is a context, not a
+requirement about how it must run, and THING must NOT switch builders on it. A suite that only ever
+tested the positive would let the builder-routing line drift wider on every ambiguous phone mention.
+
+## Planned runner
 
 Team scenarios need verbs the personal runner has no concept of — *who* speaks, *which* channel,
 *in a thread or not*, and a member who is only a viewer. They will be played by a team runner built
 on the Wave-1 harness rather than by bending `run-scenario.mjs`, so the eight existing scenarios
 keep behaving byte-identically.
-
-| # | Scenario | The promise it proves |
-|---|---|---|
-| 20-studio | a four-person design studio, one channel per client | THING builds an app from a channel conversation, then **several different people update it** from different threads — and the thread, not the person, owns the memory |
-| 21-clinic | a three-person physio clinic running a rota | THING reached by **DM**, a scheduled turn that posts back **into a channel**, and the team-only globals doing work no personal pod can do |
-| 22-first-hour | a brand-new team's first hour | the first-run experience: an empty `#general`, the first app, invites, categories, unread — the beats that decide whether the product feels finished |
 
 App building in these scenarios routes to **`system-viewbuilder`** (explicit opt-in per the
 app-builder-v2 owner decision), so the apps render natively on the phone.

@@ -106,7 +106,7 @@ function StudioLayout() {
 
 | Param | Where it comes from | Notes |
 |---|---|---|
-| `$projectId` | `GET /api/projects` on the pod | the id, not the display name. Includes the synthetic `system` project (`SYSTEM_PROJECT_ID`, `sdk/org/libs/cli/src/server/projects.ts#SYSTEM_PROJECT_ID`), which `listProjects` prepends when `<root>/system/spaces/` is non-empty `sdk/org/libs/cli/src/server/projects.ts#listProjects` — so `/studio/system/<space>` edits the system spaces through the ordinary routes. See [../cli-api/rest/projects.md](../cli-api/rest/projects.md). |
+| `$projectId` | `GET /api/projects` on the pod | the id, not the display name. The reserved id `system` (`SYSTEM_PROJECT_ID`, `sdk/org/libs/cli/src/server/projects.ts#SYSTEM_PROJECT_ID`) is **not** in that list — `listProjects` never returns it `sdk/org/libs/cli/src/server/projects.ts#listProjects` — but the route still resolves, so `/studio/system/<space>` edits the system spaces through the ordinary routes. See [../cli-api/rest/projects.md](../cli-api/rest/projects.md). |
 | `$spaceId` | `GET /api/projects/:id/spaces` | the space directory name. |
 | `$agentId` | the space VFS (`agents/<slug>/`) | agent slug; navigation encodes it (`encodeURIComponent`) `…/$spaceId/agent/index.tsx:51`. See [../format/space/agents/README.md](../format/space/agents/README.md). |
 | `$workflowId` | the space VFS (`tasklists/<name>/`) | the tasklist *name*, passed straight to `<TasklistEditor name={workflowId}/>` `…/$spaceId/workflow/$workflowId/index.tsx:20-22`. See [../format/space/tasklists/README.md](../format/space/tasklists/README.md). |

@@ -68,7 +68,7 @@ Registration order, as built in `sdk/org/libs/cli/src/server/serve.ts:L134-L326`
 | POST | `/api/sessions` | Create a session → `201 {sessionId}`; `503`+`Retry-After` under memory pressure | `handleCreateSession` `routes/sessions.ts:L7-L40` | [sessions](./sessions.md) |
 | GET | `/api/sessions` | List live sessions (also the K8s readiness probe) | `handleListSessions` `routes/sessions.ts:L42-L49` | [sessions](./sessions.md) |
 | GET | `/api/session-ledger` | Pod-global session/delegate ledger with cost accounting (newest-first, cap 200) | `handleListSessionLedger` `routes/session-ledger.ts:L10-L17` | [sessions](./sessions.md) |
-| GET | `/api/projects` | List projects (prepends the synthetic `system` project) | `handleListProjects` `routes/projects.ts:L6-L18` | [projects](./projects.md) |
+| GET | `/api/projects` | List projects (never includes the reserved `system` id) | `handleListProjects` `routes/projects.ts:L6-L18` | [projects](./projects.md) |
 | POST | `/api/projects` | Create a project → `201 {id}` | `handleCreateProject` `routes/projects.ts:L20-L41` | [projects](./projects.md) |
 | DELETE | `/api/projects/:projectId` | Delete a project; `400` for the default `user` project | `handleDeleteProject` `routes/projects.ts:L43-L59` | [projects](./projects.md) |
 | GET | `/api/projects/:projectId/instructions` | Read `instructions.md` → `{content}` | `handleGetProjectInstructions` `routes/projects.ts:L61-L74` | [projects](./projects.md) |

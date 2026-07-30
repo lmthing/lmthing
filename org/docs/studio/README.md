@@ -61,9 +61,11 @@ That is why the space file formats documented in [../format/space/README.md](../
 
 ---
 
-## The synthetic `system` project
+## The `system` project id — by URL only
 
-Studio browses and edits the shipped system/user spaces with **no client-side special case**: the pod's `listProjects` prepends a synthetic `{ id: 'system', name: 'System' }` entry whenever `<root>/system/spaces/` is non-empty, and `<root>/system/spaces/<id>` already matches the generic `<root>/<projectId>/spaces/<id>` shape (`sdk/org/libs/cli/src/server/projects.ts#listProjects`). `system` is reserved and cannot be created or deleted (`sdk/org/libs/cli/src/server/projects.ts:L31-L44`). The one place the client does filter it out is the `/install` project picker — you cannot install an integration space into `system` (`sdk/org/apps/web/src/routes/install.tsx:L252`).
+Studio browses and edits the shipped system/user spaces with **no client-side special case**, because `<root>/system/spaces/<id>` already matches the generic `<root>/<projectId>/spaces/<id>` shape that the ordinary `/api/projects/:id/spaces/...` routes serve (`sdk/org/libs/cli/src/server/projects.ts:10-16`). Go to `/studio/system/<spaceId>` and the normal editor opens over `<root>/system/spaces/<spaceId>`.
+
+It is **not in the project list**: `listProjects` skips the `system/` directory and adds nothing synthetic back (`sdk/org/libs/cli/src/server/projects.ts#listProjects`), so `system` never appears in the sidebar's project switcher or any other project dropdown. `system` is also reserved and cannot be created or deleted (`sdk/org/libs/cli/src/server/projects.ts:L31-L44`).
 
 ---
 

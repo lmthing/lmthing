@@ -73,9 +73,11 @@ Note the `createdAt` type mismatch: `ProjectMeta.createdAt` is a **number** (epo
 
 ---
 
-## The synthetic `system` project
+## The `system` project id — a route alias, never a listed project
 
-`listProjects` prepends a synthetic `{ id: 'system', name: 'System', createdAt: 0 }` entry whenever `<root>/system/spaces/` is non-empty, and skips the real `system/` directory in the normal scan (`sdk/org/libs/cli/src/server/projects.ts#listProjects`). Because `<root>/system/spaces/<id>` matches the generic `<root>/<projectId>/spaces/<id>` shape, **no space/file route needs a special case** — Studio browses and edits the system spaces through the ordinary `/api/projects/system/spaces/...` endpoints (`sdk/org/libs/cli/src/server/projects.ts:10-16`).
+`system` is a **project id without a project**: `<root>/system/spaces/<id>` matches the generic `<root>/<projectId>/spaces/<id>` shape, so the system spaces are read and edited through the ordinary `/api/projects/system/spaces/...` endpoints and **no space/file route needs a special case** (`sdk/org/libs/cli/src/server/projects.ts:10-16`).
+
+**`listProjects` never returns it.** It skips the real `system/` directory in the scan and adds nothing back (`sdk/org/libs/cli/src/server/projects.ts#listProjects`) — `GET /api/projects` is what every project switcher renders (chat sidebar, Studio sidebar, the team `@` directory, the `/install` target picker, Home), and the shipped system spaces are not somewhere a person works. Studio still reaches them by URL: `/studio/system/<spaceId>`.
 
 `system` is reserved: `deleteProject` throws `the system project cannot be deleted` (`sdk/org/libs/cli/src/server/projects.ts#deleteProject`) and `createProject` skips it when picking a slug — if the candidate equals `SYSTEM_PROJECT_ID` it is bumped to `<slug>-1`, `<slug>-2`, … instead (`sdk/org/libs/cli/src/server/session-manager.ts:1917-1921`).
 
@@ -89,11 +91,10 @@ Note the `createdAt` type mismatch: `ProjectMeta.createdAt` is a **number** (epo
 
 ### `GET /api/projects`
 
-Delegates to `manager.listProjects()` → `listProjects(root)`: every sub-directory of `<root>` that has a readable `project.json`, sorted by `createdAt` ascending, with the synthetic `system` entry unshifted to the front (`sdk/org/libs/cli/src/server/projects.ts#listProjects`). Any throw — notably `lmthingRoot not configured` when the server runs without a project root (`requireRoot`, `sdk/org/libs/cli/src/server/session-manager.ts:1887-1890`) — is answered **`503`**, not 400 (`sdk/org/libs/cli/src/server/routes/projects.ts#handleListProjects`).
+Delegates to `manager.listProjects()` → `listProjects(root)`: every sub-directory of `<root>` that has a readable `project.json`, sorted by `createdAt` ascending. `system` is **not** among them — the directory is skipped and nothing synthetic is added (`sdk/org/libs/cli/src/server/projects.ts#listProjects`). Any throw — notably `lmthingRoot not configured` when the server runs without a project root (`requireRoot`, `sdk/org/libs/cli/src/server/session-manager.ts:1887-1890`) — is answered **`503`**, not 400 (`sdk/org/libs/cli/src/server/routes/projects.ts#handleListProjects`).
 
 ```json
 { "projects": [
-  { "id": "system", "name": "System",   "createdAt": 0 },
   { "id": "user",   "name": "user",     "createdAt": 1751000000000 },
   { "id": "blog",   "name": "Blog",     "createdAt": 1751200000000 }
 ] }

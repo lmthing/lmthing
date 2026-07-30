@@ -283,7 +283,7 @@ the root is **`/data/.lmthing`** (`devops/argocd/compute/Dockerfile`, "Runtime r
 
 ```
 <root>/
-  system/spaces/…                                    # system + user spaces (the synthetic `system` project)
+  system/spaces/…                                    # system + user spaces (route id `system`; never listed as a project)
   <projectId>/
     sessions/<sessionId>/snapshot.json               # projects.ts:424-426
     spaces/<spaceId>/sessions/<sessionId>/snapshot.json   # project-space agent chats — projects.ts:455-457

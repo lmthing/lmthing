@@ -27,14 +27,14 @@ Endpoint reference: [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md) (
 
 ---
 
-## 2. Project list — including the synthetic `system` project
+## 2. Project list — real projects only
 
 The sidebar's project list comes from `useProjects()` → `PodTransport.listProjects()` → `GET /api/projects` `sdk/org/libs/state/src/lib/pod/transport.ts#PodTransport.listProjects`, `sdk/org/libs/ui/src/studio/shell/studio-app-sidebar/index.tsx:33`. Create and delete are wired to the same transport `sdk/org/libs/ui/src/studio/shell/studio-app-sidebar/index.tsx:55-63`:
 
 - create → `POST /api/projects {name}` → `{ id }` `sdk/org/libs/state/src/lib/pod/transport.ts#PodTransport.createProject`
 - delete → `DELETE /api/projects/:id` (204) `sdk/org/libs/state/src/lib/pod/transport.ts#PodTransport.deleteProject`
 
-**The `system` project is synthetic.** The pod's `listProjects` skips the on-disk `system/` directory in the normal scan and *prepends* `{ id: 'system', name: 'System', createdAt: 0 }` whenever `<root>/system/spaces/` is non-empty `sdk/org/libs/cli/src/server/projects.ts#listProjects`. It maps to `<root>/system/`, whose `spaces/` subdir holds the system spaces — because that matches the generic `<root>/<projectId>/spaces/<id>` shape, Studio browses and edits them through the *same* `/api/projects/:id/spaces/...` routes as any other project, with no client-side special case `sdk/org/libs/cli/src/server/projects.ts:10-16`.
+**`system` is not in this list.** The pod's `listProjects` skips the on-disk `system/` directory and adds nothing synthetic back `sdk/org/libs/cli/src/server/projects.ts#listProjects`, so the shipped system spaces never appear in the project switcher. They are still editable *by URL* — `<root>/system/spaces/<id>` matches the generic `<root>/<projectId>/spaces/<id>` shape, so `/studio/system/<spaceId>` opens the normal editor through the *same* `/api/projects/:id/spaces/...` routes, with no client-side special case `sdk/org/libs/cli/src/server/projects.ts:10-16`.
 
 Guards worth knowing:
 

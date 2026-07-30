@@ -76,7 +76,7 @@ The clean root mount is **always registered** — including under local `lmthing
 
 The ten names are fixed in `SYSTEM_SPACE_NAMES` (`sdk/org/libs/core/src/spaces/system.ts:L29-L41`); `defaultSystemSpaceDirs()` probes for the `system-spaces/` dir in both the dist and src layouts (`system.ts:L49-L57`).
 
-`<root>/system/` is also surfaced by the server as a **synthetic `system` project** — `listProjects` prepends `{ id:'system', name:'System', createdAt:0 }` whenever `<root>/system/spaces/` is non-empty, so Studio edits system spaces through the ordinary `/api/projects/system/spaces/...` routes (`sdk/org/libs/cli/src/server/projects.ts#listProjects`). `system` is reserved, along with `api`, `assets` and `install` — ids that would collide with reserved `lmthing.app` URL paths under the root mount (`projects.ts:L34-L44`). The default project id is `user` (`projects.ts:L22`).
+`<root>/system/` is addressable as the **reserved project id `system`** — Studio edits system spaces through the ordinary `/api/projects/system/spaces/...` routes because `<root>/system/spaces/<id>` matches the generic project/space shape (`sdk/org/libs/cli/src/server/projects.ts:L10-L16`). It is not a project, and `listProjects` never returns it, so it appears in no project switcher (`sdk/org/libs/cli/src/server/projects.ts#listProjects`). `system` is reserved, along with `api`, `assets` and `install` — ids that would collide with reserved `lmthing.app` URL paths under the root mount (`projects.ts:L34-L44`). The default project id is `user` (`projects.ts:L22`).
 
 ### System-space reconciliation
 

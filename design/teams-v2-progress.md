@@ -195,6 +195,53 @@ a hang. `await` now takes a liveness probe and the budgets are sized for a build
 finding is unaffected — it rests on the filesystem timeline (`project.json` 17 s after the opener,
 `database/jobs.json` four minutes *before* Ana's acceptance), not on a timeout.
 
+## The clean run (`20-studio` run 2) — steps 1 and 2
+
+**Step 1 passes.** `spaces: []`, `appTables: {}`, `built: false`, `activeProject: user` — nothing
+authored, the offer preceded the work, 34 s. Consistent with the slip being ~1 in 14 rather than
+systematic.
+
+**Step 2 passes, including the routing beat.** Ana's "run on the phone itself, not a website
+squeezed into an app" reached the right builder:
+
+```
+delegates: ["user-memory/memory", "system-viewbuilder/automator#build_live_project"]
+viewFacts: specCount 2 · routes [index, job-detail] · shellAuthored · endpointCount 4
+native:    {status: 200, viewCount: 2, endpointsWithInputSchema: 4, wouldRenderNatively: true}
+handAuthoredPages: []   routesWithoutSpec: []   malformed: []
+```
+
+and the rows are a faithful reading of the conversation, not a template:
+
+| name | status | owner |
+|---|---|---|
+| Almeida | waiting on client | Bo |
+| Trindade Bakery | ready for print | — |
+| Serralves catalogue | **unknown** | Ana |
+
+Serralves being recorded as `unknown`, with the note "State is genuinely unknown; Ana doesn't know
+where this job stands", is the detail worth keeping: Ana said she did not know, and it wrote down
+that she did not know instead of inventing a status.
+
+**The ledger fix is confirmed live.** One record, `source: "team-channel"`,
+**753,259 input / 40,965 output tokens** and three delegates with their models — for a single channel
+turn that, before `39a1e436`, left no record at all.
+
+### Evidence on the causal question, still not proof
+
+Run 1 built on the offer turn and produced a job-application tracker. Run 2 offered first, received
+Ana's acceptance and her context, and produced the studio's actual domain. That is the experiment
+`.issues/thing-schema-domain-misread-job-tracker.md` names, and it points the way the hypothesis
+predicted — but it is n=1 against n=1, so it stays a hypothesis with better evidence, not a finding.
+
+### New finding — the app was built into the shared `user` project
+
+`activeProject: user`, and `user` is the only project on disk; the specs are at
+`.lmthing/user/pages/*.view.json`. THING's instruct says the opposite for an accepted offer
+(`user-thing/agents/thing/instruct.md` ~L812): *"Still in the shared `user` project? Create the
+dedicated project FIRST — propose the name"*. Run 1 **did** create `fold-studio-jobs`, so this is
+inconsistent between runs rather than a considered team-mode behaviour.
+
 ## Lane boundary — the team UI is owned by a concurrent session
 
 A separate Claude Code session is doing the team + chat **rendering** pass in this same worktree

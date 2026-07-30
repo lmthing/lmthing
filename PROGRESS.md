@@ -410,3 +410,61 @@ sudo sysctl -w fs.inotify.max_user_watches=524288   # add to /etc/sysctl.d/ to p
 The native gate was green earlier in this same session (after the React unification, before the
 install grew the tree), so nothing about the renderer is known-broken — it is unverified, which is a
 different and weaker statement.
+
+### The first live run's two blocking findings — both fixed and committed
+
+The Wave-3 live-run agent (before it was stopped) got a model driving `system-viewbuilder/automator`
+for real, and found two bucket-1/bucket-2 bugs neither unit tests nor `docs:check` could ever have
+caught, because both need ajv actually failing on a real mistake:
+
+**Endpoint names were structurally unspellable.** `plan_endpoints` names endpoints in kebab-case
+(`create-plant`), and the endpoint validator's own "did you mean" suggestions are spelled in
+kebab-case too — but `ENDPOINT`, `INVALIDATES`, and `x-options`' `query` in `schema.ts` were still
+pinned to `IDENT_PATTERN` (no hyphen). Every real endpoint name was rejected by the one field meant to
+hold it: a genuine contradiction, not a gap, so per the plan's own rule it promotes on first
+occurrence. Same shape as the Wave-2 `chat.agent` fix — swapped to `AGENT_NAME_PATTERN`. `REVEALS`
+(section ids) stays strict: those are model-chosen identifiers, not codebase names. Fixed in
+`libs/cli/src/app/view-spec/schema.ts` (sdk/org `c6697bc1`).
+
+**The `Action` union was the one rejection class that never converged.** `Action` is
+`oneOf: [{mutate}, {navigate}, {download}, {print}, {copy}]`, and `pruneUnionBranches` (the Wave-2
+fix for exactly this shape) only handled "exactly one branch matched". Two more cases fell straight
+through: a bogus key like `{ endpoint: 'doThing' }` that matches ZERO branches, and two verbs set at
+once (`{ mutate, navigate }`) that match two. Both produced five-to-six raw ajv errors that directly
+contradict each other — one line says `"mutate" is required`, its sibling says `"mutate" is not a
+property here` — which is exactly what the live-run agent hit twice, on a component and a page. Both
+cases are just as unambiguous as the one-match case (zero names the bogus key, two-or-more names the
+extra ones), so `pruneUnionBranches` now collapses either to ONE synthetic `discriminantChoice`
+finding. Fixed in `libs/cli/src/app/view-spec/messages.ts` (sdk/org `7486d17a`).
+
+Also committed, salvaged from the same stopped agent within its own `system-viewbuilder/**`
+ownership (sdk/org `336349d1`): `implement_views`/`implement_view_components` now `dependsOn`
+`implement_endpoints` (copied verbatim from appbuilder, where it's correct — TSX resolves names at
+typecheck — but wrong here, since the view writer validates against endpoints ON DISK at save time);
+the automator no longer fabricates a success report when a tasklist envelope is lost mid-turn; and a
+handful of near-miss authoring rules (`param` must be a binding, section ids are lowerCamelCase,
+`keyvalue` pairs use `label` not `key`, no `endpoint` key on a button action).
+
+`pnpm test libs/cli libs/core`: 2391/2392 green (one unrelated flaky `session-manager` test, passes
+in isolation). The pipeline has still never been driven end-to-end by a model with both fixes in
+place — that run is next.
+
+### Unassessed: partial HARNESS/RATCHET work from the other three stopped agents
+
+Two more stopped agents left substantial, unwired, uncommitted work — syntax-valid, well-documented,
+but neither tested nor wired into anything that calls it yet:
+
+- `scenarios/harness/lib/view-facts.mjs` (497 lines) — reads `pages/**/*.view.json` and the generated
+  `.tsx` wrappers off disk to answer exactly the "harness gap" questions above (does a `timeline`
+  section exist, did the wrapper banner render, is a form's field count zero). Not yet called from
+  `scenarios/lib/evidence.mjs#snapshot`, which is the one place it needs to be for a scenario's
+  `expect`s to see it.
+- `scenarios/metrics/lib/{artifacts,scope,metrics,targets}.mjs` (~1,100 lines) — pure functions
+  computing the plan's ratchet metrics (vocabulary-gap rate, retries/write, layout-override rate,
+  …) from a run's on-disk artifacts, each metric declaring its own target and improvement direction
+  from `design/appbuilder-viewspec-plan.md` Part 3. No CLI entry point ties the four modules
+  together yet, and nothing has run it against a real run's artifacts (`13-plant-care/runs/*` exists
+  and would be the first real input).
+
+NATIVE-VERIFY (the fourth stopped agent) is blocked on the `ENOSPC` sysctl limit above regardless of
+who resumes it.

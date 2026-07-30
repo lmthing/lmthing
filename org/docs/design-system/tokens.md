@@ -72,6 +72,14 @@ Non-color scales live under `tokens.theme` (`tokens.json:10-20`):
 - **Radii:** `radius-sm` `0.125rem`, `radius-md`/`radius` `0.375rem`, `radius-lg` `0.5rem`, `radius-xl` `0.75rem`, `radius-full` `9999px`.
 - **Fonts:** `font-sans` and `font-display` = `TypeMates Cera Round Pro Bold, system-ui, sans-serif`; `font-mono` = `ui-monospace, monospace`.
 
+### `lineHeight` is a number of PIXELS, never a CSS ratio
+
+The generated ramp is px and paired key-for-key with `fontSizes` — `$sm` text is 14px with a 20px line box, `$base` is 16/24 (`sdk/org/libs/css/src/tamagui/tokens.generated.ts#lineHeights`), and the Tamagui font config carries both ramps verbatim (`sdk/org/libs/ui/src/theme/tamagui.config.ts:216-220`).
+
+**A bare number is compiled as px, so a ratio is a bug in both targets.** Tamagui appends `px` to the number a style prop is given: the Tailwind `leading-relaxed` idiom `lineHeight={1.625}`, carried over from the pre-Tamagui CSS, emitted `line-height: 1.625px` — every wrapped line of a chat message was painted on top of the one before it, so the transcript read as a smear of overlapping glyphs on web. `lineHeight={1}` ("no extra leading") has the same defect and is only less visible because those call sites are single-line; write the font size instead (`lineHeight={16}` for `$base`). On native the same ratio is read as 1.625 **points** and `nativeSafeProps` drops anything under 4 (`sdk/org/libs/ui/src/elements/primitives/_native.tsx#isNativeLineHeight`).
+
+Both halves are enforced at the source: `sdk/org/libs/ui/src/elements/typography/lineHeight.test.tsx` fails on any `lineHeight` under 4 anywhere in `libs/ui/src`, and the native suites assert the mounted tree (`sdk/org/libs/ui/metro/suites/native-style-units.tsx`).
+
 ### The spectrum ramp (generated)
 
 The `spectrum` object in `tokens.json` is a *spec*, not a color list: `{ from: brand-1, to: brand-5, steps: 50, group: spectrum }` (`tokens.json:22-28`). `buildSpectrum` interpolates it (`generate-theme.mjs:32-47`):

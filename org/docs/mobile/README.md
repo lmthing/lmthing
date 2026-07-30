@@ -341,12 +341,12 @@ Still **not** proven on a device, and stated as a gap rather than implied:
   (`sdk/org/apps/mobile/app.json` declares the scheme);
 - the Android back gesture dismissing an overlay
   (`sdk/org/libs/ui/src/platform/keyboard.native.ts`);
-- the **chat** transcript's scrolling. `Prim.Scroll` now exists and the TEAM
-  transcript uses it, but `chat/` was not moved onto it in the same change and is
-  still a `Box`, so its content is still clipped past one screenful on a device
-  (`sdk/org/libs/ui/src/chat/app/ChatView.tsx`). It is the same one-line swap;
-  it is listed as a gap rather than done because nothing has driven that surface
-  on a device since.
+- the **chat** transcript's scrolling *under load*. The swap itself is done —
+  the transcript is a `Prim.Scroll` with `stickToEnd`, not the `Box` it was when
+  its content was clipped at one screenful
+  (`sdk/org/libs/ui/src/chat/app/ChatView.tsx:286-288`) — but no device run has
+  put more than a couple of screenfuls through it, so the follow-on-new-output
+  behaviour is proven by the primitive's own tests rather than by a phone.
 
 ## Opening a project app
 

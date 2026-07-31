@@ -14,22 +14,10 @@ const services: {
   upcoming?: boolean
 }[] = [
   {
-    name: 'lmthing.studio',
-    tagline: 'Build AI agents visually',
-    description:
-      'Design, test, and iterate on agents with a visual workspace. Drag knowledge, wire flows, and ship — no boilerplate.',
-    color: 'var(--brand-1)',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
-        <path d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128m0 0a15.998 15.998 0 0 0 3.388-1.62m-5.043-.025a15.994 15.994 0 0 1 1.622-3.395m3.42 3.42a15.995 15.995 0 0 0 4.764-4.648l3.876-5.814a1.151 1.151 0 0 0-1.597-1.597L14.146 6.32a15.996 15.996 0 0 0-4.649 4.763m3.42 3.42a6.776 6.776 0 0 0-3.42-3.42" />
-      </svg>
-    ),
-  },
-  {
     name: 'lmthing.chat',
     tagline: 'Your personal THING',
     description:
-      'A private AI companion that knows your context. Chat naturally, switch models on the fly, and keep conversations synced across devices.',
+      'One agent that answers, and builds. Send it files, images or your voice — it writes the app, the agents and the automations while you talk.',
     color: 'var(--brand-2)',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
@@ -38,11 +26,35 @@ const services: {
     ),
   },
   {
-    name: 'lmthing.computer',
-    tagline: 'Full runtime, zero setup',
+    name: 'lmthing.app',
+    tagline: 'The apps it builds for you',
     description:
-      'Spin up a cloud machine with terminal access in seconds. Your THING agent runs here — with real compute, real files, real power.',
+      'Ask for a planner, a tracker, a workspace. You get a real app — schema, typed endpoints, UI — served at its own clean URL, with your data inside.',
     color: 'var(--brand-3)',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
+        <path d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25zm9.75 0a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25zM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18zm9.75 0a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 15.75V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18z" />
+      </svg>
+    ),
+  },
+  {
+    name: 'lmthing.studio',
+    tagline: 'Author agents by hand',
+    description:
+      'Open any agent, space or project and edit it yourself — instructions, knowledge, functions, tasklists. Everything the AI wrote is yours to change.',
+    color: 'var(--brand-1)',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
+        <path d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128m0 0a15.998 15.998 0 0 0 3.388-1.62m-5.043-.025a15.994 15.994 0 0 1 1.622-3.395m3.42 3.42a15.995 15.995 0 0 0 4.764-4.648l3.876-5.814a1.151 1.151 0 0 0-1.597-1.597L14.146 6.32a15.996 15.996 0 0 0-4.649 4.763m3.42 3.42a6.776 6.776 0 0 0-3.42-3.42" />
+      </svg>
+    ),
+  },
+  {
+    name: 'lmthing.computer',
+    tagline: 'Your pod, in a browser',
+    description:
+      'Files, terminals and a runtime dashboard over the machine your agents live on. Real compute, real files, nothing to set up.',
+    color: 'var(--spectrum-12)',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
         <path d="m6.75 7.5 3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0 0 21 18V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v12a2.25 2.25 0 0 0 2.25 2.25" />
@@ -50,26 +62,38 @@ const services: {
     ),
   },
   {
-    name: 'lmthing.space',
-    tagline: 'Deploy and publish agents',
+    name: 'lmthing.team',
+    tagline: 'A workspace that pays for itself',
     description:
-      'Package your spaces into deployable containers or publish agents for API access. One-click deploy to the edge.',
-    color: 'var(--brand-4)',
+      'Channels, DMs and shared projects for real colleagues — with its own runtime, subscription and credentials. THING is in the threads with you.',
+    color: 'var(--spectrum-28)',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
-        <path d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0" />
+        <path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25" />
       </svg>
     ),
   },
   {
     name: 'lmthing.store',
-    tagline: 'Agent marketplace',
+    tagline: 'Install apps and agents',
     description:
-      'Discover, install, and monetize agents. Browse community creations or publish your own to reach thousands of users.',
+      'Whole apps, agent spaces and integrations, installable into your own pod in a click. They arrive as files you own and can edit.',
     color: 'var(--spectrum-8)',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
         <path d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75" />
+      </svg>
+    ),
+  },
+  {
+    name: 'lmthing.space',
+    tagline: 'Directory and admin',
+    description:
+      'Every space you own in one place, each with an owner dashboard: agents, pages, database, users, logs and a terminal.',
+    color: 'var(--brand-4)',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
+        <path d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0" />
       </svg>
     ),
   },
@@ -83,18 +107,6 @@ const services: {
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
         <path d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0m6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0m-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0" />
-      </svg>
-    ),
-  },
-  {
-    name: 'lmthing.team',
-    tagline: 'Private agent rooms',
-    description:
-      'A shared workspace with its own runtime, subscription and credentials. Channels to talk in, shared projects, and THING working on them.',
-    color: 'var(--spectrum-28)',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
-        <path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25" />
       </svg>
     ),
   },
@@ -126,31 +138,120 @@ const services: {
   },
 ]
 
-const features = [
+const SANDBOX_SNIPPET = `const overdue = await db.query('tasks', { status: 'open' })
+for (const t of overdue.filter(isLate)) {
+  await notify(t.owner, \`"\${t.title}" slipped\`)
+}
+display(<Summary items={overdue} />)`
+
+const SPACE_TREE = `newsroom/
+├── agents/researcher/
+│   ├── charter.md      # who it is
+│   └── instruct.md     # its wiring + instructions
+├── functions/          # plain TypeScript — no LLM
+├── knowledge/          # loaded on demand, not every turn
+├── tasklists/          # DAG workflows, step by step
+├── components/         # the UI it renders back to you
+└── events/             # webhook · cron · db · internal`
+
+const features: { title: string; description: string; badge?: string }[] = [
   {
-    title: 'OpenAI-compatible API',
-    description: 'Drop-in replacement. Point your existing code at lmthing and it just works.',
+    title: 'Apps with a real backend',
+    badge: 'Build',
+    description:
+      'Describe it and you get a database schema, typed API endpoints that are typechecked before they are saved, and a UI built against them — then an acceptance pass that asks whether the app is actually right.',
   },
   {
-    title: 'Multi-model routing',
-    description: 'Access GPT, Claude, Gemini, Mistral, and more through a single endpoint.',
+    title: 'Agents that build agents',
+    badge: 'Build',
+    description:
+      'THING writes new specialists, forks itself to work in parallel, and delegates to agents with narrower powers than its own — a data modeler that only touches schemas, an engineer with a throwaway sandbox.',
   },
   {
-    title: 'Built-in budgets',
-    description: 'Per-user token budgets and rate limits. Never get a surprise bill.',
+    title: 'Capabilities, not permissions',
+    badge: 'Build',
+    description:
+      'An agent without a grant does not get "access denied" — the function is absent from its world entirely. No generic filesystem on any agent surface, ever.',
   },
   {
-    title: 'Spaces architecture',
-    description: 'Agents + Flows + Knowledge. A composable system for building anything.',
+    title: 'A browser you and your agent share',
+    badge: 'Desktop',
+    description:
+      'A real browser view inside the desktop app: one page, one login, one scroll position. You watch it; the agent clicks, types and reads it. No screenshot streams, no hidden headless copy, nothing to download.',
   },
   {
-    title: 'GitHub-native sync',
-    description: 'Your workspace is a git repo. Version control, branching, collaboration — built in.',
+    title: 'Your local files',
+    badge: 'Desktop',
+    description:
+      'Point the desktop app at a folder and your agent can work on what is actually on your machine. Nothing is reachable until you name it, and disconnect is a kill switch.',
   },
   {
-    title: 'Edge deployment',
-    description: 'Deploy agents to containers worldwide. Low latency, high availability.',
+    title: 'One file, no install',
+    badge: 'CLI',
+    description:
+      'The whole runtime as a single executable — CLI, REST API, WebSocket and agents — on a machine with no Node and no checkout. A coding agent is bundled inside it.',
   },
+  {
+    title: 'On your phone, in your pocket',
+    badge: 'Mobile',
+    description:
+      'The same app, natively: push notifications sent only by your own pod, over-the-air updates, drafts, message editing and an honest offline state.',
+  },
+  {
+    title: 'Events, webhooks and cron',
+    badge: 'Automate',
+    description:
+      'A space can declare what it emits — a webhook arrives, a schedule fires, a row changes — and hooks wake your agents to deal with it. Automations that run while you sleep.',
+  },
+  {
+    title: 'Integrations you own',
+    badge: 'Automate',
+    description:
+      'Slack, Telegram, email and more, each a self-contained space installed from the store with your own token. No broker in the middle holding your access.',
+  },
+  {
+    title: 'It can read the web',
+    badge: 'Automate',
+    description:
+      'Search and page-fetch backed by a real headless browser, so JavaScript-heavy pages are readable — plus images, transcribed audio, spreadsheets and office documents.',
+  },
+  {
+    title: 'Every model, one endpoint',
+    badge: 'Platform',
+    description:
+      'An OpenAI-compatible API in front of every model we route to. Point your existing code at it and it just works.',
+  },
+  {
+    title: 'Budgets, not surprise bills',
+    badge: 'Platform',
+    description:
+      'Rolling daily, weekly and monthly spend caps on every account. A request is refused when a window is exhausted — there is no overage to discover later.',
+  },
+  {
+    title: 'Costs nothing while you are away',
+    badge: 'Platform',
+    description:
+      'Your pod scales to zero and is woken by the edge on any request, in about a second, with real boot progress on screen. Scheduled jobs still fire while it sleeps.',
+  },
+  {
+    title: 'Sign in with an email address',
+    badge: 'Platform',
+    description:
+      'A six-digit code or a magic link that signs in the browser that asked for it and nobody else. GitHub too. No password to choose, leak or reset.',
+  },
+  {
+    title: 'Your workspace is a git repo',
+    badge: 'Platform',
+    description:
+      'Back the whole thing up to your own GitHub repository. Version control, history and diffs over everything your agents wrote.',
+  },
+]
+
+const clients = [
+  { name: 'Web', detail: 'chat, studio, computer and your apps in any browser' },
+  { name: 'Desktop', detail: 'macOS, Windows and Linux — plus local files and the shared browser' },
+  { name: 'Phone', detail: 'the same app natively, with push and over-the-air updates' },
+  { name: 'Terminal', detail: 'one downloadable file, no Node and no checkout required' },
 ]
 
 function Landing() {
@@ -172,9 +273,10 @@ function Landing() {
             <CozyThingText text="lmthing" className="text-5xl sm:text-7xl" />
           </h1>
           <p className="mt-6 text-xl sm:text-2xl text-muted-foreground leading-relaxed animate-fade-in-up-delay">
-            The open platform for building, running, and sharing AI agents.
+            The open platform for building, running and sharing AI agents.
             <br className="hidden sm:block" />
-            One ecosystem. Every model. Your rules.
+            Describe what you want. It writes the agents, the app and the automations — and hands
+            you the files.
           </p>
           <div className="mt-10 flex items-center justify-center gap-4 animate-fade-in-up-delay-2">
             <Link
@@ -193,6 +295,77 @@ function Landing() {
         </div>
       </section>
 
+      {/* The two ideas */}
+      <section className="px-6 py-20 sm:py-28 border-t border-border bg-secondary/30">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl tracking-tight">Two ideas, and everything follows</h2>
+            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+              Not another wrapper around a chat box. A different execution model, and a format you
+              can actually read.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="rounded-xl border border-border bg-card p-7">
+              <span
+                className="text-xs font-semibold uppercase tracking-wider"
+                style={{ color: 'var(--brand-3)' }}
+              >
+                The runtime
+              </span>
+              <h3 className="mt-2 text-xl font-semibold">The model writes code, not tool calls</h3>
+              <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                One TypeScript statement at a time, streamed, evaluated as it arrives inside a
+                WebAssembly sandbox. That means real loops, real conditionals, real variables — one
+                turn does work a tool-calling loop spends ten round-trips on. Generated code is
+                typechecked <em>before</em> it is saved, so mistakes are caught in the writer instead
+                of at 2am in production.
+              </p>
+              <pre className="mt-5 overflow-x-auto rounded-lg bg-muted p-4 text-xs leading-relaxed text-muted-foreground">
+                <code>{SANDBOX_SNIPPET}</code>
+              </pre>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-7">
+              <span
+                className="text-xs font-semibold uppercase tracking-wider"
+                style={{ color: 'var(--brand-4)' }}
+              >
+                The format
+              </span>
+              <h3 className="mt-2 text-xl font-semibold">An agent is not a prompt. It is a folder.</h3>
+              <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                Every agent is a directory you can read, diff, edit by hand, commit to git, publish
+                and install. Its frontmatter <em>is</em> its wiring — which functions it may call,
+                what it may know, what it may render, who it may delegate to — and every reference is
+                checked when the space loads. Nothing important is hidden in a prompt string in a
+                database.
+              </p>
+              <pre className="mt-5 overflow-x-auto rounded-lg bg-muted p-4 text-xs leading-relaxed text-muted-foreground">
+                <code>{SPACE_TREE}</code>
+              </pre>
+            </div>
+          </div>
+
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            The same is true of an app: a project is <code className="text-foreground">database/</code>{' '}
+            <code className="text-foreground">api/</code> <code className="text-foreground">pages/</code>{' '}
+            <code className="text-foreground">components/</code> <code className="text-foreground">hooks/</code>{' '}
+            <code className="text-foreground">events/</code> on disk —{' '}
+            <a
+              href="https://lmthing.org/format"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              the whole format is documented
+            </a>
+            .
+          </p>
+        </div>
+      </section>
+
       {/* Services Grid */}
       <section className="px-6 py-20 sm:py-28">
         <div className="mx-auto max-w-6xl">
@@ -201,7 +374,8 @@ function Landing() {
               One <CozyThingText text="thing" className="text-3xl sm:text-4xl" /> for everything
             </h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Nine interconnected services that cover the entire AI agent lifecycle — from creation to deployment to community.
+              Interconnected surfaces covering the whole life of an agent — from the first message to
+              a running app your team uses every day.
             </p>
           </div>
 
@@ -272,15 +446,20 @@ function Landing() {
       <section className="px-6 py-20 sm:py-28 border-t border-border bg-secondary/30">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl tracking-tight">Built different</h2>
+            <h2 className="text-3xl sm:text-4xl tracking-tight">Everything it does</h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Not another wrapper. A complete platform with real infrastructure behind it.
+              Real infrastructure behind every one of these — not a roadmap.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10">
             {features.map((feature) => (
               <div key={feature.title} className="space-y-2">
+                {feature.badge && (
+                  <span className="inline-block rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {feature.badge}
+                  </span>
+                )}
                 <h3 className="font-semibold text-base">{feature.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
               </div>
@@ -289,12 +468,33 @@ function Landing() {
         </div>
       </section>
 
-      {/* Pricing Teaser */}
+      {/* Clients */}
       <section className="px-6 py-20 sm:py-28">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl tracking-tight">Wherever you work</h2>
+            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+              One account, one workspace, four ways in. The screens are literally the same code.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {clients.map((client) => (
+              <div key={client.name} className="rounded-xl border border-border bg-card p-6">
+                <h3 className="font-semibold text-base">{client.name}</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{client.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Teaser */}
+      <section className="px-6 py-20 sm:py-28 border-t border-border">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl sm:text-4xl tracking-tight">Start free, scale when ready</h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            $1/week free token budget. No credit card required. Upgrade anytime from $5/month.
+            A generous free token budget, every model, and your own pod — no credit card. Paid plans
+            from $10/month add more memory, more concurrent sessions and jobs that run more often.
           </p>
           <div className="mt-10 flex items-center justify-center gap-4">
             <Link

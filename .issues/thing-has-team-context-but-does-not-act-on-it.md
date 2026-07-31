@@ -85,3 +85,72 @@ which behaved correctly throughout. Concretely, the instructions appear not to s
   only on the row being unchanged — an unchanged row is also what a fizzled turn produces.
 - "Let the others know" from a thread in `#press` about work discussed in `#studio` produces a post
   in `#studio` (`crossChannelPosts` non-empty), attributed to the member who asked.
+
+
+---
+
+## 3. It invented a colleague who is not in the directory (20-studio run 4 step 9)
+
+Rita, a viewer, was refused correctly — the refusal itself is a clear improvement and is recorded in
+the run-4 report. But the alternative it offered names somebody who does not exist:
+
+> *"Only an admin or editor can do writes — you'd need **@Rui** or whoever set this up to promote
+> your role, or to make the change themselves."*
+
+The cast is ana, bo, cai and rita (`20-studio/scenario.yaml`), and the directory THING can read
+returns exactly those four. `teamMembers()` was NOT called on this turn — only `teamContext()` —
+so the one name in the sentence is the one thing in it that was guessed.
+
+This is the same fault as §1 and §2 in a third form: the team facts are one call away and the turn
+answers from invention instead. "Ask an editor" is the right shape of answer; naming a person
+requires reading the directory, and if it is not read, no name should appear.
+
+Evidence: `sdk/org/scenarios/20-studio/runs/4/step-09.json` — `wrote.globals` is
+`["display","teamContext"]`; the reply text is in
+`runs/4/data/.lmthing/.team/channels/studio.jsonl`.
+
+**Verify:** a refusal that names anybody must have called `teamMembers()` in the same turn, and every
+`@name` in a channel message must resolve to a directory entry.
+
+---
+
+## 4. Two people contradict each other about the same boat and neither is told (22-crossfire run 4 step 4)
+
+This is the beat 22-crossfire exists for. In the same instant, in two channels:
+
+- Sam, `#yard`: *"bright penny is approved, I spoke to the owner this morning"*
+- Rae, `#office`: *"bright penny is still only quoted — they have not paid the deposit and I am not
+  starting anything until they do"*
+
+Both turns answered well **in isolation** — readable, no jargon, and each asked rather than guessing
+(`step-04.full.json`). Three of the step's four expectations pass: nothing was silently decided,
+no row was left misrepresenting either of them, no compromise state was invented.
+
+The load-bearing one fails:
+
+> *"The contradiction is surfaced to the people in it, in the channels they spoke in, naming what the
+> other person said."*
+
+Neither reply mentions the other person at all. Sam is invited to pick which boat is Bright Penny so
+the approval can be recorded; Rae is offered deposit tracking. Each turn behaves as though it is the
+only conversation happening. `crossChannelPosts: []`.
+
+**This was discoverable and was not looked for.** The two messages are both posted before either turn
+is dispatched, so each was in the record the whole time — and Rae's turn ran 132 seconds with three
+`user-memory/memory` delegate round-trips, so it was not short of opportunity. Globals used:
+`["display","teamContext"]` (Sam) and `["tasklist","display","teamContext"]` (Rae). **`teamHistory`
+was not called by either**, which is the call that would have shown the other channel.
+
+So this is §1–§3's fault in a fourth form: `teamContext()` is fetched reflexively, and then the turn
+reasons as if it were a single-user pod. A personal pod cannot have this bug; it is the whole
+difference the team surface is supposed to make.
+
+**Caveat on scoring, not on the finding:** step 4 is weakened by
+[build-invents-placeholder-rows-instead-of-asking](./build-invents-placeholder-rows-instead-of-asking.md)
+— "Bright Penny" is not a row, so both turns spent themselves on *which boat is she?* rather than on
+the collision. The contradiction is still fully present in the two messages, and noticing it needs no
+row. But a clean re-score of this beat needs the placeholder-rows defect fixed first.
+
+**Verify:** with real rows seeded, deliver the two step-4 messages concurrently and assert each
+channel receives a reply that names the other member's claim. `teamHistory` (or an equivalent
+cross-channel read) must appear in at least one turn's globals.

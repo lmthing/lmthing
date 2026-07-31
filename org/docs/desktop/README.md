@@ -115,8 +115,9 @@ Stated plainly because a doc that implies otherwise is worse than no doc.
 
 | The Rust compiles, lints and passes its tests | `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` (34) |
 | The grant jail refuses what it must | 16 tests including symlink escape, a symlink named `notes.md` pointing at `.ssh/id_rsa`, and a sibling whose name merely starts with the grant's |
-| The app boots, signs in, and drives its surfaces | 12 Playwright tests against the real bundle |
-| The bridge protocol round-trips | Two of those 12: dial → push grants → answer an `fs.request` → log it |
+| The app boots, signs in, and drives its surfaces | 17 Playwright tests against the real bundle |
+| The bridge protocol round-trips | Two of those: dial → push grants → answer an `fs.request` → log it |
+| A real Chromium streams into the pane, and takes clicks and keys back | 5 Playwright tests against a genuine browser — see [browser.md](./browser.md) |
 
 | **Not proven** | Why |
 |---|---|
@@ -124,8 +125,8 @@ Stated plainly because a doc that implies otherwise is worse than no doc.
 | The `lmthing://` round trip | Needs a packaged app and an OS scheme registration |
 | Rendering under WKWebView / WebKitGTK | The Tamagui runtime is more JS-feature-hungry than extracted CSS; only a real webview can answer this |
 | Anything against a REAL pod | Every test uses a stub backend. Sign-in, pod wake and the bridge have never spoken to production. |
-| The CDP tool translation against real sites | `sdk/org/apps/desktop/src/cdp.ts` has no test of its own — it needs a live browser |
-| The sidecar | `bundle.externalBin` is declared but no release pipeline builds the binary yet |
+| The 27 `system-browser` wrappers against real sites | Their translation is unit-tested; no live site has been driven through them — see [browser.md](./browser.md) |
+| The sidecar | No release pipeline builds the binary yet, so `bundle.externalBin` is deliberately NOT declared: Tauri resolves external binaries at compile time and fails the build on a missing one (`sdk/org/apps/desktop/src-tauri/src/sidecar.rs:L21-L33`) |
 
 ---
 
@@ -135,7 +136,7 @@ Stated plainly because a doc that implies otherwise is worse than no doc.
 
 The filesystem is **granted folders only**, and the jail is the entire security boundary: it lives on the desktop, in Rust, because the pod is the party running the untrusted instruction. Prompt injection — not a stolen token — is the realistic attack.
 
-The browser reuses `system-browser`'s 27 existing agent functions unchanged, since they all speak one JSON-RPC `tools/call` shape to one URL. A desktop-only agent additionally gets raw CDP, which is the most dangerous capability in the whole design and is gated hardest.
+The browser reuses `system-browser`'s 27 existing agent functions unchanged, since they all speak one JSON-RPC `tools/call` shape to one URL. A desktop-only agent additionally gets raw CDP, which is the most dangerous capability in the whole design and is gated hardest. The built result — a real Chromium visible in the app, its own 17-function agent surface, and the protocol details that are easy to get silently wrong — is **[browser.md](./browser.md)**.
 
 **Phase 3 — local mode.** A bundled Node sidecar running `lmthing serve`, with `apiBase` repointed at loopback. The native-module cost is far smaller than it looks: `better-sqlite3` is imported in exactly one file (`sdk/org/libs/cli/src/app/store.ts`) and Node 24's built-in `node:sqlite` replaces it, while `node-pty` is already a lazy import and simply need not ship.
 

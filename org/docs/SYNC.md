@@ -85,6 +85,7 @@ Find your change on the left; that's the doc that must move with it.
 | a product SPA (`com`, `social`, `team`, `store`, `space`, `blog`, `casa`) | [`product-spas/`](./product-spas/README.md) |
 | the **mobile** app (`sdk/org/apps/mobile`) — the Expo shell, its native forks, the platform seams | [`mobile/`](./mobile/README.md) |
 | the **desktop** app (`sdk/org/apps/desktop`) — the Tauri shell, `src-tauri/`, the injected bridge | [`desktop/`](./desktop/README.md) |
+| the desktop's **live browser** — the CDP client, the screencast pane, input forwarding, `system-desktop-browser` | [`desktop/browser.md`](./desktop/browser.md) |
 | the domain map, the pod model, the overall data flow | [`architecture.md`](./architecture.md) |
 
 Adding a whole capability with no home above? Add a section — and add its row here.

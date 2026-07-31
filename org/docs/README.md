@@ -19,6 +19,7 @@ Every page here is written against real source under `sdk/org/libs/{core,cli}`, 
 | **[app/](./app/README.md)** | The **served project-application**: boot, page build + serve at `/app/<id>/…`, the worker-isolated Node api runtime, the `@app/runtime` client, and generated `@app/types`. | `sdk/org/libs/cli/src/app/**` |
 | **[mobile/](./mobile/README.md)** | The Expo / React Native app: chat, teams and the Home dashboard on a phone — the shared-`@lmthing/ui` invariant, the `.native` fork ratchet, the `platform/` capability seams, and what the gates do and do not prove. | `sdk/org/apps/mobile/**` · `sdk/org/libs/ui/src/platform/**` |
 | **[desktop/](./desktop/README.md)** | The Tauri v2 desktop app: the same three surfaces in a native window, the host-injected `__LMTHING_DESKTOP__` bridge that replaces a meaningless `tauri://` origin, and custom-scheme sign-in. | `sdk/org/apps/desktop/**` · `sdk/org/libs/auth/src/env.ts` |
+| **[desktop/browser.md](./desktop/browser.md)** | The live browser: a real Chromium with no window of its own, streamed into a pane the person drives and an agent drives with them — one browser, one DOM, one cookie jar. | `sdk/org/apps/desktop/src/{cdp,browser-*}.ts` · `sdk/org/libs/core/system-spaces/system-desktop-browser/**` |
 
 ---
 

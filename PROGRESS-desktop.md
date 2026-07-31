@@ -166,3 +166,76 @@ concurrency and pass 3/3 in isolation. Pre-existing on this machine.
 2. A release pipeline: OS matrix, Apple + Windows signing, the sidecar binary, an updater key.
 3. The visible browser pane (screencast + input forwarding) — the CDP plumbing is in place; the
    pane that lets a person watch and take over is not.
+
+---
+
+## The live browser pane + a space to control it ✅ DONE
+
+The pane the plan called *2b* and the follow-up work said was "not built". A real Chromium runs
+with no window of its own and streams frames over CDP; the pane draws them and sends mouse and keys
+back. Plus `system-desktop-browser` gains 17 functions and a `browse` agent that drives that same
+browser.
+
+Grounded detail: [`org/docs/desktop/browser.md`](./org/docs/desktop/browser.md).
+
+| Change | Where |
+|---|---|
+| Chromium launched `--headless=new`, WS URL read from `DevToolsActivePort` | `apps/desktop/src-tauri/src/browser.rs` |
+| `browser_relaunch` — same browser, same profile, a window of its own | `apps/desktop/src-tauri/src/commands.rs` |
+| CDP client on the BROWSER target, flat sessions, real tabs, screencast | `apps/desktop/src/cdp.ts` |
+| Pure input translation (coordinates, keys, wheel, address bar) | `apps/desktop/src/browser-input.ts` |
+| One session shared by the pane and the bridge | `apps/desktop/src/browser-session.ts` |
+| The pane: tabs, address bar, navigation, input, agent indicator | `apps/desktop/src/BrowserPane.tsx` |
+| Both tool catalogues, translated onto CDP | `apps/desktop/src/browser-tools.ts` |
+| 17 functions + `browse` agent + `browser/live` knowledge | `libs/core/system-spaces/system-desktop-browser/` |
+| `LMTHING_DESKTOP_BROWSER_URL`, separate from the Lightpanda one | `libs/cli/src/host/browser-endpoint.ts` |
+
+### Findings
+
+1. **`bundle.externalBin` had the cargo gate red on main.** Tauri resolves external binaries at
+   COMPILE time and fails on a missing one, so declaring a sidecar nothing builds broke
+   `cargo test`, `cargo build` and `tauri dev` for everyone. Removed until a release pipeline
+   stages the binary; `sidecar.rs` says where to put it back.
+2. **`HomeShell`'s root `Box` renders `display: block`.** Every surface below it resolved `flex: 1`
+   against a zero-height parent. The three shared surfaces hid it by carrying their own height; a
+   raw element sized by its container does not. Found by measuring the ancestor chain after the
+   pane rendered frames into a box with no size — invisible to every other gate, exactly as
+   `reference-layout-collapse-invisible-to-gates` says.
+3. **`fetch('/json/version')` from the webview is blocked by CORS.** Chromium's DevTools HTTP
+   endpoints send no `Access-Control-Allow-Origin`; `--remote-allow-origins` governs the WebSocket
+   handshake and does not help. Rust reads both the port and the socket path out of
+   `DevToolsActivePort` instead, so there is no HTTP request at all.
+4. **A headless page is never focused and DROPS key events.** The mouse still works, so it presents
+   as "clicking is fine, typing does nothing". `Emulation.setFocusEmulationEnabled` is the fix;
+   `Page.bringToFront` alone is not enough.
+5. **Tab titles cannot come from target events.** `Target.targetInfoChanged` fires only on
+   navigation and puts the URL in its `title`, and does not fire at all when a page sets
+   `document.title` from script — verified directly against Chromium. `Target.getTargets` is the
+   only source, so the strip polls it while visible, single-flight (two overlapping replies can
+   land out of order and leave a stale title that nothing later corrects).
+6. **Screencast frames must be acked** or Chromium stops after two or three, silently. The e2e
+   requires the picture to CHANGE after navigating, which is what distinguishes a live stream from
+   a frozen one.
+7. **`localhost:3000` matched the address bar's scheme test** and went to the browser as the
+   protocol "localhost". A scheme now needs `//` after it.
+8. **`apps/desktop/src/**` was not in the vitest include list** — a suite there would have run
+   nowhere, the same way `libs/ui/src/team/**` did for its whole life.
+9. **The capability smoke test grouped by SPACE.** `system-desktop-browser` holds `browser:cdp` on
+   `devtools` and nothing on `browse` (its function list is its gate), so the correct agent looked
+   like an omission. Now an exact list of the thirteen space/agent pairs that hold capabilities.
+
+### Verification
+
+`3105` vitest (3 known worker-thread concurrency flakes, all pass in isolation) · `37/37` cargo with
+`clippy -D warnings` and `fmt --check` · `17/17` Playwright, five of them against a REAL Chromium ·
+Metro graph gate · `expo export` · `apps/web` build · workspace typecheck · `lint:tokens` (774
+files) · `docs:check` (5420 citations).
+
+### Still not proven
+
+- Any of it against a **real pod** — the bridge, and so the agent path end to end, has only spoken
+  to a stub.
+- The pane under **WKWebView or WebKitGTK**. The app runs in Playwright's Chromium here.
+- The **27 `system-browser` wrappers against real sites**.
+- Whether **streamed scrolling is acceptable** for real work. If it is not, the fallback is an
+  embedded Chromium child window — platform-specific reparenting on all three platforms.

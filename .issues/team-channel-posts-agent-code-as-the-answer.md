@@ -221,18 +221,43 @@ Two false beliefs are visible in that one comment:
 And the anti-silent guard *rewarded* it — `displayedThisTurn` became true, so a turn that answered
 nobody reported `done`.
 
-### What this implies for the fix
+### What this implies for the fix — and why the cheap half is already dead
 
-The prompt half is now the load-bearing half, and it is cheap and certain:
+My first reading was that the prompt half was now load-bearing and cheap. **That is wrong, and it
+matters, because it is the fix everyone reaches for first.** `instruct.md:112-125` already forbids
+this exact turn, by name, with these examples:
 
-- `display()` is never for looking. You already receive every binding's value.
-- In a team channel the last `display()` **is** the message the whole room reads, permanently. It
-  must be addressed to the person who asked, in their words.
+> *"Calling an introspection primitive — `db.tables()`, `listProjectDir()`, a listing of the app's
+> own endpoint routes, a `db.query()` you haven't finished reasoning over — and `display()`-ing that
+> raw result as if it were the answer. A table list, a directory listing, or an endpoint-name list is
+> a MEANS to find the real name to act on next, never the finished reply: it means nothing to someone
+> who didn't just look it up."*
 
-The guard half stays, but its job narrows to catching the residue rather than classifying content:
-a turn that ran statements and displayed something **but never addressed the asker** gets ONE nudge
-("you showed working material; now answer the person"), then accepts whatever it gets. Never fail
-loud on this branch — a `/chat` turn ending on `display(someTable)` is legal and must stay legal.
+Rae's turn is that paragraph, acted out: `db.tables()`, `listProjectDir('pages')`,
+`listProjectDir('api')`, displayed, stop. The instruction is already as specific as prose can get.
+**Writing more prose about it will not fix it.** The guard has to be mechanical.
+
+What the instruct does give us is a precise, non-fragile rule to mechanise, because it names the
+primitives. A display is **orientation, not an answer**, when its text is nothing but same-turn
+introspection results plus labels:
+
+1. Record each introspection call's return value for the current turn (`db.tables`,
+   `listProjectDir`, `listProjectFiles`, route listings — the set the instruct already enumerates).
+2. On display, take the descriptor's flattened text and strip every substring equal to the JSON
+   serialization of one of those recorded values.
+3. If what remains has no sentence in it — Rae's residue is *"Current project state The project has
+   these tables: Pages: API routes:"* — the turn has shown working material, not an answer.
+
+That is a comparison against values the runtime already holds, not a content heuristic, so an answer
+that legitimately quotes a table list alongside real prose keeps its prose and passes.
+
+Wire it as a second signal beside `hadVisibleOutput` — call it `hadReadableOutput` — consumed by the
+same guard at `turn-loop.ts:455`. Crucially the two branches must stay distinct:
+
+- **displayed nothing** — unchanged: one nudge, then fail loud.
+- **displayed only working material** — one nudge (*"that is what you used to find the answer; now
+  answer the person"*), then **accept whatever comes back**. Never fail loud here: a `/chat` turn
+  ending on `display(someTable)` is legal today and must stay legal.
 
 ### Frequency in this run
 

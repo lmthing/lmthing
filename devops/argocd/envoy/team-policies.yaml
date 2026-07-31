@@ -135,6 +135,39 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: team-api-proxy
+  # ── CORS ──────────────────────────────────────────────────────────────────
+  #
+  # The desktop app is the FIRST client whose origin is not this host. `apps/web` is served from
+  # the same origin as the pod, so it never triggers a preflight; React Native does not implement
+  # CORS at all. A Tauri webview does, and its origin is a custom scheme.
+  #
+  # Every pod call carries `Authorization`, which makes the request non-simple, so the browser
+  # sends an `OPTIONS` preflight first — and a preflight carries NO credentials, by definition.
+  # Without this block the JWT filter answered it `401 Jwt is missing` before the pod ever saw it,
+  # and the desktop app sat on "Starting your workspace…" forever with the pod healthy and serving.
+  #
+  # Envoy Gateway runs the CORS filter ahead of JWT and answers the preflight directly, so this
+  # does not weaken authentication: the actual GET/POST still has to present a valid token.
+  #
+  # `*`, and NOT because an allowlist was too much trouble. The desktop's origin on macOS and
+  # Linux is `tauri://localhost` — a custom scheme — and the SecurityPolicy CRD validates
+  # allowOrigins against `^(\*|https?://...)$`, so a custom scheme is not expressible at all.
+  #
+  # What makes `*` safe here is the line below it. Authentication is a BEARER TOKEN, never a
+  # cookie, so nothing is sent ambiently: a hostile page can issue a request to this host and will
+  # get a 401, because it has no token to attach and `allowCredentials: false` forbids the browser
+  # from sending one. `*` widens who may ASK, not who may be answered.
+  #
+  # allowCredentials must therefore stay false. Turning it on is what would make `*` dangerous —
+  # and the browser refuses that combination anyway, which is a good reason not to rely on the
+  # refusal.
+  cors:
+    allowOrigins:
+      - "*"
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    allowHeaders: ["authorization", "content-type", "x-requested-with"]
+    maxAge: "1h"
+    allowCredentials: false
   jwt:
     providers:
       - name: gateway

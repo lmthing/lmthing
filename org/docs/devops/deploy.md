@@ -17,14 +17,28 @@ push to main ──▶ build-images.yml ──▶ ACR (lmthingacr.azurecr.io/<im
 
 ## GitHub Workflows
 
-Four workflows live in [.github/workflows/](../../../.github/workflows):
+Ten workflows live in [.github/workflows/](../../../.github/workflows), in four contiguous groups:
+the deploy pipeline (1), repo-wide hard gates (2), the **client** targets (5) — mobile and desktop,
+which are not deployed at all but downloaded — and repo hygiene (2):
 
 | Workflow | File | Trigger | Purpose |
 |---|---|---|---|
 | Build and Push Images | `build-images.yml` | push to `main` (source paths, incl. `gh-pages/**`) + `workflow_dispatch` | Build changed Docker images, push to ACR, commit new tags, trigger sync, **and deploy the status page** |
 | Design tokens | `design-tokens.yml` | PR + push to `main` (frontend paths) | Hard gate: fail on raw colors / non-token styling |
+| Docs citations | `docs-sync.yml` | PR + push to `main` `.github/workflows/docs-sync.yml:8-39` | Hard gate: every `org/docs/` citation must resolve |
+| Native target | `native-target.yml` | PR + push to `main` (`sdk/org` pointer) `.github/workflows/native-target.yml:18-51` | Hard gate: the React Native module graph resolves, transforms and mounts (Metro, no simulator) |
+| Android APK | `mobile-android.yml` | push to `main` (`sdk/org` pointer) + `workflow_dispatch` `.github/workflows/mobile-android.yml:52-60` | **Per-commit installable APK** — prebuild + Gradle, uploaded as an artifact |
+| Desktop target | `desktop.yml` | PR + push to `main` (`sdk/org` pointer) `.github/workflows/desktop.yml:18-27` | Gate (typecheck / lint / clippy / E2E) **plus**, on pushes only, a per-commit Linux bundle |
+| Desktop release | `desktop-release.yml` | tag `desktop-v*` + `workflow_dispatch` `.github/workflows/desktop-release.yml:32-40` | All four platforms, drafts a GitHub release |
+| Publish OTA update | `ota-publish.yml` | push to `main`/`staging` (`sdk/org` pointer) + `workflow_dispatch` `.github/workflows/ota-publish.yml:56-92` | Ships a JavaScript-only update to installed mobile binaries |
 | PR manual decline | `pr-decline.yml` | PR labeled + `workflow_dispatch` | Canned-message close of PRs by maintainer label |
 | Close stale threads | `stale.yml` | daily cron `0 9 * * *` | Mark/close inactive issues |
+
+**Every client-side workflow triggers on the bare `sdk/org` submodule POINTER, and that is the only
+path entry that can fire** — the mobile and desktop apps live inside the submodule, which no commit
+in this repository ever touches. A submodule update changes exactly one gitlink entry, at `sdk/org`.
+Naming paths inside it matches nothing; `native-target.yml` shipped with exactly that bug and ran
+once in its life `.github/workflows/native-target.yml:20-33`.
 
 ### `build-images.yml` — the deploy pipeline
 
@@ -76,6 +90,51 @@ Four jobs, in order:
 ### `design-tokens.yml` — the styling hard gate
 
 On PRs and pushes to `main` touching frontend paths (`sdk/org/**`, `com/**`, `social/**`, `team/**`, `store/**`, `space/**`, `blog/**`, `casa/**`), runs `node sdk/org/libs/css/scripts/lint-design-tokens.mjs` over the SPA and shared-lib source trees (`sdk/org/libs/{css,ui}/src`, `sdk/org/apps/web/src`, and each SPA's `src/`); a raw color (hex / literal `rgb()`/`hsl()` / stock Tailwind color utility) fails the build `.github/workflows/design-tokens.yml:6-43`. Note the newest SPA, `org/`, is **not** yet in either the trigger paths or the lint argument list `.github/workflows/design-tokens.yml:9-16,20-27,40-43` — it is currently ungated. Rules & escape hatches: [../design-system/README.md](../design-system/README.md).
+
+### Client binaries — what CI builds on every commit
+
+Neither of these is a release. Both exist to answer, per commit, "does the native app still build,
+and can I run the thing that came out?" — a question no other gate reaches: `native-target.yml`
+proves the Metro graph resolves, `ota-publish.yml` exports a JS bundle, and `desktop.yml`'s `rust`
+job compiles the crate, but none of them runs Gradle or produces a package.
+
+**`mobile-android.yml` → an installable APK.** `sdk/org/apps/mobile/android/` is gitignored
+`sdk/org/apps/mobile/.gitignore:8-9` — it is prebuild *output*, not source — so CI generates the
+native project first (`expo prebuild --platform android --no-install`, which defaults to a clean
+generation) and then runs `./gradlew :app:assembleRelease`
+`.github/workflows/mobile-android.yml:123-137`. Workspace dependencies are built by invoking the
+app's own `eas-build-post-install` hook verbatim, so this path and an EAS build cannot drift
+`.github/workflows/mobile-android.yml:115-117`.
+
+Three things make the artifact unmistakably *not* a release candidate:
+
+- **Debug-signed.** `expo prebuild` generates `release { signingConfig signingConfigs.debug }`, and
+  no release keystore exists in this org. Play rejects the upload; a phone installs it fine.
+- **arm64-v8a only** `.github/workflows/mobile-android.yml:135-137`. `newArchEnabled=true` means
+  React Native compiles its C++ from source and `gradle.properties` asks for four ABIs, so the
+  default is that compile done four times for a throwaway artifact. The cost: it will **not** install
+  on the standard x86_64 emulator. (Measured: ~4m for the single-ABI release build.)
+- **versionCode 1, always** — `eas.json` sets `appVersionSource: "remote"`
+  `sdk/org/apps/mobile/eas.json:2-5`, so the real number is allocated by EAS and a plain Gradle
+  build never asks.
+
+It also cannot receive an OTA update: no `EXPO_OTA_APP_ID` is set, and without that header the
+server answers "No app id provided" forever `sdk/org/apps/mobile/app.config.js:115-119`. Note that
+`RELEASE_CHANNEL` is *also* unset and defaults to `production`
+`sdk/org/apps/mobile/app.config.js:110-114`, so the binary does ask for the production channel —
+which is inert, because omitting `EXPO_OTA_APP_ID` puts the build on a different `runtimeVersion`
+entirely `sdk/org/apps/mobile/app.config.js:138-145`, one no publish targets. The job prints the
+APK's embedded fingerprint to the run summary `.github/workflows/mobile-android.yml:142-146`; that
+value, read out of the artifact rather than re-resolved later, is what an entry in
+`sdk/org/apps/mobile/shipped-runtime-versions.json` needs.
+
+**`desktop.yml` → a Linux AppImage + .deb.** The `bundle` job is skipped on pull requests
+`.github/workflows/desktop.yml:148-152` and runs on `ubuntu-22.04`, not `ubuntu-latest`, for the
+same reason `desktop-release.yml` does: AppImage and .deb are forward-compatible only, and a binary
+linked against a newer glibc fails at exec time with a bare `version 'GLIBC_2.39' not found`. It is
+Linux-only on purpose — macOS runners bill at 10x minutes and Windows at 2x, so a full per-commit
+matrix would cost roughly 25x this job to catch, on the platforms that break least often, what the
+tag build catches anyway. All four targets remain on `desktop-release.yml`.
 
 ### Repo-hygiene workflows
 

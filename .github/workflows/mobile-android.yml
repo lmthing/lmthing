@@ -1,0 +1,164 @@
+name: Android APK
+
+# Builds an installable Android APK on every commit that lands on main.
+#
+# Until this existed, EVERY binary this project has ever produced came off one laptop
+# (`eas build --local` — see the `builtFrom` notes in apps/mobile/shipped-runtime-versions.json).
+# Nothing in CI compiled the Android target at all: `native-target.yml` proves the Metro graph
+# resolves and mounts, and `ota-publish.yml` exports a JS bundle, but neither runs Gradle, so a
+# break that only a native build can see — a new Expo module that fails to link, a manifest
+# merge conflict, a Kotlin/AGP incompatibility — reached a device before it reached anyone's
+# attention.
+#
+# ## This APK is NOT a release candidate, and three separate things make sure of that
+#
+#   · It is DEBUG-SIGNED. `expo prebuild` generates `release { signingConfig signingConfigs.debug }`
+#     with the well-known `android`/`androiddebugkey` credentials, and no release keystore exists
+#     in this org yet. Google Play rejects a debug-signed upload; a phone installs it fine.
+#   · It is arm64-v8a ONLY (see the Gradle step). It will not start on an x86_64 emulator.
+#   · versionCode is 1, always. `eas.json` sets `appVersionSource: "remote"`, so the real number
+#     is allocated by EAS at build time and a plain Gradle build never asks — apps/mobile's
+#     app.config.js leaves the key out on purpose.
+#
+# Its job is to answer "does the native app still build, and does it still run", per commit.
+# A store build remains `eas build --profile production`.
+#
+# ## It cannot receive an OTA update, and is isolated from the ones that can — twice over
+#
+# This workflow sets no `EXPO_OTA_APP_ID`. That is the `expo-app-id` request header, and there is
+# no fallback: without it the update server answers every manifest request "No app id provided"
+# (apps/mobile/app.config.js). So the OTA client in this binary is inert by construction.
+#
+# Note what this does NOT do: it does not set `RELEASE_CHANNEL` either, and that variable DEFAULTS
+# TO `production` — so the binary does send `expo-channel-name: production`. That is harmless, and
+# the reason is the second layer. `runtimeVersion` policy is `fingerprint`, and the fingerprint
+# hashes the RESOLVED config, which both variables are inside; app.config.js spells out that a
+# profile omitting `EXPO_OTA_APP_ID` is "not merely OTA-less, it is on a DIFFERENT runtimeVersion".
+# Measured, by building this locally: a CI-shaped build fingerprints to something matching neither
+# entry in apps/mobile/shipped-runtime-versions.json. A production publish therefore does not
+# target these APKs even if one were installed next to a real build.
+#
+# The final step still prints the APK's fingerprint. If you ever hand one of these to a tester,
+# that value — read out of the artifact itself, never re-resolved later from a tree that has moved
+# on — is what an entry in apps/mobile/shipped-runtime-versions.json needs.
+#
+# ## Why the trigger is `sdk/org` and nothing else
+#
+# `sdk/org` is the bare SUBMODULE POINTER, and it is the only entry here that can fire: the app
+# and every lib it bundles live INSIDE the submodule, which no commit in this repository ever
+# touches. A submodule update changes exactly one gitlink entry, at `sdk/org`. Naming paths inside
+# it would match nothing — which is the bug `native-target.yml` documents having shipped with,
+# where a hard gate ran exactly once in its life.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'sdk/org'
+      - '.github/workflows/mobile-android.yml'
+
+# One APK per commit is the point, but a burst of merges should not queue four full native builds
+# to produce three artifacts nobody will download.
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    # A cold native build with no Gradle cache is the slow case; the default 360 would let a
+    # deadlocked daemon burn an hour.
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+
+      # Gradle 9.3.1 (apps/mobile/android/gradle/wrapper) requires Java 17+. The runner image
+      # ships several JDKs and the default has moved before; pin it rather than inherit it.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Installs cmdline-tools and ACCEPTS THE SDK LICENCES. That second part is what lets Gradle
+      # fetch a platform or an NDK the runner image happens not to carry — without it a missing
+      # NDK fails the build with a licence error rather than downloading itself, and the version
+      # named in that first error is frequently not the one actually wanted.
+      - uses: android-actions/setup-android@v3
+
+      # Keyed on the lockfile because the native dependency set comes from it. Gradle's own
+      # per-build state is not shared; only the downloaded artifacts and wrapper are.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-android-${{ hashFiles('sdk/org/pnpm-lock.yaml') }}
+          restore-keys: gradle-android-
+
+      - name: Install
+        working-directory: sdk/org
+        run: pnpm install --frozen-lockfile
+
+      # The app's OWN post-install hook, invoked verbatim (apps/mobile/package.json →
+      # `eas-build-post-install`). Running the same command EAS runs is the point: if the set of
+      # workspace deps that need building ever changes, both paths change together instead of this
+      # workflow drifting into a build EAS does not perform.
+      - name: Build workspace deps
+        working-directory: sdk/org/apps/mobile
+        run: pnpm --filter "@lmthing/mobile^..." --if-present run build
+
+      # `android/` is gitignored (apps/mobile/.gitignore) — it is prebuild OUTPUT, not source, so
+      # a fresh clone has no native project at all and CI must generate one. `--no-install` stops
+      # Expo reaching for npm inside a pnpm workspace, which is how a prebuild ends up rewriting
+      # the lockfile it was handed.
+      - name: Prebuild the native project
+        working-directory: sdk/org/apps/mobile
+        env:
+          CI: '1'
+        run: pnpm exec expo prebuild --platform android --no-install
+
+      # arm64-v8a ONLY. `newArchEnabled=true` means React Native compiles its C++ from source, and
+      # gradle.properties asks for four ABIs (armeabi-v7a, arm64-v8a, x86, x86_64) — so the default
+      # is that same compile done four times, for an artifact whose entire job is to prove the
+      # build works. arm64-v8a is every Android phone made in roughly the last decade. The cost of
+      # this choice is that the APK will NOT install on the standard x86_64 emulator; build all
+      # four by hand if you need that.
+      - name: Assemble the release APK
+        working-directory: sdk/org/apps/mobile/android
+        run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+
+      # The fingerprint IS the runtimeVersion, and this reads it out of the built artifact — the
+      # only way to get it right. Re-resolving the config later, from a tree that has since moved,
+      # produces a plausible value for a binary that does not exist.
+      - name: Report the runtime version
+        working-directory: sdk/org/apps/mobile
+        run: |
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          fingerprint=$(unzip -p "$apk" assets/fingerprint 2>/dev/null || echo '(none embedded)')
+          {
+            echo '### Android APK'
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| runtimeVersion | \`$fingerprint\` |"
+            echo "| ABI | arm64-v8a only |"
+            echo "| signing | debug keystore — **not uploadable to Play** |"
+            echo "| channel | none — this binary cannot receive an OTA update |"
+            echo "| size | $(du -h "$apk" | cut -f1) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lmthing-android-${{ github.sha }}
+          path: sdk/org/apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14

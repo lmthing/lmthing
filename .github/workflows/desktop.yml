@@ -1,12 +1,15 @@
 name: Desktop target
 
-# Proves the Tauri desktop app still typechecks, builds and compiles.
+# Proves the Tauri desktop app still typechecks, builds and compiles — and, on main, produces a
+# Linux binary you can actually download and run.
 #
-# Split into two jobs on purpose. `frontend` is the fast one — node only, ~1 minute — and catches
+# Split into three jobs on purpose. `frontend` is the fast one — node only, ~1 minute — and catches
 # everything that is actually likely to break: a shared-lib change that the desktop bundle can no
 # longer resolve, a raw colour, an import that reaches past the `@lmthing/ui` barrels. `rust` needs
 # a system toolchain and GTK/WebKit headers, so it is slower and is kept separate rather than
-# blocking the cheap answer behind the expensive one.
+# blocking the cheap answer behind the expensive one. `bundle` is the slowest — a release-profile
+# build plus packaging — runs on PUSHES ONLY, and is the one that leaves an artifact behind; its
+# own comment explains why it is Linux-only while `desktop-release.yml` still builds all four.
 #
 # `sdk/org` is listed WITHOUT a trailing `/**` as well, and that is NOT redundant: it is a
 # submodule, so bumping it changes the single gitlink path `sdk/org`, which `sdk/org/**` does not
@@ -124,3 +127,97 @@ jobs:
       - name: Test
         working-directory: sdk/org/apps/desktop/src-tauri
         run: cargo test
+
+  # A DOWNLOADABLE Linux build, on every commit that lands on main. `rust` above proves the crate
+  # compiles; this proves it BUNDLES — icons, the .desktop entry, the AppImage's runtime, the deb's
+  # dependency list — which is a separate set of failures that `cargo build` never reaches, and
+  # which until now nothing found until somebody cut a `desktop-v*` tag and watched the release
+  # job go red.
+  #
+  # Linux only, and only here. `desktop-release.yml` remains the shipping path and still builds all
+  # four targets, because macOS runners bill at 10x minutes and Windows at 2x — a full matrix per
+  # commit costs roughly 25x this job to catch, on the platforms that break least often, what a tag
+  # build catches anyway.
+  #
+  # ubuntu-22.04, NOT ubuntu-latest, matching `desktop-release.yml` for the same reason: AppImage
+  # and .deb are forward-compatible only. Something linked against a newer glibc will not start on
+  # an older distro, and the failure is a bare "version `GLIBC_2.39' not found" at exec time. A
+  # per-commit artifact that a colleague cannot run is not worth building.
+  #
+  # UNSIGNED, like everything else this repo produces today — fine on Linux, which asks nobody.
+  bundle:
+    # Pull requests get the fast gates above and no binary. The artifact is for commits that
+    # actually landed.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Tauri links against WebKitGTK. Without these the build fails at LINK time with an error
+      # that reads like a Rust problem and is not one.
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev \
+            libssl-dev libgtk-3-dev build-essential curl wget file
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # A separate cache key from the `rust` job: that one caches a debug/clippy profile, this one
+      # a release profile, and sharing a key would have each evict the other every run.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sdk/org/apps/desktop/src-tauri
+          key: release-bundle
+
+      - name: Install
+        working-directory: sdk/org
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace deps
+        working-directory: sdk/org
+        run: pnpm --filter @lmthing/core build
+
+      # The committed colour file must still match tokens.json. `include_str!` would happily
+      # compile a stale one, and the window would be the wrong colour on every launch with nothing
+      # to say so. The `frontend` job asserts it is in sync; this one just needs it present.
+      - name: Generate the token file
+        working-directory: sdk/org/apps/desktop
+        run: pnpm generate:tauri-conf
+
+      # `tauri build` runs the frontend build itself — `beforeBuildCommand: pnpm build` in
+      # tauri.conf.json — so this single command produces the bundle from source. The `tauri:build`
+      # script (rather than `tauri build`) also carries a `pretauri:build` hook that regenerates the
+      # token file, so deleting the step above would degrade to a stale colour rather than a
+      # missing include.
+      - name: Bundle
+        working-directory: sdk/org/apps/desktop
+        run: pnpm tauri:build
+
+      - name: Summarise
+        working-directory: sdk/org/apps/desktop/src-tauri/target/release/bundle
+        run: |
+          {
+            echo '### Desktop bundle (Linux x86_64, unsigned)'
+            echo
+            find . -type f \( -name '*.AppImage' -o -name '*.deb' \) -printf '- `%f` (%s bytes)\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lmthing-desktop-linux-${{ github.sha }}
+          path: |
+            sdk/org/apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+            sdk/org/apps/desktop/src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+          retention-days: 14

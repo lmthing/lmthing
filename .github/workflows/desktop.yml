@@ -71,6 +71,21 @@ jobs:
         working-directory: sdk/org/apps/desktop
         run: pnpm build
 
+      # End-to-end against the REAL bundle, with the bridge injected exactly as Rust injects it
+      # and the API served on a DIFFERENT port — so a regression in the `apiBase`/`cloudBase` seam
+      # is a hard 404 rather than a subtly wrong request nobody notices.
+      - name: Install the Playwright browser
+        working-directory: sdk/org
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E
+        working-directory: sdk/org/apps/desktop
+        # The config pins a locally-cached Chromium by default; in CI the freshly-installed one is
+        # correct, so let Playwright resolve it.
+        env:
+          PW_CHROMIUM: ''
+        run: pnpm test:e2e
+
   rust:
     runs-on: ubuntu-latest
     steps:

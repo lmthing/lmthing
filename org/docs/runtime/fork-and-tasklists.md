@@ -31,7 +31,7 @@ Model-facing DTS (present only when `capabilities.orchestrate` is true):
 declare function fork<T>(opts: ForkOpts<T>): Promise<T>;
 ```
 
-with `ForkOpts` = `{ instruction; output: Record<string,string>; seed?; timeout?; role? }` (`sdk/org/libs/core/src/typecheck/library-dts.ts#FORK_DTS`, `:78-85`). The DTS surface is deliberately smaller than the internal `ForkTask` (`sdk/org/libs/core/src/fork/fork.ts#ForkTask`): fields like `functions`, `canDelegateTo`, `prelude`, `upstreamOutputs`, `taskId`, `tasklistDescription`, `parentScope` are set by the **orchestrator**, not written by the model in a bare `fork()` call.
+with `ForkOpts` = `{ instruction; output: Record<string,string>; seed?; timeout?; role? }` (`sdk/org/libs/core/src/typecheck/library-dts.ts#FORK_DTS`, `:78-85`). The DTS surface is deliberately smaller than the internal `ForkTask` (`sdk/org/libs/core/src/fork/fork.ts#ForkTask`): fields like `functions`, `canDelegateTo`, `model`, `prelude`, `upstreamOutputs`, `taskId`, `tasklistDescription`, `parentScope` are set by the **orchestrator**, not written by the model in a bare `fork()` call.
 
 ### ForkEngine — concurrency semaphore
 
@@ -57,7 +57,23 @@ The fork's user message is assembled from the task `instruction`, a seed-variabl
 | `plan` | no | read-only architect; design a plan, don't implement (`roles.ts:41-48`) |
 | `general` (default) | yes | full toolkit (`roles.ts:49-53`) |
 
-Read-only is enforced physically: `roleProfile(role).allowWrite` is false for explore/plan (`sdk/org/libs/core/src/fork/roles.ts#roleProfile`), which blocks the internal `writeFileRaw` host write and rejects mutating shell commands at injection (`sdk/org/libs/core/src/globals/host-tools.ts:223-228`, `:186-187`). Those raw primitives are internal-only — never on any agent's model DTS regardless of role — so there is no model declaration to drop; a fork's generic scratch fs/shell is instead gated on `fs:scratch` (above). Read-only roles also lose `registerSpace` and get the `allowWrite`-intersected subset of app capabilities — every mutating grant (`db:write`/`pages:write`/…) is dropped, and because `intersectAppCaps` does not keep `fs:scratch` a read-only fork drops scratch too (`scratchFs:false`) (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`, `:101-105`). Per-role model assignment (`roleModels`) lets cheap explore/plan forks run on a cheaper model (`sdk/org/libs/core/src/fork/roles.ts:60-71`).
+Read-only is enforced physically: `roleProfile(role).allowWrite` is false for explore/plan (`sdk/org/libs/core/src/fork/roles.ts#roleProfile`), which blocks the internal `writeFileRaw` host write and rejects mutating shell commands at injection (`sdk/org/libs/core/src/globals/host-tools.ts:223-228`, `:186-187`). Those raw primitives are internal-only — never on any agent's model DTS regardless of role — so there is no model declaration to drop; a fork's generic scratch fs/shell is instead gated on `fs:scratch` (above). Read-only roles also lose `registerSpace` and get the `allowWrite`-intersected subset of app capabilities — every mutating grant (`db:write`/`pages:write`/…) is dropped, and because `intersectAppCaps` does not keep `fs:scratch` a read-only fork drops scratch too (`scratchFs:false`) (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`, `:101-105`). Per-role model assignment (`roleModels`) lets cheap explore/plan forks run on a cheaper model (`sdk/org/libs/core/src/fork/roles.ts:60-71`) — a task node's own `model:` overrides it (next section).
+
+### Which model a fork runs on
+
+Every fork resolves its turn model from three sources, most specific first (`sdk/org/libs/core/src/fork/fork.ts#ForkEngine`, the `runTurnLoop` opts):
+
+```
+task.model ?? modelForRole(task.role, roleModels) ?? defaultModel
+```
+
+| Source | Set by | Scope |
+|---|---|---|
+| `task.model` | a task node's `model:` frontmatter, carried onto `ForkTask` by the orchestrator (`sdk/org/libs/core/src/spaces/tasklist-load.ts:175-186`, `sdk/org/libs/core/src/tasklist/orchestrator.ts#runTasklist`) | ONE node |
+| `roleModels` | `LM_MODEL_ROLE_*` (pod-global), `modelForRole` (`sdk/org/libs/core/src/fork/roles.ts#modelForRole`) | every fork of that role |
+| `defaultModel` | the session's effective model — itself `agent.model ?? opts.modelAlias` (`sdk/org/libs/core/src/session/session.ts:399-402`) | every fork |
+
+The value is an **opaque string** to core (an alias, or a `provider:modelId` spec); the CLI's `streamFn` resolves it per request against a lazy per-model client cache, so mixing models across the nodes of one tasklist costs nothing structurally (`sdk/org/libs/cli/src/cli/bin.ts:375-390`). This is what lets a tasklist pin its planning and repair nodes to a strong model while the fan-out leaves run the cheap pod default. A bare `fork()` written by a model cannot set it — `model` is not on the `ForkOpts` DTS, only on the internal `ForkTask`, so per-node model choice stays an **authoring** decision.
 
 ### `prelude` — host-executed setup
 

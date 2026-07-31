@@ -14,6 +14,8 @@ Steps are **not** run in file order; file order only fixes the id sequence and t
 
 Each agent node runs as a subagent **fork** over the step's markdown body as its instruction, with the step's `output` schema; the fork resolves by calling `currentTask.resolve({...})` (`sdk/org/libs/core/src/tasklist/orchestrator.ts:229-282`, `sdk/org/libs/core/src/fork/fork.ts:268-320`). `currentTask.resolve` is the fork's completion global: it records the value only after `validateOutput` confirms it matches the declared `output` schema, else it fails the fork (`sdk/org/libs/core/src/fork/fork.ts:268-276`). The user message handed to the fork appends the output schema and the instruction `When done, call: currentTask.resolve({ ...output })` (`sdk/org/libs/core/src/fork/fork.ts:319-320`).
 
+A step may pin the model its fork runs on with a `model:` frontmatter key — a model alias or `provider:modelId` spec, opaque to core and resolved by the provider layer (`sdk/org/libs/core/src/spaces/tasklist-load.ts:175-186`). It is the most specific source in the chain `task.model ?? modelForRole(task.role, roleModels) ?? defaultModel` (`sdk/org/libs/core/src/fork/roles.ts#modelForRole`), so one expensive step can run a strong model while every other node runs the session default. An empty or non-string value fails the load rather than falling back silently. Full rules: [step-file.md](./step-file.md#model--pin-one-node-to-a-different-model).
+
 A code node (`.ts`) instead runs its exported `run(ctx, inputs)` via a host-injected `codeNodeCtxFactory`; core never imports or executes the module, and if no factory is wired the code node fails as a required-task error (`sdk/org/libs/core/src/tasklist/orchestrator.ts:200-227`).
 
 Downstream tasks read an upstream task's resolved output by the upstream **task id**: upstream outputs are injected into each fork as named variables keyed by dependency id (`sdk/org/libs/core/src/tasklist/orchestrator.ts:121-129`, `sdk/org/libs/core/src/fork/fork.ts:300-301`). A `forEach: "<taskId>.<field>"` step fans out once per element of that upstream array, injecting each element as `item` (+ `index`) and collecting the results (`sdk/org/libs/core/src/tasklist/orchestrator.ts:260-278`, `resolveForEachItems` :12-20).
@@ -58,5 +60,5 @@ The `fetcher` agent opts into it via `actions[].tasklist: refresh` (also its `de
 ## See also
 
 - [index-file.md](./index-file.md) — the `index.md` header: overview body, `input`, `connections`.
-- [step-file.md](./step-file.md) — a step file's frontmatter (`id`, `dependsOn`, `output`, `forEach`, `optional`, `role`, `functions`, `canDelegateTo`, `condition`, `prelude`) and body.
+- [step-file.md](./step-file.md) — a step file's frontmatter (`id`, `dependsOn`, `output`, `forEach`, `optional`, `role`, `model`, `functions`, `canDelegateTo`, `condition`, `prelude`) and body.
 - [../agents/instruct-file.md](../agents/instruct-file.md) — declaring the `actions[]` that opt into a tasklist.

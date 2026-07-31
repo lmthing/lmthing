@@ -89,14 +89,16 @@ honest with what actually ran.
    `/* dropped non-code prose: … */` (`:527-528`).
 2. **typecheck** — `runTsc({ ambientDts: fullAmbient(), sessionContext: accumulatedContext, statement })`
    (`:438`). See [typecheck.md](./typecheck.md).
-3. **transpile + globalThis propagation** — `transpileStatement(stmt)` then, for each name from
+3. **missing-`await` lint** — `sdk/org/libs/core/src/eval/await-lint.ts#lintMissingAwait`, run *after*
+   typecheck passes and *before* the statement can evaluate. See [§2.2](#22-the-missing-await-lint).
+4. **transpile + globalThis propagation** — `transpileStatement(stmt)` then, for each name from
    `extractBindingNames(stmt)`, append `try { globalThis['<n>'] = <n>; } catch {}` (`:449-455`).
    This is load-bearing: **every `evalStatement` is its own ES module**, so without the propagation a
    later statement cannot see an earlier `const`.
-4. **eval** — `vm.evalStatement(jsCode)` (`:456`).
-5. **pending-yield check** — if `vm.pendingYields` is non-empty the statement suspended on a
+5. **eval** — `vm.evalStatement(jsCode)` (`:456`).
+6. **pending-yield check** — if `vm.pendingYields` is non-empty the statement suspended on a
    value-yielding call; record it and hand back to the loop (`:463-469`).
-6. **commit** — push to `parsedStatements`, append to `accumulatedContext`, and set
+7. **commit** — push to `parsedStatements`, append to `accumulatedContext`, and set
    `lastStmtNonYieldBinding` = "bound a name AND contains a call" (`:471-474`).
 
 #### 2.1 Model output habits
@@ -476,9 +478,12 @@ The failing statement was never appended (it errors before the commit), so nothi
 
 **Bounded `ALREADY EXECUTED` echo.** The re-embedded `<accumulatedContext>` is capped to a rolling
 last-`ALREADY_EXECUTED_WINDOW_CHARS` (8 000) window, cut on a statement boundary and prefixed with an
-"N earlier statements omitted" marker (`error-rewind.ts#boundAlreadyExecuted`, applied at
-`error-rewind.ts:131`). On a long turn the full context is thousands of statements re-sent on **every**
+"N earlier statements omitted" marker (`context/variables.ts#boundAlreadyExecuted` — it lives with the
+VARIABLES machinery and is re-exported by `error-rewind.ts#boundAlreadyExecuted` for its retry-path
+callers). On a long turn the full context is thousands of statements re-sent on **every**
 retry — a quadratic driver of the runaway-turn history blow-up (the "Invalid string length" V8 overflow).
+The same window bounds the success path: see the `emitVariables`/`getPromptMessages` single-echo rule
+in the yield-resume section above.
 This echo is **model-facing only**: the complete set of live bindings is still advertised in full on the
 "Still in scope" line above (derived from the *entire* context), and typecheck still runs against the
 full `accumulatedContext` host-side (`turn-loop.ts:470`), so bounding the echo is a pure prompt-size cap

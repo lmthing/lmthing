@@ -263,15 +263,89 @@ The CLI takes a mock module path and **skips `resolveModel` entirely, so no API 
 and `--web [port]` (`args.ts:L182-L189`) or `--request "<msg>"` (`args.ts:L170-L175`) for the server
 and headless modes.
 
+### Replaying a recorded trace (`mockFromTrace`)
+
+A `--trace` file already contains everything the model contributed to a run and nothing else — the
+tracer sits *downstream* of `streamFn`, writing one `llm_request` / `llm_response` pair per model
+call (`sdk/org/libs/core/src/eval/turn-loop.ts:L589`, `:L853-L862`). Feeding those recorded
+responses back in through `streamFn` re-runs the **whole host pipeline** — boundary carving,
+model-habit sanitization, prose demotion, typecheck, eval, yield binding, error rewriting — against
+a known transcript, with no credentials and the model out of the loop
+(`sdk/org/libs/core/src/testing/trace-replay.ts:L6-L24`).
+
+```ts
+import { mockFromTrace } from '@lmthing/core';
+
+const session = new Session(opts, { streamFn: mockFromTrace('run.ndjson') });
+// order-independent variant, for recordings with retries or concurrent forks:
+const session2 = new Session(opts, { streamFn: mockFromTrace('run.ndjson', { mode: 'fingerprint' }) });
+```
+
+| Export | Role |
+|---|---|
+| `mockFromTrace(path, opts?)` | Read a trace file and return a replaying `streamFn` (`sdk/org/libs/core/src/testing/trace-replay.ts#mockFromTrace`) |
+| `mockFromExchanges(exchanges, opts?)` | Same replay semantics over already-parsed exchanges — in-memory traces, tests (`trace-replay.ts#mockFromExchanges`) |
+| `parseTraceExchanges(raw)` / `readTraceExchanges(path)` | Parse a trace into ordered `TraceExchange`s (`trace-replay.ts#parseTraceExchanges`, `#readTraceExchanges`) |
+| `requestFingerprint(opts)` | The match key `mode: 'fingerprint'` uses — the last **user** message, whitespace-collapsed (`trace-replay.ts#requestFingerprint`) |
+
+The contracts:
+
+- **Two modes.** `sequential` (default) gives call *N* of the replay recorded response *N* — faithful
+  and strict, the right mode for a single-threaded recording. `fingerprint` matches each incoming
+  request to a recorded one by `requestFingerprint`, so order stops mattering (retries, concurrent
+  forks); repeats of the same prompt are served in recorded order
+  (`trace-replay.ts#MockFromTraceOpts`).
+- **Exhaustion throws**, naming how many calls were recorded versus requested. It never falls back to
+  `''` the way `mockScript` does: an empty response reads as "the model decided it was done"
+  (`turn-loop.ts:L1140-L1143`), so a silent one would turn a divergence into a green test
+  (`trace-replay.ts#mockFromTrace`).
+- **Requests and responses pair per node**, not globally, so interleaved fork calls don't
+  cross-contaminate; every event type other than `llm_request`/`llm_response` is skipped
+  (`trace-replay.ts#parseTraceExchanges`).
+- **A request with no recorded response replays as an empty turn** (`unanswered: true`) — that is
+  what the recorded run saw. A response recorded from an *aborted* stream replays verbatim: the
+  tracer writes `llm_response` from `parsedStatements`, so a stream cut at a yield recorded exactly
+  the statements up to the yield (`turn-loop.ts:L851-L862`, `trace-replay.ts#TraceExchange`).
+- **Both on-disk shapes parse** — NDJSON from `--trace` (`sdk/org/libs/core/src/sandbox/trace.ts#Tracer`)
+  and the JSON array a persisted `.lmthing/**/sessions/*/trace.json` snapshot holds, bare or in
+  `{seq, event}` envelopes (`sdk/org/libs/cli/src/server/session-manager.ts:L1630`).
+
+From the CLI, a `--mock` path ending in `.ndjson` or `.jsonl` is treated as a recorded trace rather
+than a mock module and routes through `mockFromTrace`; `LM_MOCK_MODE=fingerprint` selects the
+order-independent mode (`sdk/org/libs/cli/src/cli/bin.ts#loadMockStreamFn`):
+
+```bash
+node libs/cli/dist/cli/bin.js --space <dir> --trace /tmp/run.ndjson "<message>"   # record
+node libs/cli/dist/cli/bin.js --space <dir> --mock  /tmp/run.ndjson "<message>"   # replay
+```
+
+**What a replay proves:** the host processes a given transcript the same way it did when the
+transcript was recorded — so a prompt/parser/mercy-layer change that silently alters statement
+extraction, and a fix that is supposed to neutralize a recorded failure, are both caught offline.
+**What it cannot prove:** that a live model would still *generate* that transcript under a changed
+prompt. That stays live (§7).
+
+### The failure-fixture bank
+
+`sdk/org/libs/core/src/testing/fixtures/` holds recorded transcripts kept for replay — known-good
+runs (a parser change breaks them) and known-bad ones harvested from real runs (narration instead of
+code, unterminated literals, a missing `await` on a yielding call, hallucinated globals). The
+harvest workflow, the trimming and secret-hygiene rules, and how to regenerate the seed fixture
+(`LM_UPDATE_FIXTURES=1 pnpm test libs/core/src/testing/trace-replay`) live in
+`sdk/org/libs/core/src/testing/fixtures/README.md`.
+
 ---
 
 ## 5. `libs/core/src/testing/` — what's in there
 
-One helper module plus four suites that are themselves the harness's coverage:
+Two helper modules plus five suites that are themselves the harness's coverage:
 
 | File | Role |
 |---|---|
-| `mock-provider.ts` | The only non-test file — the three builders above |
+| `mock-provider.ts` | The three builders above |
+| `trace-replay.ts` | `mockFromTrace` + the trace parser — replay a recorded run through the host pipeline (`#mockFromTrace`) |
+| `trace-replay.test.ts` | Parsing (per-node pairing, skipping, unanswered requests, both on-disk shapes, a truncated final line), the exhaustion error, fingerprint matching — plus the **round trip**: record a scripted session with tracing on, replay its trace through a fresh session, assert identical statements/displays/responses (`:L18-L31`) |
+| `fixtures/` | The failure-fixture bank + its harvest workflow (`fixtures/README.md`) |
 | `mock-provider.test.ts` | Unit-tests the builders: chunking, `AsyncIterable` handling, `callIndex` increments, `abort()` mid-flight, `mockMatch` RegExp/predicate routing, first-rule-wins, throw-on-no-match (`:L41-L121`) |
 | `mock-session.test.ts` | Drives a **real `Session`** with a scripted provider — budget guardrails (episode / tool-call / wall-clock / fork-depth), `progress()`, per-role fork models on the `llm_request` trace (`:L20-L28`) |
 | `harness-features.test.ts` | Keyless end-to-end coverage of **every value-yielding global**: `ask`, `inspect`, `loadKnowledge`, `sleep`, `fork` roles (parallel `Promise.all` binding order + read-only gating), `tasklist` DAGs, `delegate`, `registerSpace`, the system spaces (fs/memory/todo), and history summarisation (`:L13-L31`) |

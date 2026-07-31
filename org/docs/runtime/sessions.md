@@ -31,12 +31,26 @@ fields (`session.ts:90-153`):
 | `dynamicSpaces` | Spaces added at runtime via `registerSpace`/`installSpace` — a shared `Map` visible to later `delegate()` calls and forks — `session.ts:113` |
 | `delegatePolicy` | The agent's evaluated `canDelegateTo` policy — `session.ts:120` |
 | `appCapabilities` | The agent's `capabilities:` grants (project-app globals) — `session.ts:125` |
+| `effectiveModel` | The model this session's OWN turns run on: `agent.model ?? opts.modelAlias`, resolved in `start()`/`resume()` once the agent is known — `session.ts:132-147`, `session.ts:399-402` |
 | `budget` | Host-enforced per-run `Budget`, reset each run — `session.ts:144` |
 | `turnContext` | Accumulated typecheck scope carried ACROSS turns (see §3) — `session.ts:153` |
 | `tracer` | The single event spine for this session — `session.ts:160` |
 
 `SessionDeps` is just `{ streamFn }` — the provider-bound model stream
 (`types.ts:113-115`). Core never imports a provider; the CLI wires `streamFn`.
+
+**Which model the session runs on.** `opts.modelAlias` is the default, but the running
+agent's frontmatter `model:` **wins** — `start()`/`resume()` resolve
+`agent.model ?? opts.modelAlias` into `effectiveModel` as soon as the agent is known
+(`session.ts:399-402`, `session.ts:606-609`), the same rule `runDelegate` applies to a
+delegated agent (`sdk/org/libs/core/src/delegate/delegate.ts#runDelegate`). So a space can
+pin itself to a strong model while the pod default stays small, whether it is reached
+top-level or through `delegate()`. `effectiveModel` is also what the session hands down as
+the fork engine's `defaultModel` and the delegate path's inherited `model`
+(`session.ts:1113`, `session.ts:1062`) — anything more specific still wins its own
+precedence chain: a task node's `model:`, then a role model, then this default
+(`sdk/org/libs/core/src/fork/roles.ts#modelForRole`), and a delegate target's own
+frontmatter over the inherited value.
 
 ### Lifecycle methods
 

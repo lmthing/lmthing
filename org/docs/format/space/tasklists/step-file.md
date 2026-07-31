@@ -1,31 +1,32 @@
 # The `NN-<task-id>.md` step file
 
-A tasklist step is one node in the tasklist DAG. Each `NN-<task-id>.md` (or `NN-<task-id>.ts` code node) sibling of the tasklist's `index.md` is loaded into a `TaskNode` by `loadTasklist`, which walks the interleaved node files and builds one node per file `sdk/org/libs/core/src/spaces/tasklist-load.ts#loadTasklist`. A `.md` file is an **agent node** — its YAML frontmatter is parsed by `parseFrontmatter` and its Markdown body becomes the fork's instruction `sdk/org/libs/core/src/spaces/tasklist-load.ts:73-79`. A `.ts` file is a **code node** — its `const node = {…}` metadata literal is statically AST-extracted (never imported or executed by core) and it must export an async `run(ctx, inputs)` `sdk/org/libs/core/src/spaces/tasklist-load.ts#loadTasklist`. Both paths feed the SAME field validator `buildTaskNode`, so a code node's `id`/`dependsOn`/`output`/… behave identically to an agent node's `sdk/org/libs/core/src/spaces/tasklist-load.ts:86-159`.
+A tasklist step is one node in the tasklist DAG. Each `NN-<task-id>.md` (or `NN-<task-id>.ts` code node) sibling of the tasklist's `index.md` is loaded into a `TaskNode` by `loadTasklist`, which walks the interleaved node files and builds one node per file `sdk/org/libs/core/src/spaces/tasklist-load.ts#loadTasklist`. A `.md` file is an **agent node** — its YAML frontmatter is parsed by `parseFrontmatter` and its Markdown body becomes the fork's instruction `sdk/org/libs/core/src/spaces/tasklist-load.ts:112-117`. A `.ts` file is a **code node** — its `const node = {…}` metadata literal is statically AST-extracted (never imported or executed by core) and it must export an async `run(ctx, inputs)` `sdk/org/libs/core/src/spaces/tasklist-load.ts#loadTasklist`. Both paths feed the SAME field validator `buildTaskNode`, so a code node's `id`/`dependsOn`/`output`/… behave identically to an agent node's `sdk/org/libs/core/src/spaces/tasklist-load.ts:131-258`.
 
 See also [`index-file.md`](./index-file.md) for the tasklist's `index.md` (goal + `input` schema), [`README.md`](./README.md) for tasklist structure, and [`../functions/README.md`](../functions/README.md) for the space functions a step's `functions:` allowlist selects from.
 
 ## The node id
 
-The node `id` comes from an explicit `id:` frontmatter key, else from the filename with its leading numeric prefix (`01-`, `001_`, …) stripped `sdk/org/libs/core/src/spaces/tasklist-load.ts:99-101`. Ids are the keys of the loaded `tasks` record and thus the names other steps reference in `dependsOn`/`forEach` and read as upstream variables `sdk/org/libs/core/src/spaces/tasklist-load.ts:80`.
+The node `id` comes from an explicit `id:` frontmatter key, else from the filename with its leading numeric prefix (`01-`, `001_`, …) stripped `sdk/org/libs/core/src/spaces/tasklist-load.ts:137-140`. Ids are the keys of the loaded `tasks` record and thus the names other steps reference in `dependsOn`/`forEach` and read as upstream variables `sdk/org/libs/core/src/spaces/tasklist-load.ts:119`.
 
 ## Frontmatter fields
 
 | Field | Meaning |
 |---|---|
-| `id` | Node id (overrides the filename-derived id) `sdk/org/libs/core/src/spaces/tasklist-load.ts:99-101` |
-| `dependsOn` | Array of upstream task ids that must finish before this task is ready `sdk/org/libs/core/src/spaces/tasklist-load.ts:121-123` |
-| `output` | Declared result schema (`field: type`); coerced to `field → String(type)` `sdk/org/libs/core/src/spaces/tasklist-load.ts:103-108` |
-| `input` | Declared per-step input schema, parsed but see note below `sdk/org/libs/core/src/spaces/tasklist-load.ts:113-119` |
-| `condition` | DSL expression; when it evaluates false the task is skipped `sdk/org/libs/core/src/spaces/tasklist-load.ts:124-126` |
-| `optional` | `true` ⇒ a failing branch is skipped, not fatal `sdk/org/libs/core/src/spaces/tasklist-load.ts:127-129` |
-| `goal` | `true` marks this the goal (envelope) task `sdk/org/libs/core/src/spaces/tasklist-load.ts:130-132` |
-| `role` | Fork capability profile — `explore`/`plan` (read-only) or `general` (write); default `general` `sdk/org/libs/core/src/spaces/tasklist-load.ts:139-141` |
-| `functions` | Allowlist of function names available to the fork (least privilege) `sdk/org/libs/core/src/spaces/tasklist-load.ts:142-144` |
-| `forEach` | `"<upstreamTask>.<field>"` (or bare `"<upstreamTask>"`) — host-driven fan-out `sdk/org/libs/core/src/spaces/tasklist-load.ts:145-147` |
-| `canDelegateTo` | Per-task delegation allowlist (`"space/agent"` or `"space/agent#action"`) `sdk/org/libs/core/src/spaces/tasklist-load.ts:148-150` |
-| `capabilities` | Per-node app-capability NARROWING — a bare-id subset of the owning agent's grants (least privilege per step; never widens) `sdk/org/libs/core/src/spaces/tasklist-load.ts:151-165` |
-| `prelude` | Host-executed TS statements run in the fork VM before the model's first turn `sdk/org/libs/core/src/spaces/tasklist-load.ts:191-201` |
-| `onFail` | Resume an earlier step when this node's check fails, carrying the reason `sdk/org/libs/core/src/spaces/tasklist-load.ts:203-236` |
+| `id` | Node id (overrides the filename-derived id) `sdk/org/libs/core/src/spaces/tasklist-load.ts:137-140` |
+| `dependsOn` | Array of upstream task ids that must finish before this task is ready `sdk/org/libs/core/src/spaces/tasklist-load.ts:160-162` |
+| `output` | Declared result schema (`field: type`); coerced to `field → String(type)` `sdk/org/libs/core/src/spaces/tasklist-load.ts:142-147` |
+| `input` | Declared per-step input schema, parsed but see note below `sdk/org/libs/core/src/spaces/tasklist-load.ts:152-158` |
+| `condition` | DSL expression; when it evaluates false the task is skipped `sdk/org/libs/core/src/spaces/tasklist-load.ts:163-165` |
+| `optional` | `true` ⇒ a failing branch is skipped, not fatal `sdk/org/libs/core/src/spaces/tasklist-load.ts:166-168` |
+| `goal` | `true` marks this the goal (envelope) task `sdk/org/libs/core/src/spaces/tasklist-load.ts:169-171` |
+| `role` | Fork capability profile — `explore`/`plan` (read-only) or `general` (write); default `general` `sdk/org/libs/core/src/spaces/tasklist-load.ts:172-174` |
+| `model` | Model this node's fork runs on — wins over the role model and the session default `sdk/org/libs/core/src/spaces/tasklist-load.ts:175-186` |
+| `functions` | Allowlist of function names available to the fork (least privilege) `sdk/org/libs/core/src/spaces/tasklist-load.ts:187-189` |
+| `forEach` | `"<upstreamTask>.<field>"` (or bare `"<upstreamTask>"`) — host-driven fan-out `sdk/org/libs/core/src/spaces/tasklist-load.ts:190-192` |
+| `canDelegateTo` | Per-task delegation allowlist (`"space/agent"` or `"space/agent#action"`) `sdk/org/libs/core/src/spaces/tasklist-load.ts:193-195` |
+| `capabilities` | Per-node app-capability NARROWING — a bare-id subset of the owning agent's grants (least privilege per step; never widens) `sdk/org/libs/core/src/spaces/tasklist-load.ts:196-210` |
+| `prelude` | Host-executed TS statements run in the fork VM before the model's first turn `sdk/org/libs/core/src/spaces/tasklist-load.ts:211-222` |
+| `onFail` | Resume an earlier step when this node's check fails, carrying the reason `sdk/org/libs/core/src/spaces/tasklist-load.ts:223-257` |
 
 ### `dependsOn` and the DAG
 
@@ -37,11 +38,26 @@ The node `id` comes from an explicit `id:` frontmatter key, else from the filena
 
 ### `role`
 
-`role` is one of `explore`, `plan`, `general` `sdk/org/libs/core/src/spaces/tasklist-load.ts:139-141`; read-only roles have write host-tools (e.g. `writeFileRaw`, mutating `execShell`) withheld at VM injection and the fork prompt advertises only the read-only I/O it actually has `sdk/org/libs/core/src/fork/fork.ts:371-380`.
+`role` is one of `explore`, `plan`, `general` `sdk/org/libs/core/src/spaces/tasklist-load.ts:172-174`; read-only roles have write host-tools (e.g. `writeFileRaw`, mutating `execShell`) withheld at VM injection and the fork prompt advertises only the read-only I/O it actually has `sdk/org/libs/core/src/fork/fork.ts:371-380`.
+
+### `model` — pin ONE node to a different model
+
+`model:` is a free-form model alias or spec (`m`, `lmthingcloud:DeepSeek-V4-Flash`, …) that this node's fork runs its turns on. Load-time validation is only "a non-empty string" — the value is **opaque to core** and resolved by the provider layer, which is what lets the same tasklist run against any provider `sdk/org/libs/core/src/spaces/tasklist-load.ts:175-186` · `sdk/org/libs/cli/src/providers/aliases.ts#resolveAlias`. An empty or non-string `model:` is **rejected at load** rather than ignored: a silently-dropped value would leave the node looking pinned while it ran the default.
+
+Precedence at fork time, most specific first — `task.model ?? modelForRole(task.role, roleModels) ?? defaultModel` `sdk/org/libs/core/src/fork/fork.ts#ForkEngine` · `sdk/org/libs/core/src/fork/roles.ts#modelForRole`. So a node's own `model:` beats the pod-global per-role assignment (`LM_MODEL_ROLE_*`), which beats the session's model. Nodes that declare nothing are unaffected — this is how one expensive judgement or planning step is pinned strong while the rest of the tasklist runs the cheap pod default.
+
+```yaml
+---
+id: plan_app
+model: l          # this step alone runs the strong model
+output:
+  plan: object
+---
+```
 
 ### `capabilities` — per-node grant narrowing
 
-`capabilities:` is a list of bare capability ids (validated against `CAPABILITY_IDS`; an unknown id fails the load) that NARROWS this node's fork to a subset of the OWNING AGENT's declared grants `sdk/org/libs/core/src/spaces/tasklist-load.ts:151-165`. At fork time, `narrowAppCaps(parentAppCapabilities, task.capabilities)` selects only the intersection of the listed ids with what the agent actually holds — a node can never gain a capability the agent lacks — and the result is then run through the role's read-only intersection `sdk/org/libs/core/src/fork/fork.ts#runFork` · `sdk/org/libs/core/src/exec/capability.ts#narrowAppCaps`. Because the same narrowed profile drives both global injection and the ambient DTS, a sibling node that did not list a write cap gets neither the injected global nor its declaration, so a stray write there fails typecheck. This is how one tasklist keeps a dangerous grant (e.g. `db:write`) on only the single node that needs it: the owning agent declares the cap as the ceiling, and only the write node lists it in `capabilities:` (a `general` role — a write cap is dropped from `explore`/`plan`). Omit `capabilities:` to inherit the agent's full set unchanged.
+`capabilities:` is a list of bare capability ids (validated against `CAPABILITY_IDS`; an unknown id fails the load) that NARROWS this node's fork to a subset of the OWNING AGENT's declared grants `sdk/org/libs/core/src/spaces/tasklist-load.ts:196-210`. At fork time, `narrowAppCaps(parentAppCapabilities, task.capabilities)` selects only the intersection of the listed ids with what the agent actually holds — a node can never gain a capability the agent lacks — and the result is then run through the role's read-only intersection `sdk/org/libs/core/src/fork/fork.ts#runFork` · `sdk/org/libs/core/src/exec/capability.ts#narrowAppCaps`. Because the same narrowed profile drives both global injection and the ambient DTS, a sibling node that did not list a write cap gets neither the injected global nor its declaration, so a stray write there fails typecheck. This is how one tasklist keeps a dangerous grant (e.g. `db:write`) on only the single node that needs it: the owning agent declares the cap as the ceiling, and only the write node lists it in `capabilities:` (a `general` role — a write cap is dropped from `explore`/`plan`). Omit `capabilities:` to inherit the agent's full set unchanged.
 
 ### `functions` — an allowlist that also gates system functions
 
@@ -94,11 +110,11 @@ Because the condition DSL cannot index arrays (`getAtPath` returns `undefined` f
 
 ### `prelude`
 
-`prelude` is a YAML block scalar of TypeScript statements the host runs in the fork VM BEFORE the model's first turn — deterministic setup executed with host reliability instead of being re-emitted by the model `sdk/org/libs/core/src/spaces/tasklist-load.ts:39-44`. At load time only a non-empty-string check runs; deep validation is deferred to run time through `runPrelude` `sdk/org/libs/core/src/spaces/tasklist-load.ts:145-156` · `sdk/org/libs/core/src/exec/prelude.ts#runPrelude`.
+`prelude` is a YAML block scalar of TypeScript statements the host runs in the fork VM BEFORE the model's first turn — deterministic setup executed with host reliability instead of being re-emitted by the model `sdk/org/libs/core/src/spaces/tasklist-load.ts:53-58`. At load time only a non-empty-string check runs; deep validation is deferred to run time through `runPrelude` `sdk/org/libs/core/src/spaces/tasklist-load.ts:211-222` · `sdk/org/libs/core/src/exec/prelude.ts#runPrelude`.
 
 ## The body: instruction and evaluated TS
 
-For an agent node the trimmed Markdown body becomes the fork's `instruction`, sent as the user message that opens the fork conversation `sdk/org/libs/core/src/spaces/tasklist-load.ts:78` · `sdk/org/libs/core/src/fork/fork.ts:319-320`. The fenced ` ```ts ` blocks in the body are the statements the fork is expected to emit; the runtime evaluates the model's TypeScript one statement at a time in the QuickJS sandbox (the standard turn loop) — the body is guidance, not code the loader executes. Deterministic setup that should NOT depend on the model re-emitting it belongs in `prelude` instead (host-executed, above).
+For an agent node the trimmed Markdown body becomes the fork's `instruction`, sent as the user message that opens the fork conversation `sdk/org/libs/core/src/spaces/tasklist-load.ts:117` · `sdk/org/libs/core/src/fork/fork.ts:319-320`. The fenced ` ```ts ` blocks in the body are the statements the fork is expected to emit; the runtime evaluates the model's TypeScript one statement at a time in the QuickJS sandbox (the standard turn loop) — the body is guidance, not code the loader executes. Deterministic setup that should NOT depend on the model re-emitting it belongs in `prelude` instead (host-executed, above).
 
 ## Resolving with `currentTask.resolve`
 
@@ -153,7 +169,7 @@ Source: `store/projects/blog/spaces/newsroom/tasklists/refresh/01-load_sources.m
 
 ## Note on the `input` field
 
-A step-level `input:` frontmatter map is parsed into `TaskNode.input` `sdk/org/libs/core/src/spaces/tasklist-load.ts:113-119` and **enforced before the node runs**: the orchestrator validates it against the seed merged with the node's upstream outputs, and a mismatch throws, naming the node, the offending field and the `dependsOn` that were supposed to supply it `sdk/org/libs/core/src/tasklist/orchestrator.ts#runTasklist`.
+A step-level `input:` frontmatter map is parsed into `TaskNode.input` `sdk/org/libs/core/src/spaces/tasklist-load.ts:152-158` and **enforced before the node runs**: the orchestrator validates it against the seed merged with the node's upstream outputs, and a mismatch throws, naming the node, the offending field and the `dependsOn` that were supposed to supply it `sdk/org/libs/core/src/tasklist/orchestrator.ts#runTasklist`.
 
 Field names resolve two ways. A field emitted by exactly ONE dependency is visible unqualified (`stories: array`); a field two dependencies both emit stays ambiguous and is deliberately not flattened, so the contract must name the producing task (`plan_tables: object`). Silently picking one producer over another would be a coin-flip the author cannot see.
 

@@ -31,6 +31,12 @@ on:
       message:
         description: 'What this update changes (shown in the eoas dashboard)'
         required: true
+      verify_runtime_version:
+        description: >-
+          Optional but STRONGLY recommended: the runtimeVersion of the build that is
+          actually installed on phones (`eas build:list --json` → .runtimeVersion).
+          Without it the check only proves CI can reach its own bundle.
+        required: false
 
 concurrency:
   # Two publishes racing to the same branch leave the newest manifest ambiguous.
@@ -111,12 +117,25 @@ jobs:
       # A rollout deliberately does NOT skip this. A partial rollout still has to be
       # servable — the percentage decides who is offered it, not whether it exists — and
       # the server answers this request from the same branch either way.
+      #
+      # `verify_runtime_version` is what makes this a real check rather than a
+      # self-consistency one. Left empty, the script resolves the runtimeVersion from
+      # THIS checkout — the same tree the publish used — so it can only confirm CI can
+      # reach its own bundle, and stays green while every shipped phone gets nothing.
+      # Given the installed build's runtimeVersion it asks the question that matters.
       - name: Verify a device would actually receive it
         working-directory: sdk/org/apps/mobile
         env:
           RELEASE_CHANNEL: ${{ github.event.inputs.branch }}
           EXPO_OTA_APP_ID: 9a2ba224-69e6-4629-a894-4f42eb305a45
-        run: node scripts/verify-update-served.mjs
+          RUNTIME_VERSION: ${{ github.event.inputs.verify_runtime_version }}
+        run: |
+          if [ -z "$RUNTIME_VERSION" ]; then
+            echo "::warning title=Weak OTA verification::No verify_runtime_version given," \
+                 "so this only proves CI can reach the bundle it just published — not that" \
+                 "any INSTALLED build can. Pass the shipped build's runtimeVersion next time."
+          fi
+          node scripts/verify-update-served.mjs
 
       - name: Summary
         run: |

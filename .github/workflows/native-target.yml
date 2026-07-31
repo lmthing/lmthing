@@ -64,6 +64,15 @@ jobs:
       - name: Install
         working-directory: sdk/org
         run: pnpm install --frozen-lockfile
+      # The native graph reaches `@lmthing/core/ui` from `chat/components/render-descriptor.tsx`,
+      # and that subpath export points at `dist/ui/index.js` — a BUILT artifact. Installing does
+      # not produce it, so without this the graph fails to resolve with an error naming a source
+      # file that is perfectly fine. This was invisible until now: the workflow's path filter
+      # could never match a submodule bump, so the gate had run exactly once, back when that
+      # import did not yet exist. Fixing the trigger is what surfaced it.
+      - name: Build @lmthing/core (dist/ui is a resolution target of the native graph)
+        working-directory: sdk/org
+        run: pnpm --filter @lmthing/core build
       # Metro's file map crawls every watchFolder and opens an inotify watch per directory. The
       # runner's default (8192 on ubuntu-latest) is well under what sdk/org's node_modules needs,
       # and the failure is an opaque ENOSPC from node:internal/fs/watchers rather than anything
@@ -73,3 +82,37 @@ jobs:
       - name: Metro resolution gate + native render suites (ios + android)
         working-directory: sdk/org
         run: pnpm --filter @lmthing/ui test:native
+
+  # The graph gate above walks `libs/ui` ONLY. It never sees `apps/mobile`'s own code — App.tsx,
+  # the screens, push handling — so a break there reaches a store build unchallenged. This bundles
+  # the actual app for both platforms, which is the same thing `eas build` does and the strongest
+  # signal available without a device.
+  #
+  # Separate job on purpose: it is a different failure mode (the app, not the shared graph), and a
+  # red here should not be read as "the native fork selection broke".
+  app-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+      - name: Install
+        working-directory: sdk/org
+        run: pnpm install --frozen-lockfile
+      # Same reason as the graph job: `@lmthing/core/ui` is a built subpath export, and the app
+      # pulls in the chat surface that imports it.
+      - name: Build @lmthing/core
+        working-directory: sdk/org
+        run: pnpm --filter @lmthing/core build
+      - name: Raise the inotify watch limit
+        run: sudo sysctl -w fs.inotify.max_user_watches=524288
+      - name: Bundle the app (android)
+        working-directory: sdk/org/apps/mobile
+        run: npx expo export --platform android --output-dir "$RUNNER_TEMP/android"
+      - name: Bundle the app (ios)
+        working-directory: sdk/org/apps/mobile
+        run: npx expo export --platform ios --output-dir "$RUNNER_TEMP/ios"

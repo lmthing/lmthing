@@ -179,7 +179,7 @@ Registered only in team mode `sdk/org/libs/cli/src/server/serve.ts:209-217`:
 | POST | `/api/team/channels` | **editor** | Create a channel (`{name, categoryId?}`); the id is the slugified name |
 | PATCH | `/api/team/channels/:channelId` | **editor** | Rename it, file it under a category, or set the apps pinned to it (`{name?, categoryId?, apps?}`) `sdk/org/libs/cli/src/server/team-channels.ts#patchChannel` |
 | GET | `/api/team/channels/:channelId/messages` | member | History, newest last; `?limit=` (≤200) and `?before=<messageId>` page backwards. Also returns `turns` — the THING turns running in this channel right now (below) |
-| POST | `/api/team/channels/:channelId/messages` | member | Post `{text, threadId?, clientId?, answersAskId?}`; **404** if the channel does not exist or is not visible to the caller `sdk/org/libs/cli/src/server/routes/team-channels.ts#handlePostMessage`. **200** (not 201) with `deduplicated:true` when `clientId` repeats a send; **409** when `answersAskId` names a question the thread is not waiting on |
+| POST | `/api/team/channels/:channelId/messages` | member | Post `{text, threadId?, clientId?, answersAskId?, attachmentIds?}`; **404** if the channel does not exist or is not visible to the caller `sdk/org/libs/cli/src/server/routes/team-channels.ts#handlePostMessage`. **200** (not 201) with `deduplicated:true` when `clientId` repeats a send; **409** when `answersAskId` names a question the thread is not waiting on; **403** when an `attachmentIds` entry is an upload the caller does not own (below) |
 | POST | `/api/team/channels/:channelId/read` | member | Mark read, optionally `{messageId}` to say how far `sdk/org/libs/cli/src/server/routes/team-channels.ts#handleMarkRead` |
 | POST | `/api/team/dms` | member | Open (or reopen) the direct conversation with `{userId}` |
 | GET/POST | `/api/team/categories` | member / **editor** | List, or create `{name}` |
@@ -360,6 +360,54 @@ needs to know it has landed.
 
 A failed turn is posted into the channel as a `system` message rather than
 disappearing.
+
+### Attachments
+
+`POST …/messages` accepts `attachmentIds?: string[]` naming uploads made
+earlier via `POST /api/uploads` ([`./uploads.md`](./uploads.md)) —
+`resolveMessageAttachments`
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#resolveMessageAttachments`.
+The stored row carries a `ChannelAttachment[]`
+`sdk/org/libs/cli/src/server/team-channels.ts#ChannelAttachment` — `{id, kind,
+mediaType, filename?, url, transcript?}`, thin on purpose: enough for a client
+to render a thumbnail, a link, or (for audio) the caption `/chat` already
+shows under a clip, with the rest of `UploadMeta`'s extraction bookkeeping
+(`text`/`pages`) staying server-side. This is also the socket frame's shape
+(`{type:'message'}` carries the whole `ChannelMessage`), so a live client sees
+an attachment the moment it is posted, not only on reload.
+
+**The poster must own every id they name**, or the whole post is refused with
+**403** `{error, attachmentIds}` naming the offending id(s) — checked against
+`UploadMeta.ownerUserId` via `SessionManager.readUploadMeta`
+`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.readUploadMeta`.
+Without this a member could name someone ELSE's upload id in their own message
+and thereby publish it to the whole channel audience — the exact hole
+`GET /api/uploads/:id`'s owner check exists to close ([`./uploads.md`](./uploads.md#get-apiuploadsid)),
+reopened by a second door. An ownerless upload (one stored before the owner
+field existed) is allowed through unchanged, matching the serve route's own
+decision — it is already readable by any member.
+
+**Posting is what grants the audience read access.** Before the message is
+appended (and therefore before it is broadcast), the pod records this channel
+on each attachment — `recordUploadChannel`
+`sdk/org/libs/cli/src/server/uploads.ts#recordUploadChannel`, via
+`SessionManager.bindUploadToChannel`. `GET /api/uploads/:id` then serves a
+non-owner caller who is in the audience of ANY channel the upload has been
+bound to, using the same `isVisibleTo` predicate a message read uses — so a
+DM's attachment stays visible only to its two members, exactly like the
+message it was posted with.
+
+**THING sees them too.** The message that mentioned THING (or replied in a
+thread THING is already in) has its `attachments` routed into the turn through
+`SessionManager.assembleAttachments`
+`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.assembleAttachments`
+— the identical assembly `/chat`'s `sendMessage` already uses, not a second
+mechanism ([`./uploads.md#how-an-attachment-reaches-the-agent`](./uploads.md#how-an-attachment-reaches-the-agent)).
+`runHeadlessThreaded`'s `message` therefore carries `UserInput` (text, or
+`{text, attachments}`) rather than a bare string
+`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.runHeadlessThreaded` —
+images become a model-facing part, files an id THING delegates by, and audio's
+transcript folds into the text, same as chat.
 
 ### `ask()` in a thread — the question is a message, the reply is the answer
 

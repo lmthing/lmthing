@@ -63,6 +63,12 @@ The response is `AttachmentRef = UploadMeta & { url }`, i.e.
 `sdk/org/libs/cli/src/server/uploads.ts:11-28`, with `url = /api/uploads/<id>`
 `sdk/org/libs/cli/src/server/uploads.ts#uploadUrl`.
 
+**On a team pod** the caller is read from the verified request headers
+(`readCaller`, absent/`null` on a personal pod) and stamped onto the meta as
+`UploadMeta.ownerUserId` `sdk/org/libs/cli/src/server/routes/uploads.ts#handleUpload`
+— the field `GET /api/uploads/:id` authorizes against, below. A personal pod's
+uploads never carry an owner, and never need to.
+
 ## `GET /api/uploads/:id`
 
 Registered at `sdk/org/libs/cli/src/server/serve.ts:198`. Serves the raw bytes with the stored
@@ -76,7 +82,36 @@ those elements cannot send an `Authorization` header, the client appends the JWT
 param — `withAuthToken(att.url)` → `/api/uploads/<id>?access_token=…`
 `sdk/org/libs/ui/src/chat/app/Message.tsx:147-153,164,175`,
 `sdk/org/libs/ui/src/chat/app/auth.ts#withAuthToken`. The pod itself performs **no** auth check on this
-route; the token is what routes the request to the right pod at the edge.
+route on a **personal** pod (single-tenant — one principal, nothing to check); the token is what
+routes the request to the right pod at the edge.
+
+### Authorization on a team pod
+
+A team pod IS a per-resource authorization point, because every member reaches the same pod. The
+caller (`readCaller`) is read and checked against the upload
+`sdk/org/libs/cli/src/server/routes/uploads.ts#handleServeUpload`:
+
+1. **The owner always gets it** — `found.ownerUserId === caller.userId`.
+2. **Otherwise, the audience of any channel it has been posted into** —
+   `UploadMeta.channelIds` (written by `POST …/messages`'s attachment handling,
+   [`./team.md#attachments`](./team.md#attachments)), checked with the **same**
+   `isVisibleTo` predicate a channel message read uses
+   `sdk/org/libs/cli/src/server/team-channels.ts#isVisibleTo` — so a DM's attachment stays visible
+   only to its two members.
+3. **An upload with no owner at all** — stored before `ownerUserId` existed — is served to any
+   member, a deliberate, documented exception rather than an accident: refusing it would break
+   already-rendered images in already-sent messages to close a hole an unguessable `randomUUID` id
+   was already covering for them. New uploads all carry an owner, so this set only shrinks.
+4. Anything else is **`404`, not `403`** — "you may not read this" and "there is no such thing"
+   must be indistinguishable, the same choice the DM routes make
+   (`requireVisibleChannel`, [`./team.md`](./team.md)), or the error itself becomes a way to test
+   which ids exist.
+
+Before a channel could carry an attachment, this route consulted the caller not at all — any
+member, including a viewer, could fetch any upload on the pod by id. Not exploitable on its own
+(ids are unguessable and nothing published one to anyone but its uploader), but a channel
+attachment puts an id into a message body every member reads, which is exactly what closes that
+gap by the same act that would have reopened it.
 
 ---
 
@@ -86,7 +121,7 @@ route; the token is what routes the request to the right pod at the edge.
 <lmthingRoot>/            # LMTHING_ROOT, else <cwd>/.lmthing (prod: /data/.lmthing)
   uploads/                # resolveUploadsDir(root) = join(root ?? cwd, 'uploads')
     <uuid>                # raw bytes, exactly as uploaded
-    <uuid>.json           # UploadMeta sidecar {id,kind,mediaType,filename?,transcript?,text?}
+    <uuid>.json           # UploadMeta sidecar {id,ownerUserId?,channelIds?,kind,mediaType,filename?,transcript?,text?}
   <projectId>/
     documents/            # project documents (a different surface — see below)
 ```
@@ -243,8 +278,9 @@ documents) `sdk/org/libs/cli/src/server/session-manager.ts:1934-1945`.
 | Chat transcript — render image/audio/file attachments | `GET /api/uploads/:id?access_token=…` `sdk/org/libs/ui/src/chat/app/Message.tsx#UserAttachment` |
 | Chat project-settings → Documents tab | `GET`/`POST /api/projects/:id/documents` `sdk/org/libs/ui/src/chat/app/ProjectSettings.tsx#DocumentsTab` |
 | Agent (any VM) | the `readDocument` yield → `documentResolver` → the uploads dir |
+| A team channel message's attachments | `POST /api/uploads` then `attachmentIds` on `POST …/messages` — [`./team.md#attachments`](./team.md#attachments) |
 
 Related: [`../../runtime-globals/knowledge-and-docs.md`](../../runtime-globals/knowledge-and-docs.md)
 (`readDocument`, `loadKnowledge`) · [`./sessions.md`](./sessions.md) (the WS `sendMessage` frame
-that carries attachment ids) · [`./fs.md`](./fs.md) (raw workspace file access) ·
-[`./README.md`](./README.md).
+that carries attachment ids) · [`./team.md`](./team.md) (channel-attachment authorization) ·
+[`./fs.md`](./fs.md) (raw workspace file access) · [`./README.md`](./README.md).

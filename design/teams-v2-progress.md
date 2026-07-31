@@ -302,13 +302,21 @@ Ana's acceptance and her context, and produced the studio's actual domain. That 
 `.issues/thing-schema-domain-misread-job-tracker.md` names, and it points the way the hypothesis
 predicted — but it is n=1 against n=1, so it stays a hypothesis with better evidence, not a finding.
 
-### New finding — the app was built into the shared `user` project
+### ~~New finding — the app was built into the shared `user` project~~ — I had this backwards
 
-`activeProject: user`, and `user` is the only project on disk; the specs are at
-`.lmthing/user/pages/*.view.json`. THING's instruct says the opposite for an accepted offer
-(`user-thing/agents/thing/instruct.md` ~L812): *"Still in the shared `user` project? Create the
-dedicated project FIRST — propose the name"*. Run 1 **did** create `fold-studio-jobs`, so this is
-inconsistent between runs rather than a considered team-mode behaviour.
+I wrote this up as a defect: run 2 built into the shared `user` project instead of a dedicated one.
+It was real, but it was **masking** a far worse bug, and run 4 exposed the inversion.
+
+A channel turn was started with **no `projectId`**, so it ran in `DEFAULT_PROJECT_ID` (`'user'`)
+regardless. In run 2 the app happened to be in `user` too, so every follow-up worked. In run 4 THING
+did the right thing and created `fold-studio-job-tracker` — and from that moment every channel turn
+was blind to the app it had just built. Step 6's own code got `db.tables() → []` against a database
+holding three rows.
+
+**Doing the right thing is what triggered it.** The correct behaviour looked like the bug and the bug
+looked correct, which is how it survived two full runs and one written-up finding pointing at the
+wrong thing. Fixed in `eb093897` — a channel turn now runs in the app pinned to that channel, else
+the only app on the pod, else nothing.
 
 ## Lane boundary — the team UI is owned by a concurrent session
 

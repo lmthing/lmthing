@@ -4,7 +4,9 @@ A native window running the **same shared surfaces** as the web SPA and the phon
 
 Package: `sdk/org/apps/desktop` (`sdk/org/apps/desktop/package.json:L2`). It lives in `sdk/org`'s own workspace, which already globs `apps/*` (`sdk/org/pnpm-workspace.yaml:L1-L4`), and deliberately **not** in the root workspace — the same placement `apps/mobile` has, for the reason the root `pnpm-workspace.yaml` states about staging manifests by name.
 
-> **Status.** Phase 1 (the shell over a cloud pod) is implemented. The TypeScript half is built and gated; the Rust half has **not been compiled** — see [What is not yet proven](#what-is-not-yet-proven).
+> **Status.** Phases 1, 2 and 3 are implemented and gated. The Rust compiles clean under
+> `clippy -D warnings` with 34 unit tests; the app has a 12-test end-to-end suite. What has **not**
+> happened is a run on a real device against a real pod — see [What is not yet proven](#what-is-not-yet-proven).
 
 ---
 
@@ -111,12 +113,19 @@ Stated plainly because a doc that implies otherwise is worse than no doc.
 | No fork of the product | `node sdk/org/apps/desktop/scripts/lint-barrel-imports.mjs` |
 | The seam does not break web or native | `libs/ui` `pnpm test:native` + `npx expo export` + the full vitest suite |
 
+| The Rust compiles, lints and passes its tests | `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` (34) |
+| The grant jail refuses what it must | 16 tests including symlink escape, a symlink named `notes.md` pointing at `.ssh/id_rsa`, and a sibling whose name merely starts with the grant's |
+| The app boots, signs in, and drives its surfaces | 12 Playwright tests against the real bundle |
+| The bridge protocol round-trips | Two of those 12: dial → push grants → answer an `fs.request` → log it |
+
 | **Not proven** | Why |
 |---|---|
-| **`src-tauri/` compiles** | The development machine has no `rustc`/`cargo`/`rustup`, and no `webkit2gtk-4.1`/`rsvg2` system libraries. `pnpm tauri info` reports all four missing. Every `.rs` file here is written but **unverified by a compiler**. |
-| A window ever opens | Same reason |
-| The `lmthing://` round trip | Needs a built app and an OS scheme registration |
+| A window opens on macOS or Windows | Only Linux has been launched here |
+| The `lmthing://` round trip | Needs a packaged app and an OS scheme registration |
 | Rendering under WKWebView / WebKitGTK | The Tamagui runtime is more JS-feature-hungry than extracted CSS; only a real webview can answer this |
+| Anything against a REAL pod | Every test uses a stub backend. Sign-in, pod wake and the bridge have never spoken to production. |
+| The CDP tool translation against real sites | `sdk/org/apps/desktop/src/cdp.ts` has no test of its own — it needs a live browser |
+| The sidecar | `bundle.externalBin` is declared but no release pipeline builds the binary yet |
 
 ---
 

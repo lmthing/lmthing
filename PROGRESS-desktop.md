@@ -106,134 +106,63 @@ desktop would have been the third. Lifted before forking again.
 
 ---
 
-## Phase 1c — `sdk/org/apps/desktop` frontend ✅ DONE
+## Phases 1c–3 ✅ DONE
 
-`package.json` · `vite.config.ts` · `index.html` · `tsconfig.json` ·
-`src/{main,App,AuthGate,HomeShell,TeamScreen,AppScreen,OfflineBanner}.tsx` · `src/desktop.ts` ·
-`scripts/lint-barrel-imports.mjs` (copied from mobile — the gate that keeps this a shell).
+Full detail is in the commit messages and in `org/docs/desktop/README.md`. The short version:
 
-Mobile-`App.tsx`-shaped. RN-isms mapped: `useColorScheme()`→`matchMedia`, `AppState`→
-`visibilitychange`, `Alert.alert`→a shared dialog, `Linking.openURL`→`@tauri-apps/plugin-opener`.
-No `SafeAreaView`/`KeyboardAvoidingView`/`StatusBar` — a window has no notch and its keyboard does
-not cover the app. `AppScreen` reuses `@lmthing/ui`'s `AppView` (whose web fork is already the
-justified `<iframe>`) instead of writing a second one.
-
-### Three factory changes, all zero-delta for existing callers
-
-`libs/utils/src/vite.mjs#createViteConfig` only passed through `plugins`/`resolve.alias`/`server`/
-`define`. Added, guarded on `!== undefined`:
-- **`base`** — Tauri serves over a custom protocol; absolute `/assets/…` do not resolve there.
-- **`build`** — the renderer is the OS webview, not Chrome, so the target must be pinned.
-- **`router: false` opt-out** — the plan assumed `tanstackRouter` no-ops without `src/routes`. **It
-  does not**: it throws `ENOENT: scandir …/src/routes` from an async hook on every build while the
-  build still succeeds. An error that is printed but not fatal is the worst of both.
-
-`apps/web` rebuilt byte-clean afterwards, confirming the passthrough is inert.
-
-### tsconfig: `strict: false`, deliberately
-
-Shared `@lmthing/{ui,auth}` source ships with no build step, so every consumer typechecks it inside
-its own program. `apps/mobile/tsconfig.json` documents the convention and `libs/ui`/`apps/web`
-follow it. A stricter desktop config just re-reports the libraries' pre-existing findings under a
-different package's name — noise, not a gate. This app's own code is strict-clean regardless.
-
-## Phase 1d — Tauri Rust shell ⚠️ WRITTEN, NOT COMPILED
-
-`src-tauri/{Cargo.toml,build.rs,tauri.conf.json,capabilities/default.json}` ·
-`src-tauri/src/{main,lib,config}.rs` · `scripts/generate-tauri-conf.mjs` · icons (generated from
-`common/favicon.ico/web-app-manifest-512x512.png` via `tauri icon`, iOS/Android sets pruned).
-
-- **`tauri-plugin-single-instance` is required on Linux/Windows, not optional.** Those OSes answer a
-  `lmthing://` callback by launching a SECOND COPY with the URL in argv; without it the callback
-  lands in a process with no pending login while the visible window waits out its 5-minute timeout.
-- **No hex in a committed file.** `generate-tauri-conf.mjs` reads `tokens.json` → committed
-  `src-tauri/tokens.generated.json` → `config.rs` via `include_str!`. `lint:tokens` scans `src/`,
-  not Rust or packaging config, so this is the same rule applied by hand — the reason
-  `apps/mobile/app.config.js` is a `.js` and not an `app.json`. CI re-runs the generator and fails
-  on a diff, because `include_str!` would happily compile a stale file.
-- **`config.rs` `PROTOCOL_VERSION` must equal `DESKTOP_PROTOCOL_VERSION`** in `libs/auth/src/env.ts`.
-
-### Toolchain — installed, but the host cannot supply WebKit
-
-`rustup` + `rustc`/`cargo` **1.97.1** + `clippy` + `rustfmt` are installed (user-local, `~/.cargo`,
-no sudo). `cargo fmt --check` found 4 issues; fixed, now passes.
-
-**`config.rs` is fully verified**, compiled and tested standalone in a scratch crate (it depends only
-on `serde`, not on `tauri`): **3/3 tests pass**, including the one asserting the emitted JSON really
-is `{"protocolVersion":1,"apiBase":…,"cloudBase":…,"teamBase":…}` — i.e. the Rust↔TS bridge contract
-is checked from both ends, which is the most drift-prone seam in the design.
-
-**The host cannot install `libwebkit2gtk-4.1-dev`, and it is not a Tauri problem.** This machine is
-**Zorin OS 18.1 = Ubuntu 24.04 (noble)**, but it has *jammy* repos enabled alongside noble and a
-**jammy webkit installed over the noble one**:
-
-```
-libwebkit2gtk-4.1-0    installed 2.50.4-0ubuntu0.22.04.1   (jammy build, dpkg status only, prio 100)
-libwebkit2gtk-4.1-dev  candidate 2.44.0-2                  (noble/universe — the only one offered)
-```
-
-No repo carries a 2.50.4 `-dev`, so apt reports "held broken packages". Aligning the runtime down to
-noble's own `2.44.0-2` would fix it, but `yelp`, `evolution` and `libedataserverui` link against it,
-so that is a **system-level decision, not a build step** — left to the user.
-
-**Workaround in use: Docker** (`rust:1-bookworm` + the WebKit dev packages, `CARGO_TARGET_DIR`
-redirected out of the repo). Zero host risk, and the same thing `.github/workflows/desktop.yml`'s
-`rust` job does on a clean runner.
-
-## Phase 1e — gates, CI, docs ✅ DONE
-
-| Gate | Change |
+| Phase | What landed |
 |---|---|
-| root `package.json` `lint:tokens` | `+ sdk/org/apps/desktop/src` |
-| `.github/workflows/design-tokens.yml` | the SAME list (its own comment demands they match) — verified identical |
-| `org/docs/tools/docs-sync/citations.mjs` | extensions `+ rs\|toml` |
-| `.github/workflows/desktop.yml` | **new** — `frontend` (node, fast) + `rust` (apt + toolchain) |
-| `org/docs/desktop/README.md` | **new** |
-| `org/docs/{README,SYNC,architecture}.md` | desktop rows — **and mobile's, which was orphaned** |
+| **1c** shell | `apps/desktop` frontend, mobile-`App.tsx`-shaped, reusing `@lmthing/ui` |
+| **1d** Tauri | `src-tauri`: window, deep link, config, tokens-from-`tokens.json` |
+| **1e** gates | `lint:tokens` + CI + `org/docs/desktop/` + `.rs` in docs-sync |
+| **polish** | Native menus, navigation containment, window state |
+| **E2E** | 12 Playwright tests against the REAL bundle |
+| **2a** transport | `/api/host/ws` + `HostBridge` (designated single client) |
+| **2b** filesystem | `fs:local:read`/`:write`, `hostFs` yield, `grants.rs` jail, Local access pane |
+| **2c** browser | Loopback MCP endpoint, real Chromium over CDP, `browser:cdp` + devtools agent |
+| **3** local mode | `node:sqlite` swap, sidecar, mode toggle |
 
-**`sdk` was already in `KNOWN_ROOTS`**, so `sdk/org/apps/desktop/src-tauri/**` citations resolve
-with no change there — a top-level `desktop/` dir would have needed one.
+### The findings worth keeping
 
-**Answered the plan's open question:** docs-sync now *recognises* `.rs` but classifies it as a
-non-code file — `symbol anchor on non-code file (.rs); use a line anchor`. So **Rust is
-line-anchor-only**, which matters most for Phase 2's `grants.rs`.
+1. **`isLocalRun()` demo-moded macOS/Linux.** `tauri://localhost` → hostname `localhost` →
+   `DEMO_SESSION` with `accessToken: 'demo'`. Silent AND OS-divergent (Windows uses
+   `tauri.localhost`). Pinned by a test in both directions.
+2. **`AuthProvider` took its gateway from the wrong place.** `resolveConfig` never consulted the
+   bridge, so a shell pointed at a dev gateway still mailed sign-in codes from PRODUCTION. Does not
+   fail visibly — it signs someone in against the wrong environment — so the E2E asserts it on the wire.
+3. **`installSsoHandler` threw before `render()`.** The loudest failure in the code produced the
+   quietest one a person can see: a blank window. Found by the E2E's `pageerror` guard on its first run.
+4. **Two E2E assertions would have passed on a blank page.** Absence assertions now require the app
+   to have rendered first.
+5. **`tanstackRouter` does NOT no-op without `src/routes`** — it throws ENOENT from an async hook on
+   every build while the build still succeeds. Added a `router: false` opt-out.
+6. **docs-sync recognises `.rs` but classes it non-code** → Rust is line-anchor-only.
+7. **Vite 5.4 predates `node:sqlite`** — strips the `node:` prefix and looks for a package called
+   `sqlite`. Aliased to a `createRequire` shim.
+8. **`libs/cli` now has no native dependency at all**, which also removes `node-gyp` from the pod image.
 
-**The docs gate caught a real regression I had shipped:** the Phase 1b lift broke five citations in
-`org/docs/mobile/README.md` pointing at the three deleted files. Repointed to their new homes. This
-is exactly the "a code change is not done until the matching `org/docs` page is updated in the same
-change" rule doing its job.
+### Final verification
 
----
+`3048` vitest · `34/34` cargo with `clippy -D warnings` · `12/12` Playwright · Metro graph gate ·
+`expo export` · `apps/web` build · workspace typecheck · `lint:tokens` (768 files) ·
+`docs:check` (5361 citations).
 
-## Final verification (everything except Rust)
+**Known flake, not a defect:** two suites using real worker threads fail only under full-suite
+concurrency and pass 3/3 in isolation. Pre-existing on this machine.
 
-| Check | Result |
-|---|---|
-| `pnpm test` (full, from `sdk/org`) | **224 files, 3014 tests, 0 failures** |
-| `pnpm typecheck` (workspace) · `libs/ui` · `apps/mobile` · `apps/desktop` | clean |
-| `libs/ui` `pnpm test:native` (Metro graph gate) | PASS |
-| `npx expo export --platform android` | bundled, 2914 modules |
-| `apps/desktop` `pnpm build` | 2266 modules; `./assets/…` confirms `base: './'` |
-| `apps/web` `pnpm build` | unchanged |
-| root `pnpm lint:tokens` | 765 files, 0 violations |
-| root `pnpm docs:check` | 124 docs, 5361 citations, all resolve |
-| all seven `libs/ui` ratchets + both barrel lints | PASS |
+### What is NOT proven
 
-The earlier full-suite run showed 40 files failing to LOAD under concurrency; this run is fully
-green, confirming that was a parallel-resolution flake on this machine and not a defect.
-
-**Still pre-existing and NOT mine** (verified at `HEAD`): `libs/ui` `eslint .` (27 errors, mostly
-"Definition for rule … was not found") and `libs/ui` `lint:rn` (one raw `<iframe>` at
-`src/elements/content/app-view/view.tsx:27`).
+- A window on macOS or Windows (only Linux launched here)
+- Anything against a **real pod** — every test uses a stub backend
+- The CDP tool translation against real sites (`apps/desktop/src/cdp.ts` has no test of its own)
+- The sidecar binary — `bundle.externalBin` is declared, no release pipeline builds it
+- `desktop-release.yml` (signing, notarization, an OS matrix) does not exist
 
 ---
 
 ## Next
 
-1. **Install the Rust toolchain and compile `src-tauri`** — needs `rustup` + `sudo apt install
-   libwebkit2gtk-4.1-dev librsvg2-dev`. Then `cargo fmt --check`, `cargo clippy -D warnings`,
-   `cargo test`, and `pnpm tauri dev` to see a window.
-2. Live-verify Phase 1: email sign-in → pod wake → chat streams → team channels stream, against a
-   **packaged** build (the demo-mode landmine only reproduces there if `isLocalRun` is ever keyed on
-   the scheme rather than the global).
-3. Phase 2 — the bridge.
+1. Run it on a real machine against a real pod: sign in, grant a folder, ask an agent to read it.
+2. A release pipeline: OS matrix, Apple + Windows signing, the sidecar binary, an updater key.
+3. The visible browser pane (screencast + input forwarding) — the CDP plumbing is in place; the
+   pane that lets a person watch and take over is not.

@@ -102,6 +102,22 @@ jobs:
           fi
           npx eoas publish "${args[@]}"
 
+      # eoas prints "successfully pushed" whether or not any device can ever receive the
+      # update, and the two ways it reaches nobody are both invisible from here: the
+      # channel may have no branch mapping (every device gets 404 while the branch fills
+      # with updates), or the runtimeVersion may be one no binary has. So ask the server
+      # the question a phone asks, and fail the run if the answer is not an update.
+      #
+      # A rollout deliberately does NOT skip this. A partial rollout still has to be
+      # servable — the percentage decides who is offered it, not whether it exists — and
+      # the server answers this request from the same branch either way.
+      - name: Verify a device would actually receive it
+        working-directory: sdk/org/apps/mobile
+        env:
+          RELEASE_CHANNEL: ${{ github.event.inputs.branch }}
+          EXPO_OTA_APP_ID: 9a2ba224-69e6-4629-a894-4f42eb305a45
+        run: node scripts/verify-update-served.mjs
+
       - name: Summary
         run: |
           {

@@ -192,3 +192,59 @@ client-side guess would be wrong often enough to be worse than nothing.
   shows zero. Nothing was lost, but the diagnosis would have sent the next
   person chasing a git bit that does not exist. Commit with
   `git commit --only <paths>` here, always.
+
+---
+
+# Round 2
+
+## CI was not running the gate it believed in
+
+`sdk/org` is a SUBMODULE. A commit in the parent never touches a path inside it
+— it moves one gitlink entry, at `sdk/org`. So **Native target**, filtered on
+`sdk/org/libs/ui/**`, matched nothing and had run **exactly once in its life**:
+on the push that created the workflow file. Every native fork, every primitive,
+the whole React Native port went past a "hard gate" that was not there. It is
+the only gate that can see the native graph at all — jsdom always reports
+`isWeb` true and tsc sees neither.
+
+**Docs sync** had the same hole and got away with it, because `org/docs/**` is
+also in its filter: it fired whenever a doc edit happened to ride along in the
+same parent commit. A pure sdk bump — code moving under a citation, exactly what
+it exists to catch — would not have run it.
+
+`design-tokens.yml` and `build-images.yml` already list the bare `sdk/org`.
+
+**Fixing the trigger immediately turned the gate red**, for a reason that had
+been true for months: `@lmthing/core/ui` is a subpath export pointing at
+`dist/ui/index.js`, a BUILT artifact, and the job only installed. The error
+names a source file that is perfectly fine. Now builds core first.
+
+Added **`app-bundle`**: the Metro gate walks `libs/ui` and nothing else, so
+`apps/mobile`'s own code — App.tsx, the screens, push handling, deep links — was
+never bundled and a break there would reach a store build unchallenged.
+`expo export` for both platforms, the same work `eas build` does. Green in CI.
+
+## Platform capabilities that did not exist
+
+- **`KeyboardAvoiding`.** React Native draws the keyboard ON TOP of a
+  bottom-pinned composer and moves nothing — you cannot see what you are typing,
+  on the one screen whose purpose is typing. iOS must inset itself; Android has
+  already resized the window, so padding there double-counts and leaves the
+  composer floating a keyboard's height up the screen (`undefined` is RN's
+  documented answer, not an omission). Web needs nothing.
+- **Pull-to-refresh** on `Scroll`, wired into Home — the screen most likely to be
+  stale on a phone, whose data loaded once on mount with nothing ever asking
+  again.
+- **`hitSlop`** on `Pressable`. Without it the only way to a 44pt target is
+  padding, which moves everything around it.
+
+## Also
+
+`libs/core`'s capability-registry test had been red on main since `team:read`/
+`team:post` were added without updating its exhaustive `toEqual`. Fixed, and
+kept exhaustive — the point of that assertion is that a capability cannot
+quietly appear in the model's DTS.
+
+Three `libs/cli` suites fail under full-suite parallel load and pass in
+isolation (`session-manager.spaceref`, `team-channels`, `app/hooks/runtime`) —
+mtime races, not this work.

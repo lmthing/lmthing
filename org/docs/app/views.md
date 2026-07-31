@@ -446,6 +446,21 @@ pre-materialised data, because a spec is authored before the data exists.
   a throw inside a formatter would take down a page for a currency symbol
   `sdk/org/libs/ui/src/view/format.ts#applyFormat`. `currencyField` names the row field holding
   the ISO code, which the two multi-currency apps need `sdk/org/libs/ui/src/view/format.ts#formatBound`.
+- **A MISSING `format` is inferred, because a spec that declares nothing must still read correctly.**
+  The model binds a column to a slot and often says nothing else, and the renderer used to print the
+  raw JS value: a generated job list shipped badges reading literally `false`, money as a bare `78`
+  beside a sibling `70.49`, and a raw ISO date. So `formatBound` takes the binding EXPRESSION
+  alongside the value and `inferFormat` fills the gap — a boolean reads `Yes`/`No` in any slot and
+  tones a badge apart, and a number in a money-NAMED field renders with a symbol and consistent minor
+  units `sdk/org/libs/ui/src/view/format.ts#inferFormat`. A declared `format` always wins.
+  Money-ness cannot come from the type — `parts_total` and `in_shop_count` are both `number` — so the
+  field name is the evidence, and a veto list keeps the rule off counts, durations, rates and
+  coordinates, where a currency symbol would change what the number MEANS. The currency code has
+  three sources in order: the row's own field, then the field name (`total_parts_gbp` ⇒ GBP), then the
+  default `sdk/org/libs/ui/src/view/format.ts#DEFAULT_CURRENCY`.
+- **A date-only value is formatted in UTC**, and this is a correctness fix rather than a preference:
+  `new Date('2026-07-08')` is UTC midnight, so every `format: 'date'` — declared ones included —
+  rendered **the previous day** anywhere west of Greenwich `sdk/org/libs/ui/src/view/format.ts#DateValue`.
 - **`tone` is never a colour** — it maps to a design token, which is why a spec structurally cannot
   violate the design system `sdk/org/libs/ui/src/view/format.ts#TONE_TOKENS`. **`toneMap` is the
   load-bearing half**: `tone: 'auto'` cannot know that `self_care` is good news and `emergency` is

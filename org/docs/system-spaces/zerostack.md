@@ -89,6 +89,8 @@ An unknown `sessionId` is **refused**, never silently promoted to a new conversa
 
 **Working directory = the LMThing data root** (`<root>/.lmthing`, `/data/.lmthing` in a pod). That *is* the "full data directory" grant: every project, every generated app, every app's SQLite database, every project space.
 
+`serve.ts` passes the resolved root and **never a `process.cwd()` fallback**. With no root the endpoint refuses every turn and says so in `status`, and `ensureWorkspace` writes nothing — because "anything other than the data root" is somebody's repository or home directory. This is not hypothetical: while it did fall back, a test server started without a root materialized `AGENTS.md` and `ARCHITECTURE.md` into the checkout (`sdk/org/libs/cli/src/host/zerostack-endpoint.test.ts:173-196`).
+
 **Permission mode = `yolo`**, written into a generated `config.toml` (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts#renderConfigToml`). This is not a preference — it is the only mode that works headless. Every other zerostack mode prompts on a terminal, and nothing is attached to one, so an "ask" would block until the turn timeout and present as a mysterious stall. `yolo` still refuses destructive bash (`rm`, `dd`, `mkfs`); that refusal is a backstop, not the policy, and it does not cover a `DROP TABLE` or a truncating write.
 
 **File tools are confined to the data directory** by a generated `permission.external_directory` block (`/data/.lmthing/** = allow`, `/** = deny`). The runtime image under `/app` and the rest of the container are not merely denied — they are unreachable by the file tools. Bash is bounded only by yolo's destructive-command list.
@@ -160,6 +162,7 @@ The version is pinned exactly rather than tracking `latest`: this binary execute
 |---|---|
 | A resume silently starts a new conversation | one `XDG_DATA_HOME` per session makes `-c` unambiguous; an unknown id is refused |
 | Spend lands on an unrelated OpenRouter account | `mapProvider` refuses a non-OpenAI-compatible provider instead of falling back |
+| The primers get written into a repo or home directory instead of a data root | `dataDir` is the resolved lmthing root or nothing; no root ⇒ turns refused, nothing written |
 | Files from a private data directory leak to a third-party MCP server | `mcp_servers = {}` plus each default refused by name; upstream ships three ON |
 | A "fix" to `system/spaces/` reports success and reverts on reboot | stated in `AGENTS.md`, in the agent's rules, and in the `lmthing_apps` knowledge |
 | A turn hangs forever waiting on a permission prompt | `yolo` is written into the generated config; no mode that prompts is reachable |

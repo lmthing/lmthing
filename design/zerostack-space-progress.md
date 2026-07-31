@@ -129,6 +129,17 @@ describing formats that have since changed.
 Verified live on a fresh dir with the real binary — empty after boot, empty after `status`, then
 `.zerostack` + both primers appear with the first turn, which answers correctly.
 
+## Round 5 — the endpoint was writing into whatever cwd it was handed
+
+Two untracked `AGENTS.md` / `ARCHITECTURE.md` appeared at the root of the checkout. Mine:
+`serve.ts` passed `terminalCwd`, which falls back to `process.cwd()`, so a test server started
+without an lmthing root materialized both primers into the repository.
+
+`dataDir` is now `string | undefined` and `serve.ts` passes the resolved root. With none, nothing is
+written, every turn is refused with a reason, and `status` says so. The regression test asserts the
+refusal *and* that `process.cwd()` is untouched — the part that actually went wrong. Confirmed by a
+full CLI-suite run: the checkout now stays clean where it previously did not.
+
 ## New gate worth keeping
 
 `libs/core/src/spaces/system-delegation.test.ts` — `loadSpace` validates `functions:`,

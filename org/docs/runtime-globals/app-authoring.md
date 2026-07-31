@@ -244,7 +244,7 @@ The **live-project** writers live in the **`system-appbuilder`** space's `automa
 
 | Agent | `capabilities:` | Writes |
 |---|---|---|
-| `user-thing/thing` | `project:manage`, `db:read`, `db:write`, `store:read`, `store:install`, `api:call` | `createProject`/`selectProject` (picks the build target) + reads/writes the live db `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:1-19` |
+| `user-thing/thing` | `project:manage`, `db:read`, `db:write`, `store:read`, `store:install`, `api:call` | `createProject`/`selectProject` (picks the build target) + reads/writes the live db `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:1-31` |
 | `system-appbuilder/automator` | `hooks:write`, `db:schema`, `db:read`, `db:write`, `pages:write`, `api:write` | the **live-project** writers `writeProject*` `sdk/org/libs/core/system-spaces/system-appbuilder/agents/automator/instruct.md:1-16` |
 
 ---

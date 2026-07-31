@@ -65,7 +65,7 @@ Neither `model` nor `triggers` has a dedicated sub-doc; both are covered by the 
 ## Real examples
 
 - `store/projects/blog/spaces/newsroom/agents/fetcher/{charter,instruct}.md` — a project-app specialist with `db:read`/`db:write` grants `store/projects/blog/spaces/newsroom/agents/fetcher/instruct.md:1`.
-- `.lmthing/system/spaces/user-thing/agents/thing/instruct.md` — the top-level THING orchestrator, whose `canDelegateTo` lists specialist agents plus `registered:*` `.lmthing/system/spaces/user-thing/agents/thing/instruct.md:1-11`.
+- `.lmthing/system/spaces/user-thing/agents/thing/instruct.md` — the top-level THING orchestrator, whose `canDelegateTo` lists specialist agents plus `registered:*` `.lmthing/system/spaces/user-thing/agents/thing/instruct.md:18-31`.
 
 ## See also
 

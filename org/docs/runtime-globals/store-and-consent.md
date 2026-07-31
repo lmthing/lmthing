@@ -95,7 +95,7 @@ Two failure shapes matter:
 
 ### Real usage (the shipped THING agent)
 
-THING holds both store grants `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:6-8`, delegates discovery to `system-store`'s `finder` (which holds only `store:read`, so it recommends but can never install) `sdk/org/libs/core/system-spaces/system-store/agents/finder/instruct.md:4-6`, and then installs behind the consent card:
+THING holds both store grants `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:14-15`, delegates discovery to `system-store`'s `finder` (which holds only `store:read`, so it recommends but can never install) `sdk/org/libs/core/system-spaces/system-store/agents/finder/instruct.md:4-6`, and then installs behind the consent card:
 
 ````md
    **(b) Install it (consent-gated).** Present the recommendation briefly, then call
@@ -109,9 +109,9 @@ THING holds both store grants `sdk/org/libs/core/system-spaces/user-thing/agents
    A denied card rejects — do not retry unless the user asks again.
 ````
 
-`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:358-368` (the `…` elides three comment lines about reading `inst.error` only)
+`sdk/org/libs/core/system-spaces/user-thing/knowledge/playbooks/paths/integrations.md:44-52` (the `…` elides three comment lines about reading `inst.error` only)
 
-The same instruct carries a rule that follows directly from the consent model: **never call `installSpace` on an unverified id** — because the call is consent-gated it *always* interrupts the user with a card, and asking someone to approve installing something that cannot exist is a bug. Verify with `storeInspect` first (`undefined` ⇒ not in the catalog) `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:370-383`. A multi-service request runs the whole find → install → configure sequence **once per distinct integration**, so each install raises its own consent card `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:342-344`.
+The same instruct carries a rule that follows directly from the consent model: **never call `installSpace` on an unverified id** — because the call is consent-gated it *always* interrupts the user with a card, and asking someone to approve installing something that cannot exist is a bug. Verify with `storeInspect` first (`undefined` ⇒ not in the catalog) `sdk/org/libs/core/system-spaces/user-thing/knowledge/playbooks/paths/integrations.md:54-68`. A multi-service request runs the whole find → install → configure sequence **once per distinct integration**, so each install raises its own consent card `sdk/org/libs/core/system-spaces/user-thing/knowledge/playbooks/paths/integrations.md:21-25`.
 
 ---
 
@@ -289,7 +289,7 @@ Both write the **same shared `Map` reference**, which is why a space registered 
 
 | Space / agent | `capabilities:` | Source |
 |---|---|---|
-| `user-thing` / `thing` | `store:read`, `store:install` | `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:6-8` |
+| `user-thing` / `thing` | `store:read`, `store:install` | `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:14-15` |
 | `system-store` / `finder` | `store:read` only — it recommends, it never installs | `sdk/org/libs/core/system-spaces/system-store/agents/finder/instruct.md:4-6` |
 
 That split is the design: discovery is delegated to a read-only agent, while the consent-marked install stays with the top-level interactive agent — the only context that *has* a user to ask.

@@ -51,7 +51,7 @@ Matching tolerates the ref grammar (`self` / `space/agent` / `npm:pkg/agent`, ea
 
 **Action narrowing.** An allowlist entry may carry `#action`. A match with no `#action` allows every action; otherwise only the listed ones (`sdk/org/libs/core/src/exec/target-match.ts#resolveTaskDelegate`). The resulting `allowedActions` is passed into `runDelegate`, which rejects a disallowed action id (`sdk/org/libs/core/src/delegate/delegate.ts:118-122`).
 
-Real declaration (THING) — `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:9-19`:
+Real declaration (THING) — `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:18-31`:
 
 ````md
 canDelegateTo:

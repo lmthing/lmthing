@@ -1,0 +1,400 @@
+name: Release
+
+# THE release flow. One tag produces one draft release carrying every client we ship:
+#
+#   desktop   macOS (Apple silicon + Intel), Windows x64, Linux x64
+#   mobile    Android APK (arm64-v8a)
+#   cli       the single-file `lmthing` — Linux x64/arm64, macOS x64/arm64, Windows x64
+#
+# ## Why one workflow and not one per client
+#
+# Because a release is a set of things a person chooses between, not three unrelated
+# events. Separate tag namespaces meant a desktop tag could ship while the CLI on the
+# same commit had never been built, and the only way to know what a given release
+# contained was to read three workflows. Here the matrix IS the manifest.
+#
+# It replaces `desktop-release.yml` and the short-lived `cli-release.yml`.
+# `nightly-builds.yml` is untouched and still owns the rolling `nightly` prerelease —
+# that one answers "does main still build", this one answers "what do we hand people".
+#
+# ## Every artifact here is a BUILD; the release is a DRAFT
+#
+# Nothing publishes itself. A release that publishes itself is a release nobody looked
+# at, and several of these are unsigned in ways a recipient has to be told about.
+#
+# ## What is and is not signed
+#
+#   desktop macOS/Windows   UNSIGNED unless the secrets below are present. `tauri` reads
+#                           each one straight from the environment and skips signing when
+#                           it is absent, so adding them is the only change needed:
+#                             APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD
+#                             APPLE_SIGNING_IDENTITY / APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID
+#                             WINDOWS_CERTIFICATE / WINDOWS_CERTIFICATE_PASSWORD
+#   cli macOS               AD-HOC signed by build.mjs — required, an arm64 macOS binary
+#                           with no valid signature will not execute at all — but NOT
+#                           notarised, so a download is quarantined.
+#   android                 DEBUG-signed with the well-known `androiddebugkey`. Installs
+#                           on a phone, rejected by Play. No release keystore exists yet.
+#
+# `TAURI_SIGNING_PRIVATE_KEY` (the updater key) is deliberately NOT referenced. It
+# authorises arbitrary code execution on every machine that ever installed the app, and
+# an updater nobody can rotate is worse than no updater.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build everything but do not create a release'
+        type: boolean
+        default: true
+  push:
+    tags: ['v*']
+
+# Serialized, never cancelled. These are long builds and a second tag landing on top of
+# a running release should queue behind it rather than kill 40 minutes of work.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ── Desktop (Tauri) ─────────────────────────────────────────────────────────────────
+  desktop:
+    name: desktop ${{ matrix.label }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Apple silicon and Intel are separate builds, not a universal binary: a
+          # universal `.app` doubles the download for everyone to save one CI job.
+          - platform: macos-14
+            target: aarch64-apple-darwin
+            label: macos-arm64
+          - platform: macos-13
+            target: x86_64-apple-darwin
+            label: macos-x64
+          # The OLDEST supported Ubuntu, deliberately. AppImage and .deb are
+          # forward-compatible only: something linked against a newer glibc will not
+          # start on an older distro, and the failure is a bare
+          # "version `GLIBC_2.39' not found" at exec time.
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            label: linux-x64
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            label: windows-x64
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Tauri links against WebKitGTK on Linux. Without these the build fails at LINK
+      # time with an error that reads like a Rust problem and is not one.
+      - name: Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev \
+            libssl-dev libgtk-3-dev build-essential curl wget file
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sdk/org/apps/desktop/src-tauri
+          key: release-${{ matrix.target }}
+
+      - name: Install
+        working-directory: sdk/org
+        run: pnpm install --frozen-lockfile
+
+      # `@lmthing/core`'s `./ui` export points at a gitignored `dist/`, so a clean clone
+      # cannot resolve it until core is built.
+      - name: Build workspace deps
+        working-directory: sdk/org
+        run: pnpm --filter @lmthing/core build
+
+      # The committed colour file must still match tokens.json. `include_str!` would
+      # happily compile a stale one, and the window would be the wrong colour on every
+      # launch with nothing to say so.
+      - name: Generate the token file
+        working-directory: sdk/org/apps/desktop
+        run: pnpm generate:tauri-conf
+
+      - name: Bundle
+        working-directory: sdk/org/apps/desktop
+        env:
+          # Each is read only if set; tauri skips signing when it is not.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: pnpm tauri:build --target ${{ matrix.target }}
+
+      # STABLE names, deliberately. Tauri encodes the version into its filenames
+      # (`lmthing_0.1.0_amd64.AppImage`), so publishing them as-is would change every
+      # download URL the moment `version` in tauri.conf.json moves.
+      - name: Collect
+        shell: bash
+        working-directory: sdk/org/apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle
+        run: |
+          set -euo pipefail
+          out="$GITHUB_WORKSPACE/publish"
+          mkdir -p "$out"
+          shopt -s nullglob
+          for f in appimage/*.AppImage; do cp "$f" "$out/lmthing-desktop-${{ matrix.label }}.AppImage"; done
+          for f in deb/*.deb;           do cp "$f" "$out/lmthing-desktop-${{ matrix.label }}.deb"; done
+          for f in dmg/*.dmg;           do cp "$f" "$out/lmthing-desktop-${{ matrix.label }}.dmg"; done
+          for f in msi/*.msi;           do cp "$f" "$out/lmthing-desktop-${{ matrix.label }}.msi"; done
+          for f in nsis/*.exe;          do cp "$f" "$out/lmthing-desktop-${{ matrix.label }}-setup.exe"; done
+          ls -l "$out"
+          # A platform that produced nothing must fail here, not silently contribute
+          # zero files to a release that still looks complete.
+          [ -n "$(ls -A "$out")" ] || { echo "::error::no desktop bundle was produced for ${{ matrix.target }}"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.label }}
+          path: publish/*
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── Mobile (Android) ────────────────────────────────────────────────────────────────
+  # Debug-signed and arm64-only — see the header. This is an installable APK for a phone,
+  # not a Play upload; `ota-publish.yml` owns the shipping path for the store.
+  android:
+    name: android
+    runs-on: ubuntu-latest
+    # Measured on a 2-core runner: the first (uncached) run spent ~35 min in Gradle alone.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+      # Gradle 9.3.1 requires Java 17+. The runner image ships several JDKs and the
+      # default has moved before; pin it rather than inherit it.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      # Installs cmdline-tools and ACCEPTS THE SDK LICENCES — that second part is what
+      # lets Gradle fetch a platform or NDK the image happens not to carry.
+      - uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-android-${{ hashFiles('sdk/org/pnpm-lock.yaml') }}
+          restore-keys: gradle-android-
+
+      - name: Install
+        working-directory: sdk/org
+        run: pnpm install --frozen-lockfile
+
+      # The app's OWN post-install hook, invoked verbatim. Running the same command EAS
+      # runs is the point: if the set of workspace deps that need building changes, both
+      # paths change together instead of this workflow drifting.
+      - name: Build workspace deps
+        working-directory: sdk/org/apps/mobile
+        run: pnpm --filter "@lmthing/mobile^..." --if-present run build
+
+      # `android/` is gitignored — it is prebuild OUTPUT, not source. `--no-install`
+      # stops Expo reaching for npm inside a pnpm workspace, which is how a prebuild
+      # ends up rewriting the lockfile it was handed.
+      - name: Prebuild the native project
+        working-directory: sdk/org/apps/mobile
+        env:
+          CI: '1'
+        run: pnpm exec expo prebuild --platform android --no-install
+
+      # arm64-v8a ONLY. `newArchEnabled=true` means React Native compiles its C++ from
+      # source and gradle.properties asks for four ABIs, so the default is that compile
+      # done four times. arm64-v8a is every Android phone of roughly the last decade;
+      # the cost is that it will NOT install on the standard x86_64 emulator.
+      - name: Assemble the release APK
+        working-directory: sdk/org/apps/mobile/android
+        run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+
+      - name: Collect
+        run: |
+          set -euo pipefail
+          mkdir -p publish
+          cp sdk/org/apps/mobile/android/app/build/outputs/apk/release/app-release.apk \
+             publish/lmthing-android-arm64.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: publish/*
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── CLI (single-file executable) ────────────────────────────────────────────────────
+  cli:
+    name: cli ${{ matrix.target }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # A SEA executable is the BUILD HOST'S OWN node binary with a payload appended,
+          # so it cannot be cross-built — `build.mjs` refuses a non-host target outright.
+          # One native runner per target is the only arrangement that works, and it also
+          # gets each target its own platform-specific optional deps (`@esbuild/*`,
+          # `@tailwindcss/oxide-*`, node-pty's addon).
+          - target: linux-x64
+            runs-on: ubuntu-22.04
+          - target: linux-arm64
+            runs-on: ubuntu-22.04-arm
+          - target: darwin-x64
+            runs-on: macos-13
+          - target: darwin-arm64
+            runs-on: macos-14
+          # REDUCED: upstream publishes neither zerostack nor Lightpanda for Windows, so
+          # this binary is the CLI without the coding agent and without browsing. Both
+          # absences are declared rather than discovered — see scripts/bundle/targets.mjs.
+          - target: win32-x64
+            runs-on: windows-latest
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - id: build
+        uses: ./.github/actions/build-cli-bundle
+        with:
+          target: ${{ matrix.target }}
+
+      - name: Collect
+        shell: bash
+        env:
+          BIN: ${{ steps.build.outputs.path }}
+        run: |
+          set -euo pipefail
+          mkdir -p publish
+          cp "$BIN" "publish/$(basename "$BIN")"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.target }}
+          path: publish/*
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── One release, once everything has built ──────────────────────────────────────────
+  # A single job rather than each build appending: N jobs creating-or-appending to one
+  # tag race, and the loser leaves a half-populated release that still looks finished.
+  release:
+    needs: [desktop, android, cli]
+    # A dispatch defaults to a dry run: build everything, publish nothing.
+    if: github.ref_type == 'tag' || inputs.dry_run == false
+    runs-on: ubuntu-latest
+    permissions:
+      # `gh release create` needs write. The default token is read-only for contents and
+      # the failure is a 403 arriving after every build has already run.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: artifacts
+        run: |
+          set -euo pipefail
+          ls -l
+          sha256sum * | tee SHA256SUMS.txt
+
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # REQUIRED even though this job's cwd is the parent repo: spelled out so a
+          # future `working-directory` inside the `sdk/org` submodule cannot silently
+          # retarget `gh` at github.com/lmthing/org, where this token cannot write.
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.run_number) }}
+        run: |
+          set -euo pipefail
+          cat > notes.md <<'EOF'
+          ## Desktop
+
+          | | |
+          |---|---|
+          | `lmthing-desktop-macos-arm64.dmg` | macOS, Apple silicon |
+          | `lmthing-desktop-macos-x64.dmg` | macOS, Intel |
+          | `lmthing-desktop-windows-x64-setup.exe` / `.msi` | Windows x64 |
+          | `lmthing-desktop-linux-x64.AppImage` / `.deb` | Linux x64 |
+
+          Unsigned. macOS reports the app as "damaged" (Gatekeeper's message for a missing
+          signature, not a corrupt download) and Windows SmartScreen blocks the first run
+          behind a "more info" link.
+
+          ## Mobile
+
+          `lmthing-android-arm64.apk` — arm64-v8a only, so it installs on a phone but not on
+          the standard x86_64 emulator. DEBUG-signed: Play will reject it. It cannot receive
+          OTA updates.
+
+          ## CLI
+
+          A single file. No Node, no pnpm, no checkout.
+
+          | | zerostack | browsing |
+          |---|---|---|
+          | `lmthing-linux-x64`, `lmthing-linux-arm64` | embedded | on first browse |
+          | `lmthing-darwin-x64`, `lmthing-darwin-arm64` | embedded | on first browse |
+          | `lmthing-win32-x64.exe` | **not available** | **not available** |
+
+          ```bash
+          chmod +x lmthing-<target>
+          ./lmthing-<target> serve --port 8080
+          ```
+
+          The **zerostack** coding agent is embedded. The **Lightpanda** browser is not
+          (156 MB, and most runs never browse) — it installs itself on the first browse, or
+          run `lmthing browser install` to fetch it deliberately. Upstream publishes neither
+          for Windows, so that binary is the CLI without them; it says so rather than failing
+          obscurely.
+
+          First run unpacks the runtime into `~/.cache/lmthing` (`~/Library/Caches/lmthing` on
+          macOS, `%LOCALAPPDATA%\lmthing\Cache` on Windows); later runs start in about half a
+          second. `LMTHING_BUNDLE_CACHE` relocates it.
+
+          **macOS:** ad-hoc signed but not notarised, so a download is quarantined. Clear it
+          with `xattr -d com.apple.quarantine lmthing-darwin-*`.
+
+          Detail: `org/docs/cli-api/bundle.md`.
+          EOF
+
+          gh release create "$TAG" \
+            --draft --prerelease \
+            --title "LMThing $TAG" \
+            --notes-file notes.md \
+            --target "$GITHUB_SHA" \
+            artifacts/*
+
+          url=$(gh release view "$TAG" --json url -q .url)
+          echo "Drafted **$TAG** — review and publish it at $url" >> "$GITHUB_STEP_SUMMARY"

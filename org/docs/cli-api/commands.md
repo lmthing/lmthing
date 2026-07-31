@@ -29,7 +29,7 @@ Modes 3 and 4 are the production path (the compute pod runs bare `lmthing`); the
 
 ## Subcommands
 
-Two leading subcommands are shifted off `argv` before flag parsing `sdk/org/libs/cli/src/cli/args.ts:59-65`.
+Three leading subcommands are shifted off `argv` before flag parsing `sdk/org/libs/cli/src/cli/args.ts#parseArgs`.
 
 ### `lmthing serve`
 
@@ -55,7 +55,20 @@ lmthing runtime initialized at <cwd>/.lmthing
   default project → <cwd>/.lmthing/user
 ```
 
-No model, no API key, no `--space`, no message — `init` returns from `parseArgs` before any validation `sdk/org/libs/cli/src/cli/args.ts:205-208`.
+No model, no API key, no `--space`, no message — `init` returns from `parseArgs` before any validation `sdk/org/libs/cli/src/cli/args.ts#parseArgs`.
+
+### `lmthing browser install`
+
+Keyless. Downloads the Lightpanda browser (~156 MB) into the cache, with a progress line on a TTY, and exits `sdk/org/libs/cli/src/cli/args.ts#CliArgs.browserInstall`.
+
+```
+browser installed at ~/.cache/lmthing/lightpanda/linux-x64/lightpanda
+  sha256 3f9a…
+```
+
+It exists so the fetch can happen **deliberately** rather than landing in the middle of the first turn that happens to browse. A [bundled `lmthing`](./bundle.md) installs the browser on demand anyway; this is the same install, run when you choose. A checkout does not install on demand unless `LIGHTPANDA_AUTO_INSTALL=1`, so there this subcommand is the way in `sdk/org/libs/cli/src/browser/lightpanda.ts#autoInstallEnabled`.
+
+Exits non-zero, naming the cause, when the download fails or the platform has no upstream build `sdk/org/libs/cli/src/browser/lightpanda-install.ts#installLightpanda`.
 
 ### Bare `lmthing`
 

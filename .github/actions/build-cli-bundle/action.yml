@@ -1,0 +1,120 @@
+name: Build the lmthing CLI bundle
+description: >
+  Build the single-file `lmthing` executable for one target and prove the artifact
+  actually runs. Shared by `cli-bundle.yml` (per-commit) and `cli-release.yml`
+  (shipping) so the two cannot drift — the smoke test is the valuable part, and a
+  release that skipped it would be the one nobody checked.
+
+inputs:
+  target:
+    description: 'linux-x64 | linux-arm64 | darwin-x64 | darwin-arm64'
+    required: true
+
+outputs:
+  path:
+    description: Absolute path of the built executable.
+    value: ${{ steps.bundle.outputs.path }}
+  sha256:
+    description: sha256 of the built executable.
+    value: ${{ steps.bundle.outputs.sha256 }}
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+    - uses: actions/setup-node@v4
+      with:
+        # The bundled executable IS this Node. Pinning the major here pins what
+        # ships — `node:sqlite`, which the app data store loads through
+        # `createRequire`, needs >= 24.
+        node-version: '24'
+        cache: pnpm
+
+    - name: Install
+      shell: bash
+      working-directory: sdk/org
+      run: pnpm install --frozen-lockfile
+
+    # `@lmthing/core`'s `./ui` export points at a gitignored `dist/`, so a clean
+    # clone cannot resolve it until core is built. The payload also SHIPS both
+    # dists, and the external scan reads both — core's has externals of its own.
+    - name: Build the runtime packages
+      shell: bash
+      working-directory: sdk/org
+      run: |
+        pnpm --filter @lmthing/core build
+        pnpm --filter @lmthing/cli build
+
+    # The served SPA (`/studio`, `/computer`, `/chat`) goes into the payload;
+    # without it the binary starts and answers `503 app not built yet`.
+    - name: Build the web app
+      shell: bash
+      working-directory: sdk/org/apps/web
+      run: pnpm exec vp build
+
+    - name: Bundle
+      id: bundle
+      shell: bash
+      working-directory: sdk/org/libs/cli
+      run: |
+        set -euo pipefail
+        node scripts/bundle/build.mjs --target "${{ inputs.target }}"
+        bin="$PWD/dist-bundle/lmthing-${{ inputs.target }}"
+        echo "path=$bin" >> "$GITHUB_OUTPUT"
+        # shasum is present on both macOS and Linux runners; sha256sum is not.
+        echo "sha256=$(shasum -a 256 "$bin" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+    # A build proving it can ASSEMBLE an executable is not the same as the
+    # executable working: the payload can be missing a package that only one code
+    # path imports, and a SEA whose extraction fails looks identical to a corrupt
+    # download. Both of those actually happened during development, and only
+    # running the binary found them. So run it from an empty cwd and a cold cache
+    # — the state a person who just downloaded it is in.
+    - name: Smoke test the artifact
+      shell: bash
+      env:
+        BIN: ${{ steps.bundle.outputs.path }}
+      run: |
+        set -euo pipefail
+        work="$(mktemp -d)"; cache="$(mktemp -d)"
+        export LMTHING_BUNDLE_CACHE="$cache"
+        # Nothing may reach for the 156 MB browser during a smoke test.
+        export LIGHTPANDA_AUTO_INSTALL=0
+        cd "$work"
+
+        echo "▸ init (cold cache — this is the extraction path)"
+        "$BIN" init
+
+        echo "▸ serve"
+        "$BIN" serve --port 18099 > serve.log 2>&1 &
+        server=$!
+        for _ in $(seq 1 60); do
+          curl -sf -o /dev/null "http://127.0.0.1:18099/api/projects" && break
+          sleep 1
+          if ! kill -0 "$server" 2>/dev/null; then
+            echo "::error::the server exited during startup"; cat serve.log; exit 1
+          fi
+        done
+
+        curl -sf "http://127.0.0.1:18099/api/projects" | tee /dev/stderr | grep -q '"projects"'
+        # The SPA is served from the payload, not from a repo checkout.
+        test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18099/chat)" = "200"
+
+        # zerostack is EMBEDDED on every target upstream builds it for, so its endpoint
+        # reporting a version is the proof the vendored binary survived tar, extraction
+        # and the executable bit. Windows has no upstream build; asserting there would
+        # fail a target that is behaving exactly as designed — but NOT asserting on the
+        # others would let a silently-missing binary ship, so the check is skipped by
+        # NAME rather than made best-effort everywhere.
+        case "${{ inputs.target }}" in
+          win32-*)
+            echo "· zerostack check skipped — no upstream Windows build (expected)"
+            ;;
+          *)
+            grep -qE '^\[zerostack\] zerostack [0-9]' serve.log \
+              || { echo "::error::zerostack did not start from the payload"; cat serve.log; exit 1; }
+            ;;
+        esac
+
+        kill "$server" 2>/dev/null || true
+        echo "✓ ${{ inputs.target }} runs"

@@ -1,0 +1,129 @@
+name: CLI bundle
+
+# Builds `lmthing` as a single-file executable for each unix target: Node's own
+# binary with the runtime tree and the vendored zerostack appended as a `node:sea`
+# payload (`sdk/org/libs/cli/scripts/bundle/`).
+#
+# ## Why a matrix of native runners and not a build matrix on one
+#
+# A SEA executable IS the building host's node binary with a blob appended, so it
+# is not cross-buildable — `build.mjs` refuses outright rather than emitting an
+# artifact that dies at exec with a format error. One runner per target is the
+# only arrangement that works, and it also means npm installs each target's own
+# platform-specific optional deps (`@esbuild/*`, `@tailwindcss/oxide-*`,
+# node-pty's addon) instead of the wrong ones.
+#
+# ## Why there is no Windows target
+#
+# Neither vendored binary exists for it: zerostack publishes only darwin/linux
+# assets and Lightpanda only `{x86_64,aarch64}-{linux,macos}`. A Windows bundle
+# would be this CLI with both of the features the bundle exists to carry silently
+# missing, failing at the moment someone used them. See `scripts/bundle/targets.mjs`.
+#
+# `sdk/org` is listed WITHOUT a trailing `/**` as well, and that is NOT redundant:
+# it is a submodule, so bumping it changes the single gitlink path `sdk/org`, which
+# `sdk/org/**` does not match. A submodule bump is how essentially all `sdk/org`
+# source reaches this repo — omitting the bare entry is why `native-target.yml` ran
+# exactly once in its life.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: &bundle_paths
+      - 'sdk/org'
+      - 'sdk/org/**'
+      - '.github/workflows/cli-bundle.yml'
+  push:
+    branches: [main]
+    paths: *bundle_paths
+
+jobs:
+  # The cheap gate. Everything the bundle depends on that can break without a
+  # 200 MB build: the payload assembler's own logic, and the browser install /
+  # first-browse shim. ~1 minute, and it runs on pull requests where `bundle`
+  # deliberately does not.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Install
+        working-directory: sdk/org
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: sdk/org
+        run: pnpm --filter @lmthing/cli typecheck
+
+      - name: Test the bundle-facing code
+        working-directory: sdk/org
+        run: pnpm test libs/cli/src/browser
+
+  bundle:
+    # Pull requests get `check` and no binary — these are 200 MB artifacts and a
+    # macOS runner bills at 10x. The executables are for commits that landed.
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 45
+    strategy:
+      # One target's failure must not cancel the others: which platforms broke is
+      # the useful signal, and losing three good artifacts to one bad one wastes
+      # the whole run.
+      fail-fast: false
+      matrix:
+        include:
+          # ubuntu-22.04, NOT ubuntu-latest, matching `desktop.yml` for the same
+          # reason: glibc is forward-compatible only, so something linked against
+          # a newer one will not start on an older distro and says so as a bare
+          # "version `GLIBC_2.39' not found" at exec time. An artifact a colleague
+          # cannot run is not worth building.
+          - target: linux-x64
+            runs-on: ubuntu-22.04
+          - target: linux-arm64
+            runs-on: ubuntu-22.04-arm
+          - target: darwin-x64
+            runs-on: macos-13
+          - target: darwin-arm64
+            runs-on: macos-14
+          # REDUCED: upstream publishes neither zerostack nor Lightpanda for Windows,
+          # so this binary is the CLI without the coding agent and without browsing.
+          # Both absences are declared in `scripts/bundle/targets.mjs` rather than
+          # discovered at runtime, and the smoke test below still has to pass.
+          - target: win32-x64
+            runs-on: windows-latest
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Build AND smoke-test, shared with `cli-release.yml` so the shipping path
+      # cannot skip a check this one runs. The smoke test is the valuable half:
+      # a build proving it can ASSEMBLE an executable is not the same as the
+      # executable working, and only running the binary found the two payload
+      # gaps this bundle shipped with during development.
+      - id: build
+        uses: ./.github/actions/build-cli-bundle
+        with:
+          target: ${{ matrix.target }}
+
+      - name: Summarise
+        run: |
+          {
+            echo "### lmthing CLI — ${{ matrix.target }} (unsigned)"
+            echo
+            echo "- sha256 \`${{ steps.build.outputs.sha256 }}\`"
+            echo '- zerostack embedded; Lightpanda fetched on first browse (`lmthing browser install` to prefetch)'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lmthing-cli-${{ matrix.target }}-${{ github.sha }}
+          path: ${{ steps.build.outputs.path }}
+          if-no-files-found: error
+          retention-days: 14

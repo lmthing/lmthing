@@ -4,7 +4,8 @@
 
 | Page | Covers |
 |---|---|
-| **[commands.md](./commands.md)** | Subcommands (`serve`, `init`), the bare invocation, every flag, the env surface, mock/REPL/web/headless modes. |
+| **[commands.md](./commands.md)** | Subcommands (`serve`, `init`, `browser install`), the bare invocation, every flag, the env surface, mock/REPL/web/headless modes. |
+| **[bundle.md](./bundle.md)** | The single-file executable: what is embedded (zerostack) vs fetched on first use (Lightpanda), the extraction cache, the four targets, and why there is no Windows one. |
 | **[rest/](./rest/README.md)** | The HTTP + WS API: sessions, projects, spaces, env, uploads, fs, hooks, webhooks, apps/store, budget. |
 | [../README.md](../README.md) | The documentation hub (format, runtime globals, the surfaces). |
 

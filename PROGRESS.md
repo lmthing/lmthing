@@ -20,6 +20,7 @@ built from the element vocabulary or is honestly declared unbuildable.
 | 1 | CLI-ENGINE · UI-RENDERER · SPACE · MOBILE (parallel, disjoint paths) | ✅ all four |
 | 2 | Integrate: golden app (kitchen) + full gates | ✅ **T1 PASSES**; both gates fixed and honest |
 | 3 | Prove: A/B baseline, 2 new scenarios, DeepSeek gate, lmauto campaign, visual + native gates | 🔄 first live run + scenario authoring |
+| 3 | **The A/B ladder** — same brief, both builders, three difficulty levels, on pixels | 🔄 L1 running |
 
 ## Wave 0 — the contract
 
@@ -648,3 +649,72 @@ paranoia immediately — its first self-test observed `document.documentElement`
 **Not yet wired**: nothing calls `renderCheck`. Hooking it into `scenarios/lib/evidence.mjs#snapshot`
 or an `open_app` step verb is the remaining step (~7s for 4 routes × 2 viewports, findings already
 `ViewError`-shaped for the merge).
+
+## The A/B ladder — deciding the migration on evidence
+
+Owner question (2026-07-31): *before migrating app building to `system-viewbuilder`, prove it
+produces apps as good as `system-appbuilder`'s — and that they fully work.* Everything below is
+local, on the DeepSeek pin, driven **directly at both automators** via `space_session` so THING's
+routing judgement is not part of the measurement.
+
+### First, the gate that made the question answerable
+
+`renderCheck` had existed since Workstream D with 60 tests and a demonstrated failure on the
+known-bad case, and **nothing called it**. `open_app` recorded build + typecheck + a 200 and said
+outright that "browser render is the judge's job", with no rig to do it. Wired in behind
+`open_app: {render: true}` (`aa24b5fc`), plus a new **interaction probe** behind `interact: true`
+that clicks one control per route with a real `Input.dispatchMouseEvent` — not `element.click()`,
+which would happily succeed on a button under an overlay — and asks whether the app did anything at
+all: a request, a navigation, or a re-render.
+
+Two design points worth keeping. The gate is **builder-neutral**: routes come from `appBuild`'s own
+route table and carry their authored `file`, so a finding names `pages/x.tsx` for a TSX app and
+`pages/x.view.json` for a spec app — which is what lets one instrument score both sides. And route
+parameters are resolved **per-collection, never from a global pool**, because that pool is the
+shipped bug that smoked `recipes/[id]` with an INGREDIENT id and then blamed the page.
+
+**It earned its place immediately.** Replayed against `13-plant-care` run 7 — the run every existing
+gate called clean and the ratchet scored `app: usable` — it returned five real findings:
+
+| finding | what the user would hit |
+|---|---|
+| `empty-form` on `plants/new` (both viewports) | **the app cannot add a plant**; the page says "Nothing to fill in." |
+| `action-failed` — Save → 400 | the consequence of the above |
+| `action-failed` — dashboard-stats 500 | the front page shows "Something went wrong" |
+| **`dead-control`** — "Details" does nothing at all | never reported by ANY gate before |
+
+The first three confirm known-open items from a second, independent direction; the `dead-control` was
+new. Screenshots confirmed all of it in pixels.
+
+### The ladder
+
+`viewbuilder.yaml` is the source of truth in each pair and `appbuilder.yaml` is **generated** by
+`scenarios/harness/ab-pair.mjs`, which rewrites the id, the title and the `space_session` target and
+nothing else — asserted by a test, because two hand-kept copies of a 40-line brief do not stay
+identical and the drift would be invisible (both halves still parse, still run, still produce numbers
+that look like an A/B). Neither builder's nodes declare a `model:`, so both run the default alias `M`.
+
+| level | scenario | shape |
+|---|---|---|
+| L1 | `30-bike-workshop` | ~4 tables, 6 pages — one computed figure, one toggle, one follow-up edit |
+| L2 | `31-food-coop` | the plan's own T3 bar: ~6 tables, 9 pages, prefill, background import, 2 automations, planted arithmetic (£47.30) |
+| L3 | `32-festival` | ~8 tables, 12 pages, per-entity sub-nav, a timeline, a chat dock, cross-entity clash detection |
+
+**L3 carries a deliberately vocabulary-hostile ask** — soundcheck playback with a scrubbable
+waveform. The 24-element vocabulary has no media element and no canvas, and there is no escape hatch,
+so the correct viewbuilder outcome is an honest "cannot express this part" while the appbuilder can
+author it freehand. That asymmetry is the experiment, not a flaw in it: it prices the ceiling in the
+one place the ceiling actually binds.
+
+Scored by `scenarios/metrics/ab-report.mjs` — builder-neutral by construction, three sections: does
+it work (build/typecheck, then blank pages, collapsed scrollers, unreachable controls, empty forms,
+dead controls), is it as capable (tables, rows, endpoints, routes, hooks), what did it cost (authored
+UI lines excluding generated wrappers, tokens, wall clock).
+
+### Standing hazard, mitigated not ignored
+
+Two live scenario runs at once saturate the Azure endpoint; every turn then fails with connect
+timeouts and the harness marks the steps VOID, so the run tests nothing. The owner asked for L1 in
+parallel, so each half runs with `SCENARIO_MAX_SESSIONS=12` (half the default) and the watch greps
+for the outage signature every 10s to abort early rather than burn two hours. If it saturates
+anyway, the fallback is staggered runs.

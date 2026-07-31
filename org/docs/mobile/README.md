@@ -895,6 +895,21 @@ its own OTA path. `staging` sets it plus `RELEASE_CHANNEL=staging`
 branch and without a binary asking for that channel nothing could ever receive one.
 `development` sets neither: a dev client loads from Metro and never asks the server.
 
+**The staging APK is the thing that makes the staging channel mean anything**, and it is
+not interchangeable with the preview APK: `RELEASE_CHANNEL=staging` puts it on its own
+runtimeVersion, so it receives staging publishes and *only* staging publishes. Build and
+distribute one whenever the native project moves, and record its runtimeVersion — read out
+of the artifact, never re-resolved from a tree that has since moved on:
+
+```bash
+cd sdk/org/apps/mobile
+eas build --platform android --profile staging --local --output ./build-artifacts/lmthing-staging.apk
+unzip -p build-artifacts/lmthing-staging.apk assets/fingerprint    # → runtimeVersion
+```
+
+Then add it under `android.staging` in `apps/mobile/shipped-runtime-versions.json`, or
+every staging publish skips with "no binary has ever been built for this channel".
+
 **`babel-preset-expo` must be an explicit dependency** even though `expo` pulls it in
 (`sdk/org/apps/mobile/package.json:38-44`). `babel.config.js` names it as a preset, and
 under pnpm's strict layout Babel resolves presets from *its own* location in the store,
@@ -984,6 +999,20 @@ workflow:
 | `EXPO_OTA_APP_ID` | `5d1b793a…` |
 | `EXPO_OTA_APP_ID` + `RELEASE_CHANNEL=staging` | `e455f974…` |
 
+Read that table for the *shape*, not the digits: every value in it moves whenever a
+dependency or the native project does, and all three had already changed by the time the
+staging channel was stood up (`7caf2995…` and `ebe0aba3…` for the production and staging
+profiles of `sdk/org b46d55b0`). What does not change is that **the three rows differ**,
+and that is the fact with consequences.
+
+The middle and last rows are why a channel needs its own binary. `RELEASE_CHANNEL`
+distinguishes them, so the staging and production builds of one commit are different
+runtimeVersions — the channel header and the fingerprint separate the two audiences
+independently, and a staging bundle cannot reach a production phone even if a channel
+mapping were wrong. It also means a staging publish reaches nobody until a staging build
+exists and is recorded, which is what
+`apps/mobile/shipped-runtime-versions.json` is keyed by channel to express.
+
 `eas.json` itself is a fingerprint source too, under the `easBuild` reason — so editing a
 build profile changes the runtimeVersion of every profile, and binaries already in the
 field stop being offered new bundles until a release carries the new value out. That is
@@ -1051,48 +1080,76 @@ no updates client at all, so a production build THROWS rather than producing a b
 whose OTA is quietly dead (`sdk/org/apps/mobile/app.config.js:23-40`). Set
 `EXPO_OTA_APP_ID` in the production profile's env.
 
-### Publishing
+### Publishing — two stages, and the branch decides which
 
-**A push to `main` that moves the submodule pointer publishes automatically.** The trigger
-is the bare path `sdk/org` (`.github/workflows/ota-publish.yml:29-45`) — the app and every
-lib it bundles live *inside* the submodule, which no commit in the parent repo ever
-touches, so a gitlink entry is the only thing a path filter can match. That also makes the
-pointer the right signal: JavaScript `main` does not point at is not what the rest of the
-product is running, and has no business reaching phones ahead of it.
+**A push publishes automatically, and the branch chooses the audience**
+(`.github/workflows/ota-publish.yml:58` · `.github/workflows/ota-publish.yml:187-191`):
+
+| push to | publishes to channel | reaches |
+|---|---|---|
+| `staging` | `staging` | testers running the staging APK |
+| `main` | `production` | everyone on the store build |
+
+So the path for a change is **staging first, then a merge into main**. The merge *is* the
+promotion — there is no separate "promote" action, because the same JavaScript republished
+under the production channel is exactly what promotion means here.
+
+The trigger for both is the bare path `sdk/org` (`.github/workflows/ota-publish.yml:69-70`)
+— the app and every lib it bundles live *inside* the submodule, which no commit in the
+parent repo ever touches, so a gitlink entry is the only thing a path filter can match.
+That also makes the pointer the right signal: JavaScript `main` does not point at is not
+what the rest of the product is running, and has no business reaching phones ahead of it.
+
+**Staging-first is enforced, not merely documented.** A push to `main` whose `sdk/org`
+pointer has never been on the `staging` branch fails
+(`.github/workflows/ota-publish.yml:138-166`). The test is on the pointer rather than on
+branch topology, because the pointer *is* the JavaScript: that survives merge commits,
+rebases and squashes, all of which change main's own SHA while carrying identical JS. It
+searches the whole history of staging's pointer rather than comparing against its current
+one, so a staging branch that has legitimately moved ahead while a main run sat queued
+does not fail the run.
+
+This one **fails** rather than skipping, unlike the runtimeVersion check below, and the
+difference is deliberate: a native change landing on main is a normal state of the branch,
+whereas JavaScript reaching production without a rehearsal is a process being bypassed, and
+a green check would say the opposite. The escape hatch for a genuine hotfix is a manual
+dispatch, which does not run the step at all.
 
 Automation removed the reviewer that used to stand between a merge and every installed
-phone, so three things replace them:
+phone, so four things replace them:
 
+- **The staging rehearsal itself**, above — production is reachable only through it.
 - **The gates run first and a red one stops the publish** — typecheck, a production
   bundle, the `@lmthing/ui` suite, and the Metro native harness. The harness is there
   specifically because a broken React Native graph is invisible to `tsc` and to the jsdom
-  suite, and `bundle:android` proves the app bundles, not that its screens mount.
-- **It refuses to publish for a runtimeVersion no shipped binary has.**
+  suite, and `bundle:android` proves the app bundles, not that its screens mount. They run
+  on the staging push too: catching a broken bundle before testers install it costs four
+  minutes, and catching it after teaches them to distrust the channel.
+- **It refuses to publish for a runtimeVersion no shipped binary has, per channel.**
   `apps/mobile/scripts/resolve-publish-target.mjs` resolves the fingerprint and looks it up
-  in `apps/mobile/shipped-runtime-versions.json`; a miss means the commit changed the
-  native project, and the run ends with an explanation instead of an update nobody can
-  receive. **Add an entry to that file whenever you upload a build** — a forgotten entry
-  stops publishing, which is the safe direction, but it stops it silently until someone
-  reads the summary.
+  in `apps/mobile/shipped-runtime-versions.json` under the channel being published to; a
+  miss means the commit changed the native project, and the run ends with an explanation
+  instead of an update nobody can receive. **Add an entry to that file whenever you upload
+  a build to the store or hand an APK to testers** — a forgotten entry stops publishing,
+  which is the safe direction, but it stops it silently until someone reads the summary.
 - **Afterwards it asks the server what a phone would get** and fails if that is not a real,
   signed, downloadable update.
 
 The automatic path does **not** use the `production` GitHub Environment: its required
 reviewer would park every push waiting for a click. Manual dispatch keeps it, and stays
-the way to publish at a percentage, to `staging`, or to re-run. Rollback is still manual
-and instant, and remains the actual answer to a bad bundle.
+the way to publish at a percentage or to re-run. Rollback is still manual and instant, and
+remains the actual answer to a bad bundle.
 
 A partial rollout is never scheduled automatically — promoting one is a manual act, so an
 automatic 10% would leave most devices on the old bundle until somebody remembered.
 
 ### Publishing by hand
 
-`.github/workflows/ota-publish.yml`, manually dispatched. It is not automatic on push on
-purpose: a bad bundle reaches every phone within minutes, and unlike a store release
-nothing reviews it on the way. The workflow takes a branch, a rollout percentage and a
-message, runs typecheck and a real bundle first, and publishes with `eoas`. The
-`production` branch maps to a GitHub Environment, so a required reviewer there is the
-gate between a merge and everyone's phone.
+The same workflow, manually dispatched — the path for a rollout percentage, a re-run, or a
+hotfix that genuinely cannot wait for a staging rehearsal. It takes a branch, a rollout
+percentage and a message, runs the same gates first, and publishes with `eoas`. Dispatching
+to `production` uses the `production` GitHub Environment, so a required reviewer there is
+the gate that the automatic path replaces with staging.
 
 Two names matter and are easy to get wrong. `EOO_TOKEN` holds an **app-scoped API key**
 (`eoo_…`) minted per app in the dashboard — not the server's `JWT_SECRET`, so the CI
@@ -1122,6 +1179,28 @@ The mapping is created once per channel, against the control-plane API:
 curl -X POST https://lmthing.cloud/ota/api/apps/$APP_UUID/channels \
   -H "authorization: Bearer $DASHBOARD_TOKEN" -H 'content-type: application/json' \
   -d '{"channelName":"production","branchName":"production"}'
+```
+
+**The branch has to exist first, and only a publish creates one.** Mapping a channel to a
+branch that has never been published to answers `500 An internal error occurred while
+creating the channel` — which reads like a server fault rather than an ordering mistake.
+So standing up a new channel is always: publish once with `--branch <name>`, then create
+the mapping, then verify. Between those two steps the branch exists and holds updates
+while every device asking for the channel still gets `404 No branch mapping found`.
+
+That first publish needs a credential, and CI's lives only in the `EOO_TOKEN` GitHub
+secret. Mint a throwaway one for the bootstrap rather than weakening anything:
+
+```bash
+# create — the key is returned ONCE, in full
+curl -X POST https://lmthing.cloud/ota/api/apps/$APP_UUID/apiKeys \
+  -H "authorization: Bearer $DASHBOARD_TOKEN" -H 'content-type: application/json' \
+  -d '{"name":"staging-bootstrap"}'
+
+# revoke when done — DELETE, and the path ends in /revoke. A plain
+# DELETE .../apiKeys/$ID (no suffix) is a 404, which looks like "already gone"
+curl -X DELETE https://lmthing.cloud/ota/api/apps/$APP_UUID/apiKeys/$ID/revoke \
+  -H "authorization: Bearer $DASHBOARD_TOKEN"
 ```
 
 ### Proving an update would actually be applied, without a device

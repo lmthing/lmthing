@@ -11,8 +11,26 @@ name: Publish OTA update
 # fingerprint rather than appVersion: nothing here can push a bundle at a binary that
 # cannot run it.
 #
-# It runs AUTOMATICALLY on a push to main that moves the app's JavaScript, and manually
-# for anything else (a percentage rollout, a staging publish, a re-run).
+# TWO STAGES, and the branch you push to decides which:
+#
+#   push to `staging`  →  channel `staging`   →  testers running the staging APK
+#   push to `main`     →  channel `production` →  everyone on the store build
+#
+# The intended path for a change is therefore staging first, then a merge into main.
+# That is enforced, not merely documented: a push to main whose JavaScript never sat on
+# staging FAILS (see "Require that this JavaScript was staged first"). Without the check
+# the process is a sentence in a README that the first hurried fix walks straight past.
+#
+# The two channels are separated TWICE over, which is worth knowing before you try to
+# make one binary serve both. `RELEASE_CHANNEL` is read by app.config.js — it becomes the
+# `expo-channel-name` request header — and the fingerprint hashes the resolved config. So
+# a staging build and a production build of the SAME commit have different
+# runtimeVersions, on top of asking for different channels. A staging bundle cannot reach
+# a production phone even if a channel mapping were wrong, and each channel needs its own
+# binary to exist before a publish to it means anything.
+#
+# It runs AUTOMATICALLY on a push that moves the app's JavaScript, and manually for
+# anything else (a percentage rollout, a re-run, a hotfix that must skip staging).
 #
 # It did not always. The guard used to be a person: someone decided to publish, at a
 # rollout they chose, behind a required reviewer on the `production` environment. Making
@@ -20,12 +38,13 @@ name: Publish OTA update
 # simply delete them — a bad bundle still reaches every phone in minutes, and nothing
 # reviews it on the way. What stands there now:
 #
+#   · a rehearsal on real devices, because production is reachable only through staging
 #   · the real gates run FIRST, and a red one stops the publish — typecheck, a production
 #     bundle, the @lmthing/ui suite, and the Metro native harness, which is the only thing
 #     that can see a broken React Native graph
-#   · it refuses to publish for a runtimeVersion no shipped binary has
-#     (apps/mobile/shipped-runtime-versions.json), so a native change on main is a no-op
-#     with an explanation instead of an update nobody can receive
+#   · it refuses to publish for a runtimeVersion no shipped binary has, PER CHANNEL
+#     (apps/mobile/shipped-runtime-versions.json), so a native change is a no-op with an
+#     explanation instead of an update nobody can receive
 #   · afterwards it asks the server what a phone would get and FAILS if that is not a
 #     real, signed, downloadable update
 #   · rollback stays instant and manual, which is the actual answer to a bad bundle
@@ -36,7 +55,7 @@ name: Publish OTA update
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
     paths:
       # `sdk/org` is the bare SUBMODULE POINTER, and it is the only entry here that can
       # fire: the app and every lib it bundles live INSIDE the submodule, which no commit
@@ -72,8 +91,10 @@ on:
         required: false
 
 concurrency:
-  # Two publishes racing to the same branch leave the newest manifest ambiguous.
-  group: ota-${{ github.event.inputs.branch || 'production' }}
+  # Two publishes racing to the same channel leave the newest manifest ambiguous. Keyed on
+  # the CHANNEL rather than the git ref, so a manual production publish and an automatic
+  # one from main land in the same group instead of racing under two different names.
+  group: ota-${{ github.event.inputs.branch || (github.ref_name == 'main' && 'production' || github.ref_name) }}
   # On a push, only the newest commit is worth shipping — a queued run for a commit that
   # has already been superseded would publish an update that is obsolete on arrival. A
   # manual run is never cancelled: someone chose its rollout and its message.
@@ -93,8 +114,56 @@ jobs:
         with:
           submodules: recursive
           # The fingerprint is computed from the native project, which is derived from
-          # the whole workspace. A shallow checkout hashes a different tree.
+          # the whole workspace. A shallow checkout hashes a different tree. The
+          # staged-first check below also needs main's and staging's full histories.
           fetch-depth: 0
+
+      # The process, made real. A push to main publishes to every phone in the field with
+      # no human in the loop, and the only rehearsal that exists is the staging channel —
+      # so production is reachable only through it.
+      #
+      # The test is on the SUBMODULE POINTER, not on branch topology: the app and every
+      # library it bundles live in sdk/org, so that gitlink IS the JavaScript this run
+      # would publish. Asking "was this exact pointer ever on staging" survives merge
+      # commits, rebases and squashes, all of which change main's own SHA while carrying
+      # the same JS. Checking `origin/staging`'s CURRENT pointer alone would not: staging
+      # legitimately moves ahead while a main run is still queued, so the whole history of
+      # the pointer is the race-free question.
+      #
+      # This FAILS rather than skipping, unlike the runtimeVersion check below. A native
+      # change landing on main is a normal state of the branch; JavaScript reaching
+      # production without a rehearsal is a process being bypassed, and a green check
+      # would say the opposite. The escape hatch for a genuine hotfix is a manual
+      # workflow_dispatch, which does not run this step.
+      - name: Require that this JavaScript was staged first
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        run: |
+          git fetch --no-tags origin '+refs/heads/staging:refs/remotes/origin/staging' 2>/dev/null || true
+          if ! git rev-parse -q --verify refs/remotes/origin/staging >/dev/null; then
+            echo "::error title=No staging branch::Branch 'staging' does not exist, so nothing" \
+                 "can have been rehearsed on it. Create it from main and push changes there first."
+            exit 1
+          fi
+
+          TARGET="$(git rev-parse 'HEAD:sdk/org')"
+          echo "this run would publish sdk/org $TARGET"
+
+          STAGED=""
+          for c in $(git log --format=%H origin/staging -- sdk/org); do
+            if [ "$(git rev-parse -q --verify "$c:sdk/org" 2>/dev/null)" = "$TARGET" ]; then
+              STAGED="$c"
+              break
+            fi
+          done
+
+          if [ -z "$STAGED" ]; then
+            echo "::error title=Not staged first::sdk/org $TARGET has never been on the staging" \
+                 "branch, so this JavaScript would reach production without a rehearsal. Merge it" \
+                 "through 'staging' first. For a genuine hotfix, publish by hand with the" \
+                 "workflow_dispatch trigger, which skips this check deliberately."
+            exit 1
+          fi
+          echo "staged by parent commit $STAGED — ok"
 
       # One place the two triggers become the same thing, so the publish steps below never
       # branch on the event again. A push ships the whole update at once: a partial
@@ -109,9 +178,17 @@ jobs:
           IN_BRANCH: ${{ github.event.inputs.branch }}
           IN_ROLLOUT: ${{ github.event.inputs.rollout }}
           IN_MESSAGE: ${{ github.event.inputs.message }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
-            BRANCH=production
+            # The git branch names the audience; the channel is what the binary asks for.
+            # Only these two are wired — the `on.push.branches` filter above cannot deliver
+            # anything else, so a third case here would be dead code that looks live.
+            case "$REF_NAME" in
+              main)    BRANCH=production ;;
+              staging) BRANCH=staging ;;
+              *)       echo "::error::no channel mapped for branch '$REF_NAME'"; exit 1 ;;
+            esac
             ROLLOUT=
             # %s is a single line by construction, so it cannot break the key=value form
             # $GITHUB_OUTPUT expects.
@@ -147,6 +224,10 @@ jobs:
       # moved the native project produces a runtimeVersion no installed binary asks for —
       # and publishing under it succeeds, silently, forever. Decided before the gates so a
       # native-only change does not spend five minutes proving a bundle nobody will get.
+      #
+      # RELEASE_CHANNEL is what makes this answer the right question: it selects which
+      # channel's shipped binaries are consulted, AND it feeds app.config.js, so the
+      # fingerprint resolved here is the one this channel's build actually carries.
       - name: Decide whether an OTA can carry this commit
         id: target
         working-directory: sdk/org/apps/mobile
@@ -158,6 +239,10 @@ jobs:
       # THE gates. On a manual run someone chose to publish and can read a red check for
       # themselves; on a push nothing else stands between a bad bundle and every phone, so
       # these are the replacement for the reviewer this workflow used to require.
+      #
+      # They run on the staging push too, deliberately. Catching a broken bundle before
+      # testers install it costs four minutes; catching it after costs their afternoon and
+      # teaches them to distrust the channel.
       #
       # The native harness earns its place here specifically: a broken React Native graph
       # is invisible to tsc and to the jsdom suite (`isWeb` is always true there), and
@@ -222,7 +307,7 @@ jobs:
       # THIS checkout — the same tree the publish used — so it can only confirm CI can
       # reach its own bundle, and stays green while every shipped phone gets nothing.
       # On the automatic path it is never empty: the previous step already resolved the
-      # runtimeVersion and proved a shipped binary has it.
+      # runtimeVersion and proved a shipped binary on this channel has it.
       - name: Verify a device would actually receive it
         if: steps.target.outputs.publish == 'true'
         working-directory: sdk/org/apps/mobile
@@ -253,6 +338,7 @@ jobs:
           if [ "$PUBLISHED" != "true" ]; then
             echo "### OTA skipped — no update was published"
             echo ""
+            echo "- **channel** \`${BRANCH:-?}\`"
             echo "- **runtimeVersion** \`$RTV\`"
             echo "- **why** $REASON"
             echo ""
@@ -262,12 +348,18 @@ jobs:
           fi
             echo "### OTA published"
             echo ""
-            echo "- **branch** \`$BRANCH\`"
+            echo "- **channel** \`$BRANCH\`"
             echo "- **rollout** ${ROLLOUT:-100}%"
             echo "- **runtimeVersion** \`$RTV\`"
             echo "- **commit** \`${{ github.sha }}\`"
             echo ""
-            echo "Raise the rollout by re-running with a higher percentage."
-            echo "To pull it back, roll back from the eoas dashboard — that is instant,"
-            echo "and faster than publishing a fix."
+            if [ "$BRANCH" = "staging" ]; then
+              echo "Testers on the staging APK get this on their next launch. When it looks"
+              echo "right, merge \`staging\` into \`main\` and the same JavaScript goes to"
+              echo "production — the merge is the promotion."
+            else
+              echo "Raise the rollout by re-running with a higher percentage."
+              echo "To pull it back, roll back from the eoas dashboard — that is instant,"
+              echo "and faster than publishing a fix."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

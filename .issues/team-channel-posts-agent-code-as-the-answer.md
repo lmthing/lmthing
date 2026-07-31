@@ -131,3 +131,45 @@ which is a smell in whatever wrote them.
 In `/chat` an ugly turn is seen by the one person who caused it and scrolls away. A channel is
 **shared and permanent**: read by colleagues who did not ask, scrolled back through later, and
 quoted by notifications. Every one of these was stamped with `mentions`, so it went out as a push.
+
+## New evidence, and the seam that would fix the `display(rawValue)` half
+
+`20-studio` run 4 step 2 (2026-07-31). After **968 seconds** of successful work — the build routed
+correctly to `system-viewbuilder`, produced 6 specs, `native.status: 200` — what the channel showed
+Ana was a directory listing:
+
+```
+Existing Project Files database/*.json: jobs.json pages/*.view.json: _shell.view.json,
+components, create-job.tsx, create-job.view.json, index.tsx, index.view.json, job
+api/**/*.ts: jobs, jobs-create, jobs-list hooks/*.ts: (none) events/*.ts: (none)
+```
+
+So this half survives every fix so far, and it is now costing the single most important reply in the
+scenario rather than an incidental one.
+
+### Where it can be gated after all
+
+I previously wrote this off as "cannot be gated on content". That was wrong, and the seam is the
+**anti-silent guard**, which already exists and already does the right thing for the neighbouring
+case:
+
+- `libs/core/src/session/session.ts:873` — `onDisplay: (value) => { this.displayedThisTurn = true; }`
+- `libs/core/src/session/session.ts:319` — `hadVisibleOutput: () => this.displayedThisTurn`
+- `libs/core/src/eval/turn-loop.ts:455` — the guard fires when a turn did work and showed nothing.
+
+`displayedThisTurn` means *"`display()` was called"*, not *"a person can read what came out"*. A turn
+whose only display is a raw array, an object or a file listing therefore satisfies a guard that
+exists precisely to catch turns that told the user nothing.
+
+Narrowing it to "the last display is a JSX descriptor or non-trivial prose" would route this case
+into the machinery that already handles it.
+
+**The risk that must be handled, not ignored:** the existing guard re-prompts once and then **fails
+loud**. Turning a `/chat` turn that ends on `display(someTable)` — legal today, and rendered as a
+data blob beside the conversation — into an error would be a worse regression than the bug. So the
+two cases have to be distinguished: *displayed nothing* keeps failing loud; *displayed only data*
+gets the nudge and then accepts what it gets.
+
+**Not done yet, deliberately.** The scenario runner spawns `lmthing serve` from TS source and
+`20-studio` has a `restart_pod` step, so an edit to `libs/core` mid-run would be picked up by that
+restart and invalidate the run in flight.

@@ -29,7 +29,7 @@ Sub-docs, by global family:
 | [session-and-utils.md](./session-and-utils.md) | `setSessionMeta`, `sleep`, `fetch`, and the host-tools substrate |
 | [app-authoring.md](./app-authoring.md) | `createProject`/`selectProject` (live build target), the live-project `writeProject*` writers, `apiCall` |
 | [data-db.md](./data-db.md) | `db.*`, `apiCall` |
-| [team.md](./team.md) | `teamContext`, `teamMembers`, `teamChannels`, `teamHistory`, `teamPost`, `teamPinApp` — **team pods only** |
+| [team.md](./team.md) | `teamContext`, `teamMembers`, `teamChannels`, `teamHistory`, `teamPost`, `teamPinApp`, `teamCreateChannel` — **team pods only** |
 
 Capability frontmatter (the `capabilities:` list that grants the project-app globals) is
 specified in [../format/space/agents/capabilities.md](../format/space/agents/capabilities.md).
@@ -49,8 +49,8 @@ the next turn resumes with it in scope. There are **25** yield kinds today — t
 literal under `sdk/org/libs/core/src/globals/`: `ask`, `sleep`, `fetch`, `readDocument`,
 `loadKnowledge`, `inspect`, `fork`, `tasklist`, `delegate`, `registerSpace`, `buildApp`,
 `apiCall`, `callConnection`, `integrationStatus`, `storeSearch`, `storeInspect`,
-`installSpace`, `emitEvent`, the six team kinds (`teamContext`, `teamMembers`,
-`teamChannels`, `teamHistory`, `teamPost`, `teamPinApp` —
+`installSpace`, `emitEvent`, the seven team kinds (`teamContext`, `teamMembers`,
+`teamChannels`, `teamHistory`, `teamPost`, `teamPinApp`, `teamCreateChannel` —
 `sdk/org/libs/core/src/globals/team.ts#TeamYieldKind`, injected only on a team pod), and the
 internal `consent` (`sdk/org/libs/core/src/globals/consent.ts#createConsentRequestGlobal`).
 
@@ -139,7 +139,7 @@ anything*") all throw at space load.
 
 The two team ids are the one conditional pair: they are always *known* (so a space file
 declaring one loads anywhere), but the **grant** is dropped at the end of parsing unless
-`sdk/org/libs/core/src/spaces/capabilities.ts#isTeamPod`, so on a personal pod the six team
+`sdk/org/libs/core/src/spaces/capabilities.ts#isTeamPod`, so on a personal pod the seven team
 globals are neither injected nor declared — see [team.md](./team.md).
 
 | Capability | Config | Globals it earns | Doc |
@@ -158,7 +158,7 @@ globals are neither injected nor declared — see [team.md](./team.md).
 | `events:emit` | bare | `emitEvent` | [events-and-integrations.md](./events-and-integrations.md) |
 | `fs:scratch` | bare | `createScratch` + a scratch-jailed generic fs/shell (the engineer's code sandbox; the ONLY generic filesystem on the model surface) | [session-and-utils.md](./session-and-utils.md) · [../system-spaces/README.md](../system-spaces/README.md) |
 | `team:read` | bare, **team pods only** | `teamContext`, `teamMembers`, `teamChannels`, `teamHistory` | [team.md](./team.md) |
-| `team:post` | bare, **team pods only** | `teamPost`, `teamPinApp` (editor callers only; no DM writer — THING has no user id) | [team.md](./team.md) |
+| `team:post` | bare, **team pods only** | `teamPost`, `teamPinApp`, `teamCreateChannel` (editor callers only; no DM writer — THING has no user id; a created channel is the whole team's — no membership list) | [team.md](./team.md) |
 
 Injection: `sdk/org/libs/core/src/exec/bootstrap.ts:175-235` (yielding app globals) and
 `sdk/org/libs/core/src/exec/app-globals.ts#injectAppGlobals` (synchronous `db` + writers); the

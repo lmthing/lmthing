@@ -1,8 +1,8 @@
-# Team globals — `teamContext`, `teamMembers`, `teamChannels`, `teamHistory`, `teamPost`, `teamPinApp`
+# Team globals — `teamContext`, `teamMembers`, `teamChannels`, `teamHistory`, `teamPost`, `teamPinApp`, `teamCreateChannel`
 
 The globals THING gets **only inside a team workspace**: who is in the team, what channels
-exist, what was said in them, and the ability to say something somewhere other than the
-thread it was called from.
+exist, what was said in them, the ability to say something somewhere other than the
+thread it was called from, and the ability to give a subject a channel of its own.
 
 Before they existed, an agent answering in a channel knew exactly one thing about the team —
 the `[email in #channel] ` prefix `promptFor` glues onto the message
@@ -20,7 +20,7 @@ The surface, the capability that earns it, and the identity it acts under
 | Capability | Config | Globals it earns |
 |---|---|---|
 | `team:read` | bare | `teamContext`, `teamMembers`, `teamChannels`, `teamHistory` |
-| `team:post` | bare | `teamPost`, `teamPinApp` |
+| `team:post` | bare | `teamPost`, `teamPinApp`, `teamCreateChannel` |
 
 Both are bare-only — a config payload throws, like `store:read`
 `sdk/org/libs/core/src/spaces/capabilities.ts#BARE_ONLY_CAPABILITY_IDS`. There is no
@@ -39,6 +39,19 @@ The split is load-bearing in two places, and a single `team:*` id could not have
 
 Reading discloses what the caller already sees in their own sidebar. Posting creates a
 permanent message in a shared log and buzzes a phone. Those are different powers.
+
+### …and why creating a channel is not a THIRD id
+
+`teamCreateChannel` is gated on `team:post`
+`sdk/org/libs/core/src/exec/bootstrap.ts#createChildVM`, not on a `team:manage` of its own.
+Making a room the whole team can see and speaking in one are the same authority — both
+leave something permanent in a shared workspace that everybody can see and nobody asked
+for individually — and every place the split is load-bearing wants them on the same side
+of it: `intersectAppCaps` must strip the creator from a read-only fork exactly as it
+strips the poster, and an agent trusted to broadcast is already trusted to file. A third
+id would have to be intersected, dropped on a personal pod, declared in its own DTS
+fragment and reasoned about at every one of those sites, and would buy a distinction
+nobody wants to draw.
 
 ### There is no `teamDM`
 
@@ -127,7 +140,7 @@ channel. What it may *call* is still its own grants' business.
 
 ## 4. What each global does
 
-All six are **value-yielding** — they push a `YieldRequest` and end the turn, resolved by
+All seven are **value-yielding** — they push a `YieldRequest` and end the turn, resolved by
 one arm of the router `sdk/org/libs/core/src/eval/yield-router.ts#routeCommonYield`.
 
 ### `team:read`
@@ -156,6 +169,7 @@ teamHistory(channelId, { limit?, before? }): Promise<{ messages: […]; hasMore 
 ```ts
 teamPost(channelId, text, { threadId? }): Promise<{ ok; channelId; messageId?; receipt? }>
 teamPinApp(channelId, projectId): Promise<{ ok; channelId; apps }>
+teamCreateChannel(name, { categoryId? }): Promise<{ ok; channelId; name; created }>
 ```
 
 * Every message these append is `kind: 'thing'` with **no** `userId`
@@ -172,6 +186,55 @@ teamPinApp(channelId, projectId): Promise<{ ok; channelId; apps }>
 * `teamPinApp` refuses a project that does not exist, so a pin never leaves a dead tile in
   the sidebar. Pinning twice is idempotent
   `sdk/org/libs/cli/src/server/team-channels.ts#patchChannel`.
+* `teamCreateChannel` is how "give this its own room" gets answered — see below.
+
+### Creating a channel — one creation path, get-or-create, and it announces itself
+
+Before this existed the surface could list channels and could not make one, so "give this
+subject a room of its own" — an ordinary request in a Slack-shaped product — had no correct
+answer at all, and a live run answered it by building something else and describing that as
+a room.
+
+The resolver calls the **same** `createChannel` the REST route calls
+`sdk/org/libs/cli/src/server/team-channels.ts#createChannel`, so a channel THING makes is
+byte-identical to one a person makes: the id is `channelIdFromName`'s slug
+`sdk/org/libs/cli/src/server/team-channels.ts#channelIdFromName`, `#general` is seeded
+first if this is the team's very first channel, and the record is stamped `createdBy` the
+**caller**. A second creation path would be a second set of rules about ids and seeding.
+
+Three properties, each answering a way a created channel is worse than none
+`sdk/org/libs/cli/src/server/team-globals.ts#createTeamResolver`:
+
+* **Get-or-create on the name, never a near-duplicate.** A name whose slug already exists
+  returns THAT channel with `created: false`. The request behind the call is always "put
+  this subject somewhere of its own", and answering it with `#budget-2` beside `#budget`
+  creates precisely the confusion it was meant to end — and a name is the only handle
+  anyone has on a channel. Refusing outright would be worse still: a turn that meant to
+  give the subject a home would end having done nothing. `created` is on the result so the
+  turn can say "there is already a #x" instead of announcing something it did not make.
+* **It reaches the sidebar.** A new channel is handed to the route's `onChannelChanged`
+  hook, which broadcasts `{ type: 'channel', channel }` exactly as `handleCreateChannel`
+  does `sdk/org/libs/cli/src/server/routes/team-channels.ts#handleCreateChannel` — so it
+  appears for every connected member without a reload. Only when it is genuinely new: a
+  re-ask must not redraw everyone's sidebar. The other half of "somebody knows about it"
+  is not the surface's job — THING is told to put the first message in there with
+  `teamPost` and `@`-mention the people it concerns
+  `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:L1177-L1184`.
+* **The caller gets the id back**, which is what the following `teamPost` needs. A create
+  that returned only `ok` would leave the turn unable to say the first word in the room it
+  just made.
+
+A name that slugifies to nothing usable is refused with a sentence the model can act on
+rather than surfacing the writer's low-level throw, and the "never hand back a channel the
+caller cannot see" invariant is kept here too.
+
+**No membership, no rename, no delete.** `teamCreateChannel` takes a `name` and an optional
+`categoryId` and nothing else. A named channel is visible to the whole team
+`sdk/org/libs/cli/src/server/team-channels.ts#isVisibleTo`; the only thing with an
+allowlist is a DM, whose participants ARE its id
+`sdk/org/libs/cli/src/server/team-channels.ts#dmChannelId`. "Create a channel only these
+three can see" would be a third visibility model invented inside a resolver, and an invite
+verb is a decision about the team product, not about this surface.
 
 ### Attribution and the receipt
 
@@ -215,7 +278,7 @@ stripped the writers from)
 `sdk/org/libs/core/system-spaces/user-thing/tasklists/tell_the_team/03-post.md:L1-L38`. A new
 node that grants itself the writers — or one that simply omits `capabilities:` and therefore
 inherits THING's whole set — fails a class guard
-`sdk/org/libs/core/src/spaces/system-spaces-dag.test.ts:L359-L376`. The reason is the failure
+`sdk/org/libs/core/src/spaces/system-spaces-dag.test.ts:L361-L378`. The reason is the failure
 mode: a step that can both *look things up* and *broadcast* is how one "let the others know"
 request ends up posting into the wrong channel and then posting a correction on top of it.
 The workflows themselves → [system-spaces §6](../system-spaces/README.md#the-three-team-workflows--reachable-only-on-a-team-pod).
@@ -228,8 +291,20 @@ never in the sandbox `sdk/org/libs/cli/src/server/team-globals.ts#createTeamReso
 **A viewer cannot write through the agent.** `guardRequest` keeps viewers out of the mutating
 REST surface `sdk/org/libs/cli/src/server/team-guard.ts#guardRequest`; a viewer who could say
 "THING, announce this in #general" and have it happen would have walked around that guard, so
-both writers refuse when `caller.role !== 'editor'`. Viewers keep every reader — the
-split is read-vs-write, not agent-vs-no-agent.
+**every** writer — `teamPost`, `teamPinApp`, `teamCreateChannel` — refuses when
+`caller.role !== 'editor'`. Viewers keep every reader — the split is read-vs-write, not
+agent-vs-no-agent.
+
+This is the *second* line of defence, and it is tested anyway. The first is that a channel
+turn started by a viewer is built with `readOnly`
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#runThingReply`, which `Session` turns
+into `intersectAppCaps(caps, false)`
+`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps` — `team:post` is dropped whole,
+so the writers are neither injected nor declared and `teamCreateChannel(...)` in a viewer's
+turn is `Cannot find name`, a retryable typecheck error rather than a call that reaches the
+host. Both exist because the resolver is constructible from paths that are not a channel
+turn, and a refusal that only lives in a DTS is a refusal that stops existing the moment
+somebody builds a session a different way.
 
 > This is deliberately **stricter** than the REST surface, which lets a viewer post a message
 > of their own into a visible channel `sdk/org/libs/cli/src/server/team-guard.ts:74-76`. A
@@ -264,7 +339,9 @@ operator on a terminal, not a colleague in a channel `sdk/org/libs/cli/src/cli/b
 | readers declared only under `team:read`, writers only under `team:post`, neither with no grant | `sdk/org/libs/core/src/globals/team.test.ts` |
 | an `explore` fork keeps the readers, loses the writers | `sdk/org/libs/core/src/globals/team.test.ts` |
 | no identity ever appears in a yield's args | `sdk/org/libs/core/src/globals/team.test.ts` |
-| viewer refused / editor allowed, for both writers | `sdk/org/libs/cli/src/server/team-globals.test.ts` |
+| viewer refused / editor allowed, for all three writers | `sdk/org/libs/cli/src/server/team-globals.test.ts` |
+| a read-only (viewer's) turn has no writer in its DTS at all — the refusal is not the first gate | `sdk/org/libs/core/src/globals/team.test.ts` |
+| creating: id returned and immediately postable; announced once; a taken name returns THAT channel and creates nothing; an unusable name refused; no membership verbs exist | `sdk/org/libs/cli/src/server/team-globals.test.ts` |
 | DM invisible to a non-participant, readable by a participant | `sdk/org/libs/cli/src/server/team-globals.test.ts` |
 | `onBehalfOf` stamped; receipt written to the originating thread; each message announced against the channel it landed in | `sdk/org/libs/cli/src/server/team-globals.test.ts` |
 | history capped at 100 (30 default) and the cap reported | `sdk/org/libs/cli/src/server/team-globals.test.ts` |

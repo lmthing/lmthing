@@ -1,75 +1,38 @@
-# THING cannot create a channel — the team globals have no verb for it, so "give it its own room" builds a SPACE instead
+# THING can create a channel now — the LIVE half is not verified
 
-**Symptom** (scenarios/21-newsroom run 1 step 4, 2026-07-31): Pilar asked for a story to be given
-somewhere of its own —
+**Status 2026-07-31: the capability gap is CLOSED and unit-tested; the behaviour is not
+live-verified.** Keep this file until a live run shows THING both reaching for the verb and
+describing what it made in plain words.
 
-> *"the school closure is turning into a much bigger thing — there are three schools now and the
-> regional government is involved. Tomás and Nadia are both on it. Can you give it somewhere of its
-> own so it stops clogging up the desk?"*
+## What was wrong (fixed)
 
-After 340 seconds THING answered:
+`TeamResolver` had six verbs, all read-or-post, so 21-newsroom run 1 step 4 ("give this
+somewhere of its own so it stops clogging up the desk") was **not satisfiable by any correct
+behaviour**: THING built a space and an app instead and described them to a non-technical
+colleague as *"its own space"*, *"specialist space"*, *"the … project"*.
 
-> **School closures — now in its own space.** *The tracking app and specialist space are live. Tomás
-> and Nadia can drop updates directly into it — no more clogging up #newsroom with back-and-forth on
-> this one. Open it now at the Alcalá Post project…*
+## What shipped
 
-The channel list is unchanged: `["general", "newsroom"]` (`runs/1/step-04.json`, `channels`). No
-channel was created, and none could have been.
+- `teamCreateChannel(name, { categoryId? }) → { ok, channelId, name, created }`, gated on
+  **`team:post`** (not a third id — same authority as speaking in a channel), editor-only,
+  get-or-create on the slugified name, announced to connected members through the route's
+  existing `onChannelChanged` broadcast. One creation path: it calls the same
+  `team-channels.ts#createChannel` the REST route calls.
+  `sdk/org/libs/core/src/globals/team.ts` · `sdk/org/libs/cli/src/server/team-globals.ts`.
+- THING's instruct gained two rules in the team section: finish the job (say it exists, put the
+  first message in it, `@`-mention the people it belongs to), and **never describe what it made
+  in product vocabulary** — no "space", "project", "specialist", "workflow", "session".
+- Docs: `org/docs/runtime-globals/team.md` §1, §4, §5, §7.
 
-## The capability does not exist
+## Still to verify (live)
 
-`sdk/org/libs/core/src/globals/team.ts:158-174` — the whole team surface:
+Replay 21-newsroom step 4 through the lmauto judge campaign — NOT a manual run-yaml replay:
 
-```ts
-export interface TeamResolver {
-  context(): Promise<TeamTurnInfo>;
-  members(): Promise<TeamMemberInfo[]>;
-  channels(): Promise<TeamChannelInfo[]>;                       // READ
-  history(channelId, opts?): Promise<TeamHistoryPage>;          // READ
-  post(channelId, text, opts?): Promise<TeamPostResult>;
-  pinApp(channelId, projectId): Promise<TeamPinResult>;
-}
-export type TeamYieldKind =
-  | 'teamContext' | 'teamMembers' | 'teamChannels' | 'teamHistory' | 'teamPost' | 'teamPinApp';
-```
+1. `GET /api/team/channels` gains a channel named for the subject.
+2. The turn's `wrote.globals` contains `teamCreateChannel` (and `teamMembers`, since the
+   people on the subject have to be named rather than guessed).
+3. The reply contains none of "space" / "project" / "specialist", and the members named in it
+   are the ones the directory says are on the subject.
 
-Six verbs; the only two that write are "post a message" and "pin an app". `channels()` lists.
-There is **no create-channel**, no rename, no invite. The REST route exists and works
-(`POST /api/team/channels`, `routes/team-channels.ts#handleCreateChannel`, editor-only) — it is
-simply not reachable from an agent turn.
-
-So 21-newsroom step 4's expectation — *"THING creates a new channel for that story. It does not
-create a project, a document or a chat session and call it a room"* — is **not satisfiable by any
-correct behaviour** on today's surface. THING did the nearest reachable thing (a specialist space
-plus an app) and described it as *"its own space"*.
-
-## Two separate faults, and only one is THING's
-
-1. **Missing capability** (the real one): a team's assistant that can post into channels but cannot
-   make one cannot organise the team's own workspace, which is 21-newsroom's whole promise. If
-   creating a channel is meant to be possible, `TeamResolver` needs a `createChannel(name, opts?)`
-   bound host-side to the verified caller (so a viewer's turn cannot create one), routed exactly as
-   the other six are (`libs/core/src/eval/yield-router.ts:371-410`), and granted under `team:post`
-   or a new `team:manage`.
-2. **THING answered in product vocabulary.** *"in its own space"*, *"specialist space"*, *"the
-   Alcalá Post project"* — the persona explicitly never uses those words, and neither should the
-   reply. Even absent the capability, the honest answer is "I can't make you a room; here is what I
-   can do instead" — the same shape the capability rules require for paying a card or sending money.
-
-Also unmet, downstream of the same gap: *"Tomás and Nadia are told — the people actually on the
-story"*. `teamMembers` was not called on this turn, and no message reached either of them.
-
-## Evidence
-
-- `sdk/org/scenarios/21-newsroom/runs/1/step-04.{json,full.json}` — `wrote.globals` is
-  `["tasklist","display","teamContext"]`; `channels` unchanged.
-- `sdk/org/scenarios/21-newsroom/runs/1/data/.lmthing/.team/channels.json` — two channels.
-
-## Verify a fix
-
-Replay 21-newsroom step 4. `GET /api/team/channels` must gain a channel named for the story, the
-turn's `wrote.globals` must contain the new create verb, and the two members named in the message
-must be the ones the directory says are on it. If the decision is instead that THING may NOT create
-channels, then the scenario's expect is wrong and should be rewritten to require an honest refusal —
-but the current state, where it silently substitutes a space and calls it a room, is wrong either
-way.
+If (3) still fails with the verb present, the residual is a reasoning/prose failure and belongs
+in a fresh issue about the reply, not about the surface.

@@ -329,7 +329,7 @@ a per-turn team resolver bound to it
 `sdk/org/libs/cli/src/server/team-globals.ts#createTeamResolver` and hands it to
 `runHeadlessThreaded({ team })`. That resolver is what backs THING's `team:read` /
 `team:post` globals — the directory, the channel list, channel history, posting
-into another channel, pinning an app — and every one of them answers for **that
+into another channel, pinning an app, creating a channel — and every one of them answers for **that
 member**: a DM they are not in is invisible, and a viewer cannot write. A turn
 with no verified caller gets no team globals at all. The full surface, the
 capability split and the refusals → [runtime-globals/team.md](../../runtime-globals/team.md).

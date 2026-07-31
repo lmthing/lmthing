@@ -1,0 +1,384 @@
+name: Nightly client builds
+
+# Builds the Android APK and the Linux desktop bundle ONCE A DAY, and only when something that
+# actually goes into them has changed. Both publish to the rolling `nightly` release.
+#
+# ## Why this is not per-commit any more
+#
+# These two builds are expensive and slow — the Android one spent ~35 minutes in Gradle on a cold
+# runner — and running them per commit paid that cost for every docs edit and manifest bump. Worse,
+# `cancel-in-progress` meant a second push during those 35 minutes cancelled the first build, so a
+# busy afternoon produced a string of cancelled runs and one APK. A daily build with a change gate
+# gets the same artifact for a fraction of the cost, and nothing races it.
+#
+# The trade is real and worth stating: a break that only a native build can see now surfaces up to
+# 24 hours later instead of on the commit that caused it. The cheap gates still run per commit —
+# `native-target.yml` (the Metro graph) and `desktop.yml` (typecheck, lint, clippy, E2E) — so what
+# is delayed is specifically "does Gradle/Tauri still produce a package", not "does the code work".
+#
+# ## What "changed" means, precisely
+#
+# Not "any commit". The inputs to these builds are exactly two things:
+#
+#   · the `sdk/org` SUBMODULE POINTER — the app and every lib it bundles live inside the submodule,
+#     so its gitlink SHA is the whole source identity. A parent-repo commit that only touches docs
+#     or k8s manifests changes nothing these builds consume.
+#   · this workflow file — change the Gradle flags or the bundle targets and the output changes
+#     even though no app source did.
+#
+# Those two are hashed into one short `inputs` fingerprint, written into each published
+# `BUILD-INFO-*.txt`, and compared against on the next run. The previous value is read back OUT of
+# the release, which makes the published artifact its own state — there is no separate ledger to
+# drift, and deleting the release simply causes a rebuild.
+#
+# A platform whose BUILD-INFO is missing or unreadable counts as changed. That is deliberate: it
+# means a failed or never-run platform retries tomorrow instead of being skipped forever because
+# the OTHER platform's fingerprint happens to match.
+on:
+  schedule:
+    # 03:17 UTC. Deliberately not on the hour: GitHub queues every `0 * * * *` job in the world at
+    # once and scheduled runs are routinely delayed by 10+ minutes at those peaks.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Build even if nothing changed'
+        type: boolean
+        default: false
+
+# Serialized rather than cancelling. Unlike the per-commit setup this replaces, there is no stream
+# of newer commits making a running build stale — a manual dispatch landing on top of the nightly
+# run should queue behind it, not kill 35 minutes of Gradle.
+concurrency:
+  group: nightly-builds
+  cancel-in-progress: false
+
+jobs:
+  # Cheap: a checkout and two `git rev-parse`s. Runs in seconds and decides whether the two
+  # expensive jobs run at all.
+  changes:
+    runs-on: ubuntu-latest
+    # Reading the previous fingerprint off the release is a contents read. Spelled out rather than
+    # inherited, because a repo whose default workflow permissions are restricted would otherwise
+    # fail this job with a 404 on the release that reads like "no release yet".
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      inputs: ${{ steps.check.outputs.inputs }}
+      sdk_sha: ${{ steps.check.outputs.sdk_sha }}
+    steps:
+      # No `submodules: recursive` — this job only needs the POINTER, not the contents, and cloning
+      # the submodule here would cost more than the check itself.
+      - uses: actions/checkout@v4
+
+      - id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # The gitlink SHA — the submodule commit this parent commit points at. Guarded because an
+          # empty value would hash into a stable fingerprint and silently freeze the change check:
+          # every run would compare equal and nothing would ever build again.
+          sdk_sha=$(git ls-tree HEAD sdk/org | awk '{print $3}')
+          if [ -z "$sdk_sha" ]; then
+            echo "::error::could not read the sdk/org gitlink from HEAD — has the submodule moved or been removed?"
+            exit 1
+          fi
+          wf_sha=$(git rev-parse "HEAD:.github/workflows/nightly-builds.yml")
+          inputs=$(printf '%s %s' "$sdk_sha" "$wf_sha" | sha256sum | cut -c1-16)
+
+          echo "sdk_sha=$sdk_sha" >> "$GITHUB_OUTPUT"
+          echo "inputs=$inputs"   >> "$GITHUB_OUTPUT"
+
+          # Read the previous fingerprint back out of the published release. Missing release,
+          # missing asset and unreadable asset all fall through to "changed", which is the safe
+          # direction: an unnecessary build costs runner minutes, a skipped one costs a day.
+          changed=false
+          for platform in linux android; do
+            prev=''
+            if gh release download nightly -p "BUILD-INFO-$platform.txt" -D prev-$platform 2>/dev/null; then
+              prev=$(awk '/^inputs:/{print $2}' "prev-$platform/BUILD-INFO-$platform.txt" 2>/dev/null || true)
+            fi
+            if [ "$prev" != "$inputs" ]; then
+              echo "$platform: rebuild needed (published='${prev:-none}' current='$inputs')"
+              changed=true
+            else
+              echo "$platform: up to date ($inputs)"
+            fi
+          done
+
+          if [ "${{ inputs.force }}" = 'true' ]; then
+            echo 'force requested — building regardless'
+            changed=true
+          fi
+
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+          {
+            echo '### Change check'
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| \`sdk/org\` | \`$sdk_sha\` |"
+            echo "| inputs fingerprint | \`$inputs\` |"
+            echo "| build | $([ "$changed" = true ] && echo 'YES' || echo 'skipped — nothing changed') |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Linux desktop bundle ────────────────────────────────────────────────────────────────────
+  # ubuntu-22.04, NOT ubuntu-latest, matching `desktop-release.yml`: AppImage and .deb are
+  # forward-compatible only. Something linked against a newer glibc will not start on an older
+  # distro, and the failure is a bare "version `GLIBC_2.39' not found" at exec time.
+  #
+  # Linux only. `desktop-release.yml` remains the shipping path and still builds all four targets,
+  # because macOS runners bill at 10x minutes and Windows at 2x.
+  desktop:
+    needs: changes
+    if: needs.changes.outputs.changed == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Tauri links against WebKitGTK. Without these the build fails at LINK time with an error
+      # that reads like a Rust problem and is not one.
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev \
+            libssl-dev libgtk-3-dev build-essential curl wget file
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sdk/org/apps/desktop/src-tauri
+          key: release-bundle
+
+      - name: Install
+        working-directory: sdk/org
+        run: pnpm install --frozen-lockfile
+
+      # `@lmthing/core`'s `./ui` export points at a gitignored `dist/`, so a clean clone cannot
+      # resolve it until core is built.
+      - name: Build workspace deps
+        working-directory: sdk/org
+        run: pnpm --filter @lmthing/core build
+
+      # The committed colour file must still match tokens.json. `include_str!` would happily compile
+      # a stale one, and the window would be the wrong colour on every launch with nothing to say so.
+      - name: Generate the token file
+        working-directory: sdk/org/apps/desktop
+        run: pnpm generate:tauri-conf
+
+      # `tauri build` runs the frontend build itself — `beforeBuildCommand: pnpm build` in
+      # tauri.conf.json — so this single command produces the bundle from source.
+      - name: Bundle
+        working-directory: sdk/org/apps/desktop
+        run: pnpm tauri:build
+
+      - name: Publish to the rolling release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # REQUIRED, and the failure is not obvious. `working-directory` below is inside the
+          # `sdk/org` SUBMODULE, whose git remote is github.com/lmthing/org — so `gh` infers that
+          # repo and tries to publish the release there, where this token has no write access. The
+          # error is `HTTP 403: Resource not accessible by integration` naming a repo you did not
+          # mean to touch, after the whole build has already run.
+          GH_REPO: ${{ github.repository }}
+          INPUTS: ${{ needs.changes.outputs.inputs }}
+          SDK_SHA: ${{ needs.changes.outputs.sdk_sha }}
+        working-directory: sdk/org/apps/desktop/src-tauri/target/release/bundle
+        run: |
+          set -euo pipefail
+
+          # STABLE names, deliberately. Tauri encodes the version into its filenames
+          # (`lmthing_0.1.0_amd64.AppImage`), so publishing them as-is would break every link
+          # already handed out the moment `version` in tauri.conf.json changes.
+          mkdir -p publish
+          cp appimage/*.AppImage publish/lmthing-linux-x86_64.AppImage
+          cp deb/*.deb           publish/lmthing-linux-amd64.deb
+
+          # `inputs:` is what the next run's change check reads back. Everything else is for a human
+          # holding a download and wondering what it is.
+          {
+            echo "inputs:   $INPUTS"
+            echo "commit:   $GITHUB_SHA"
+            echo "sdk/org:  $SDK_SHA"
+            echo "built:    $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "run:      $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "platform: linux x86_64 (built on ubuntu-22.04)"
+            echo "signing:  UNSIGNED"
+          } > publish/BUILD-INFO-linux.txt
+
+          notes="$GITHUB_WORKSPACE/.github/workflows/nightly-release-notes.md"
+
+          # Idempotent by construction: the view short-circuits the common case, and `|| true`
+          # covers the race where the Android job created it in between.
+          gh release view nightly >/dev/null 2>&1 || gh release create nightly \
+            --prerelease \
+            --title 'Latest main build' \
+            --target "$GITHUB_SHA" \
+            --notes-file "$notes" || true
+
+          # --notes-file is only read at CREATION, so without this an edit to the template would
+          # never reach the live release. Safe to run unconditionally: both jobs render the same
+          # committed file, so concurrent writes agree rather than clobber.
+          gh release edit nightly --notes-file "$notes" >/dev/null
+
+          gh release upload nightly publish/* --clobber
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lmthing-desktop-linux-${{ github.sha }}
+          path: sdk/org/apps/desktop/src-tauri/target/release/bundle/publish/*
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── Android APK ─────────────────────────────────────────────────────────────────────────────
+  # This APK is NOT a release candidate, and three separate things make sure of that:
+  #
+  #   · DEBUG-SIGNED. `expo prebuild` generates `release { signingConfig signingConfigs.debug }`
+  #     with the well-known `android`/`androiddebugkey` credentials, and no release keystore exists
+  #     in this org yet. Google Play rejects a debug-signed upload; a phone installs it fine.
+  #   · arm64-v8a ONLY (see the Gradle step). It will not start on an x86_64 emulator.
+  #   · versionCode is 1, always. `eas.json` sets `appVersionSource: "remote"`, so the real number
+  #     is allocated by EAS at build time and a plain Gradle build never asks.
+  #
+  # It also cannot receive an OTA update. No `EXPO_OTA_APP_ID` is set, and without that header the
+  # update server answers every manifest request "No app id provided". `RELEASE_CHANNEL` is unset
+  # too and DEFAULTS to `production`, so the binary does ask for the production channel — harmless,
+  # because omitting `EXPO_OTA_APP_ID` puts the build on a DIFFERENT runtimeVersion, one no publish
+  # targets.
+  android:
+    needs: changes
+    if: needs.changes.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    # Measured on a 2-core runner: the first (uncached) run spent ~35 min in Gradle alone, against
+    # 4m11s locally with a warm cache — hence 60, not 30.
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+
+      # Gradle 9.3.1 (apps/mobile/android/gradle/wrapper) requires Java 17+. The runner image ships
+      # several JDKs and the default has moved before; pin it rather than inherit it.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Installs cmdline-tools and ACCEPTS THE SDK LICENCES. That second part is what lets Gradle
+      # fetch a platform or an NDK the runner image happens not to carry — without it a missing NDK
+      # fails the build with a licence error rather than downloading itself, and the version named
+      # in that first error is frequently not the one actually wanted.
+      - uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-android-${{ hashFiles('sdk/org/pnpm-lock.yaml') }}
+          restore-keys: gradle-android-
+
+      - name: Install
+        working-directory: sdk/org
+        run: pnpm install --frozen-lockfile
+
+      # The app's OWN post-install hook, invoked verbatim (apps/mobile/package.json →
+      # `eas-build-post-install`). Running the same command EAS runs is the point: if the set of
+      # workspace deps that need building ever changes, both paths change together instead of this
+      # workflow drifting into a build EAS does not perform.
+      - name: Build workspace deps
+        working-directory: sdk/org/apps/mobile
+        run: pnpm --filter "@lmthing/mobile^..." --if-present run build
+
+      # `android/` is gitignored (apps/mobile/.gitignore) — it is prebuild OUTPUT, not source, so a
+      # fresh clone has no native project at all and CI must generate one. `--no-install` stops Expo
+      # reaching for npm inside a pnpm workspace, which is how a prebuild ends up rewriting the
+      # lockfile it was handed.
+      - name: Prebuild the native project
+        working-directory: sdk/org/apps/mobile
+        env:
+          CI: '1'
+        run: pnpm exec expo prebuild --platform android --no-install
+
+      # arm64-v8a ONLY. `newArchEnabled=true` means React Native compiles its C++ from source, and
+      # gradle.properties asks for four ABIs (armeabi-v7a, arm64-v8a, x86, x86_64) — so the default
+      # is that same compile done four times. arm64-v8a is every Android phone made in roughly the
+      # last decade. The cost: the APK will NOT install on the standard x86_64 emulator.
+      - name: Assemble the release APK
+        working-directory: sdk/org/apps/mobile/android
+        run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+
+      - name: Publish to the rolling release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # REQUIRED — see the identical note in the desktop job above. `working-directory` is
+          # inside the `sdk/org` submodule, so without this `gh` targets github.com/lmthing/org.
+          GH_REPO: ${{ github.repository }}
+          INPUTS: ${{ needs.changes.outputs.inputs }}
+          SDK_SHA: ${{ needs.changes.outputs.sdk_sha }}
+        working-directory: sdk/org/apps/mobile
+        run: |
+          set -euo pipefail
+
+          mkdir -p publish
+          cp android/app/build/outputs/apk/release/app-release.apk publish/lmthing-android-arm64.apk
+
+          # The runtimeVersion is read out of the built APK, never re-resolved from the tree — that
+          # is the value an entry in shipped-runtime-versions.json needs, and re-resolving it later
+          # yields a plausible number for a binary that does not exist.
+          fingerprint=$(unzip -p publish/lmthing-android-arm64.apk assets/fingerprint 2>/dev/null || echo '(none embedded)')
+          {
+            echo "inputs:         $INPUTS"
+            echo "commit:         $GITHUB_SHA"
+            echo "sdk/org:        $SDK_SHA"
+            echo "built:          $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "run:            $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "abi:            arm64-v8a only"
+            echo "signing:        Android DEBUG key — not uploadable to Play"
+            echo "runtimeVersion: $fingerprint"
+            echo "OTA:            disabled (no app id compiled in)"
+          } > publish/BUILD-INFO-android.txt
+
+          notes="$GITHUB_WORKSPACE/.github/workflows/nightly-release-notes.md"
+
+          gh release view nightly >/dev/null 2>&1 || gh release create nightly \
+            --prerelease \
+            --title 'Latest main build' \
+            --target "$GITHUB_SHA" \
+            --notes-file "$notes" || true
+
+          gh release edit nightly --notes-file "$notes" >/dev/null
+
+          gh release upload nightly publish/* --clobber
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lmthing-android-${{ github.sha }}
+          path: sdk/org/apps/mobile/publish/*
+          if-no-files-found: error
+          retention-days: 14

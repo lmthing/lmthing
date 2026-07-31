@@ -27,8 +27,8 @@ which are not deployed at all but downloaded — and repo hygiene (2):
 | Design tokens | `design-tokens.yml` | PR + push to `main` (frontend paths) | Hard gate: fail on raw colors / non-token styling |
 | Docs citations | `docs-sync.yml` | PR + push to `main` `.github/workflows/docs-sync.yml:8-39` | Hard gate: every `org/docs/` citation must resolve |
 | Native target | `native-target.yml` | PR + push to `main` (`sdk/org` pointer) `.github/workflows/native-target.yml:18-51` | Hard gate: the React Native module graph resolves, transforms and mounts (Metro, no simulator) |
-| Android APK | `mobile-android.yml` | push to `main` (`sdk/org` pointer) + `workflow_dispatch` `.github/workflows/mobile-android.yml:52-60` | **Per-commit installable APK** — prebuild + Gradle, published to the rolling `nightly` release |
-| Desktop target | `desktop.yml` | PR + push to `main` (`sdk/org` pointer) `.github/workflows/desktop.yml:18-27` | Gate (typecheck / lint / clippy / E2E) **plus**, on pushes only, a Linux bundle published to `nightly` |
+| Nightly client builds | `nightly-builds.yml` | daily cron `17 3 * * *` + `workflow_dispatch` `.github/workflows/nightly-builds.yml:37-50` | **The Android APK and the Linux desktop bundle**, built only when the `sdk/org` pointer or the workflow itself changed, published to the rolling `nightly` release |
+| Desktop target | `desktop.yml` | PR + push to `main` (`sdk/org` pointer) `.github/workflows/desktop.yml:21-30` | Per-commit gate only: typecheck / lint / clippy / E2E. Produces no binary — that is `nightly-builds.yml` |
 | Desktop release | `desktop-release.yml` | tag `desktop-v*` + `workflow_dispatch` `.github/workflows/desktop-release.yml:32-40` | All four platforms, drafts a GitHub release |
 | Publish OTA update | `ota-publish.yml` | push to `main`/`staging` (`sdk/org` pointer) + `workflow_dispatch` `.github/workflows/ota-publish.yml:56-92` | Ships a JavaScript-only update to installed mobile binaries |
 | PR manual decline | `pr-decline.yml` | PR labeled + `workflow_dispatch` | Canned-message close of PRs by maintainer label |
@@ -91,29 +91,67 @@ Four jobs, in order:
 
 On PRs and pushes to `main` touching frontend paths (`sdk/org/**`, `com/**`, `social/**`, `team/**`, `store/**`, `space/**`, `blog/**`, `casa/**`), runs `node sdk/org/libs/css/scripts/lint-design-tokens.mjs` over the SPA and shared-lib source trees (`sdk/org/libs/{css,ui}/src`, `sdk/org/apps/web/src`, and each SPA's `src/`); a raw color (hex / literal `rgb()`/`hsl()` / stock Tailwind color utility) fails the build `.github/workflows/design-tokens.yml:6-43`. Note the newest SPA, `org/`, is **not** yet in either the trigger paths or the lint argument list `.github/workflows/design-tokens.yml:9-16,20-27,40-43` — it is currently ungated. Rules & escape hatches: [../design-system/README.md](../design-system/README.md).
 
-### Client binaries — what CI builds on every commit
+### Client binaries — the nightly build
 
-Neither of these is a release. Both exist to answer, per commit, "does the native app still build,
-and can I run the thing that came out?" — a question no other gate reaches: `native-target.yml`
-proves the Metro graph resolves, `ota-publish.yml` exports a JS bundle, and `desktop.yml`'s `rust`
-job compiles the crate, but none of them runs Gradle or produces a package.
+Neither of these is a release. Both exist to answer "does the native app still build, and can I run
+the thing that came out?" — a question no other gate reaches: `native-target.yml` proves the Metro
+graph resolves, `ota-publish.yml` exports a JS bundle, and `desktop.yml`'s `rust` job compiles the
+crate, but none of them runs Gradle or Tauri packaging.
 
-**`mobile-android.yml` → an installable APK.** `sdk/org/apps/mobile/android/` is gitignored
-`sdk/org/apps/mobile/.gitignore:8-9` — it is prebuild *output*, not source — so CI generates the
-native project first (`expo prebuild --platform android --no-install`, which defaults to a clean
-generation) and then runs `./gradlew :app:assembleRelease`
-`.github/workflows/mobile-android.yml:123-137`. Workspace dependencies are built by invoking the
+Both live in **`nightly-builds.yml`**, on a daily cron rather than per commit
+`.github/workflows/nightly-builds.yml:37-50`. They were per-commit first, and that was the wrong
+shape: the Android build spent ~35 minutes in Gradle on a cold runner, so every docs edit and image-tag
+bump paid for a full native build, and `cancel-in-progress` meant a second push inside that window
+cancelled the first — a busy afternoon produced a string of cancelled runs and one APK. The daily job
+is serialized instead of cancelling, because there is no stream of newer commits making a running
+build stale `.github/workflows/nightly-builds.yml:52-55`.
+
+**The trade is real:** a break that only a native build can see now surfaces up to 24 hours later.
+What is delayed is specifically "does Gradle/Tauri still produce a package" — the cheap gates still
+run per commit, so "does the code work" is unaffected.
+
+#### The change gate — what "something changed" means
+
+Not "any commit". A cheap `changes` job runs first and decides whether the two expensive jobs run at
+all `.github/workflows/nightly-builds.yml:57-59`. The inputs to these builds are exactly two things:
+
+- the **`sdk/org` submodule pointer** — the app and every lib it bundles live inside the submodule,
+  so its gitlink SHA is the whole source identity. A parent-repo commit touching only docs or k8s
+  manifests changes nothing these builds consume.
+- **the workflow file itself** — change the Gradle flags or the bundle targets and the output
+  changes even though no app source did.
+
+Those two are hashed into one short `inputs` fingerprint `.github/workflows/nightly-builds.yml:91-93`,
+written into each published `BUILD-INFO-*.txt`, and compared against on the next run. **The previous
+value is read back out of the release itself** `.github/workflows/nightly-builds.yml:96-112`, so the
+published artifact is its own state — there is no separate ledger to drift, and deleting the release
+simply causes a rebuild.
+
+Two failure directions are handled deliberately. A platform whose `BUILD-INFO` is missing or
+unreadable counts as **changed**, so a failed or never-run platform retries tomorrow instead of being
+skipped forever because the *other* platform's fingerprint happens to match. And an empty gitlink SHA
+is a hard error rather than a value `.github/workflows/nightly-builds.yml:82-90` — it would otherwise
+hash into a stable fingerprint, compare equal on every subsequent run, and silently freeze the build
+forever. `workflow_dispatch` takes a `force` input to build regardless
+`.github/workflows/nightly-builds.yml:42-50`.
+
+#### The Android APK
+
+`sdk/org/apps/mobile/android/` is gitignored `sdk/org/apps/mobile/.gitignore:8-9` — it is prebuild
+*output*, not source — so CI generates the native project first (`expo prebuild --platform android
+--no-install`, which defaults to a clean generation) and then runs `./gradlew :app:assembleRelease`
+`.github/workflows/nightly-builds.yml:318-334`. Workspace dependencies are built by invoking the
 app's own `eas-build-post-install` hook verbatim, so this path and an EAS build cannot drift
-`.github/workflows/mobile-android.yml:115-117`.
+`.github/workflows/nightly-builds.yml:310-316`.
 
 Three things make the artifact unmistakably *not* a release candidate:
 
 - **Debug-signed.** `expo prebuild` generates `release { signingConfig signingConfigs.debug }`, and
   no release keystore exists in this org. Play rejects the upload; a phone installs it fine.
-- **arm64-v8a only** `.github/workflows/mobile-android.yml:135-137`. `newArchEnabled=true` means
+- **arm64-v8a only** `.github/workflows/nightly-builds.yml:328-334`. `newArchEnabled=true` means
   React Native compiles its C++ from source and `gradle.properties` asks for four ABIs, so the
-  default is that compile done four times for a throwaway artifact. The cost: it will **not** install
-  on the standard x86_64 emulator. (Measured: ~4m for the single-ABI release build.)
+  default is that compile done four times. The cost: it will **not** install on the standard x86_64
+  emulator. (Measured: ~4m locally with a warm cache, ~35m cold on a 2-core runner.)
 - **versionCode 1, always** — `eas.json` sets `appVersionSource: "remote"`
   `sdk/org/apps/mobile/eas.json:2-5`, so the real number is allocated by EAS and a plain Gradle
   build never asks.
@@ -123,24 +161,29 @@ server answers "No app id provided" forever `sdk/org/apps/mobile/app.config.js:1
 `RELEASE_CHANNEL` is *also* unset and defaults to `production`
 `sdk/org/apps/mobile/app.config.js:110-114`, so the binary does ask for the production channel —
 which is inert, because omitting `EXPO_OTA_APP_ID` puts the build on a different `runtimeVersion`
-entirely `sdk/org/apps/mobile/app.config.js:138-145`, one no publish targets. The job prints the
-APK's embedded fingerprint to the run summary `.github/workflows/mobile-android.yml:142-146`; that
-value, read out of the artifact rather than re-resolved later, is what an entry in
-`sdk/org/apps/mobile/shipped-runtime-versions.json` needs.
+entirely `sdk/org/apps/mobile/app.config.js:138-145`, one no publish targets. The APK's embedded
+fingerprint is read out of the built artifact into `BUILD-INFO-android.txt`
+`.github/workflows/nightly-builds.yml:352-365`; that value, never re-resolved from a tree that has
+moved on, is what an entry in `sdk/org/apps/mobile/shipped-runtime-versions.json` needs.
 
-**`desktop.yml` → a Linux AppImage + .deb.** The `bundle` job is skipped on pull requests
-`.github/workflows/desktop.yml:148-152` and runs on `ubuntu-22.04`, not `ubuntu-latest`, for the
-same reason `desktop-release.yml` does: AppImage and .deb are forward-compatible only, and a binary
-linked against a newer glibc fails at exec time with a bare `version 'GLIBC_2.39' not found`. It is
-Linux-only on purpose — macOS runners bill at 10x minutes and Windows at 2x, so a full per-commit
-matrix would cost roughly 25x this job to catch, on the platforms that break least often, what the
-tag build catches anyway. All four targets remain on `desktop-release.yml`.
+#### The Linux desktop bundle
+
+Runs on `ubuntu-22.04`, not `ubuntu-latest`, for the same reason `desktop-release.yml` does:
+AppImage and .deb are forward-compatible only, and a binary linked against a newer glibc fails at
+exec time with a bare `version 'GLIBC_2.39' not found` `.github/workflows/nightly-builds.yml:131-140`.
+It is Linux-only on purpose — macOS runners bill at 10x minutes and Windows at 2x, so a full matrix
+would cost roughly 25x this job to catch, on the platforms that break least often, what the tag build
+catches anyway. All four targets remain on `desktop-release.yml`.
+
+`pnpm tauri:build` runs the frontend build itself — `beforeBuildCommand: pnpm build` in
+`tauri.conf.json` — so one command produces the bundle from source
+`.github/workflows/nightly-builds.yml:186-190`.
 
 #### Where the binaries land — the rolling `nightly` release
 
 Both jobs publish to **one shared prerelease tagged `nightly`**, in addition to uploading a
-per-commit workflow artifact `.github/workflows/desktop.yml:222-229`
-`.github/workflows/mobile-android.yml:166-171`. The two serve different purposes and both are
+per-commit workflow artifact `.github/workflows/nightly-builds.yml:243-248`
+`.github/workflows/nightly-builds.yml:379-384`. The two serve different purposes and both are
 wanted: the artifact's name carries the SHA and is the provenance trail, while the release always
 holds only the newest build, at a fixed public URL:
 
@@ -154,22 +197,22 @@ A workflow artifact cannot serve that purpose: it 404s for anyone not signed in 
 after 14 days, and downloads only as a zip — which a phone cannot install. Asset names are
 deliberately **version-free**, because Tauri encodes the version into its own filenames
 (`lmthing_0.1.0_amd64.AppImage`) and publishing those as-is would break every link already handed
-out the moment `version` in `tauri.conf.json` changes `.github/workflows/desktop.yml:248-253`.
+out the moment `version` in `tauri.conf.json` changes `.github/workflows/nightly-builds.yml:207-212`.
 
 **Two jobs writing one release is a race, and the design avoids it rather than sequencing it.**
 Creation is idempotent — `gh release view` short-circuits the common case and `|| true` covers the
-window where the other job created it in between `.github/workflows/desktop.yml:268-274`. Provenance
+window where the other job created it in between `.github/workflows/nightly-builds.yml:228-234`. Provenance
 then travels *with* each asset as a sibling `BUILD-INFO-linux.txt` / `BUILD-INFO-android.txt`
-rather than in the release body `.github/workflows/desktop.yml:255-264`: distinct filenames cannot
+rather than in the release body `.github/workflows/nightly-builds.yml:214-224`: distinct filenames cannot
 collide, whereas two jobs rewriting one body would silently lose whichever write landed first. The
 Android file records the APK's embedded `runtimeVersion`
-`.github/workflows/mobile-android.yml:199-208`.
+`.github/workflows/nightly-builds.yml:355-365`.
 
 The notes are re-rendered from a committed template on every run
 `.github/workflows/nightly-release-notes.md:1-27`, because `--notes-file` is read only at
 *creation* — without that an edit to the template would never reach the live release. Running it
 unconditionally is safe precisely because both jobs render the same committed file, so concurrent
-writes agree instead of clobbering `.github/workflows/desktop.yml:276-279`.
+writes agree instead of clobbering `.github/workflows/nightly-builds.yml:236-240`.
 
 **Both publish steps MUST set `GH_REPO`, and the reason is not obvious.** Each runs with a
 `working-directory` inside the `sdk/org` **submodule**, whose git remote is `github.com/lmthing/org`
@@ -177,16 +220,18 @@ writes agree instead of clobbering `.github/workflows/desktop.yml:276-279`.
 write access. Shipping without it failed with `HTTP 403: Resource not accessible by integration`
 naming `lmthing/org`, after the entire 20-minute build had already succeeded. Pinning
 `GH_REPO: ${{ github.repository }}` is what keeps `gh` pointed at this repository
-`.github/workflows/desktop.yml:238-243`.
+`.github/workflows/nightly-builds.yml:195-200`.
 
-Consequences worth knowing: the assets are replaced **independently**, so the desktop and Android
-downloads are not guaranteed to come from the same commit (check the `BUILD-INFO` beside each). The
-`nightly` git tag stays at whichever commit first created the release — it is a container, not a
-version marker; the assets are what move. And because `mobile-android.yml` sets
-`cancel-in-progress: true` `.github/workflows/mobile-android.yml:62-64`, a push landing during the
-~40-minute Android build cancels it, so a busy stretch of commits publishes an APK only for the last
-one — the correct trade for a rolling release, but it does mean "no new APK" is an expected outcome
-rather than a failure.
+Two consequences worth knowing. The `nightly` git tag stays at whichever commit first created the
+release — it is a container, not a version marker; the assets are what move. And a run where the
+change gate finds nothing publishes **nothing at all**, so the assets simply stay as they are: an
+unchanged `nightly` is the expected steady state, not a broken job.
+
+Because both jobs now run from the same nightly trigger, the desktop and Android assets normally
+come from the *same* commit — which was not true when they were separate per-commit workflows. They
+can still diverge if one job fails while the other succeeds, which is exactly the case the change
+gate treats as "changed" so the failed platform retries the next day. `BUILD-INFO-*.txt` beside each
+asset is the authority on which commit produced it.
 
 ### Repo-hygiene workflows
 

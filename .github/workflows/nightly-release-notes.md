@@ -1,5 +1,9 @@
-Automatic builds of the latest commit on `main`. **Not a stable release** — these are replaced
-every time `main` moves, and nothing here has been through review, QA or a store.
+Automatic **daily** builds of `main`. **Not a stable release** — nothing here has been through
+review, QA or a store.
+
+They are rebuilt once a day, and only when something that goes into them actually changed: the
+`sdk/org` submodule pointer, or the build workflow itself. A day where neither moved leaves these
+files exactly as they are, so an unchanged date below is normal rather than a sign something broke.
 
 | Download | Platform | Notes |
 |---|---|---|
@@ -8,8 +12,8 @@ every time `main` moves, and nothing here has been through review, QA or a store
 | `lmthing-android-arm64.apk` | Android, arm64 only | Enable "install unknown apps" first |
 
 Each `BUILD-INFO-*.txt` records the exact commit, build time and Actions run that produced the
-asset beside it. **The assets are replaced independently**, so the desktop and Android downloads
-are not guaranteed to come from the same commit — check the matching `BUILD-INFO` file.
+asset beside it. Both platforms normally build together from the same commit, but they can diverge
+if one fails — the `BUILD-INFO` beside each asset is the authority on which commit produced it.
 
 ### Read this before installing
 

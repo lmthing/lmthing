@@ -114,7 +114,7 @@ Evidence: `sdk/org/scenarios/20-studio/runs/4/step-09.json` — `wrote.globals` 
 
 ---
 
-## 4. Two people contradict each other about the same boat and neither is told (22-crossfire run 4 step 4)
+## 4. Two people contradict each other about the same boat and neither is told (22-crossfire run 2 step 4)
 
 This is the beat 22-crossfire exists for. In the same instant, in two channels:
 

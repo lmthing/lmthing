@@ -176,6 +176,7 @@ The mock module is an ESM file whose default export is either a `MockHandler` fu
 | `LM_MODEL` | `bin.ts:309`, `bin.ts:317` | default model spec/alias (final fallback: alias `M`) |
 | `LM_MODEL_ROLE_EXPLORE` / `_PLAN` / `_GENERAL` | `readRoleModels` `bin.ts:143-152` | per-fork-role model overrides |
 | `LM_MOCK` | `bin.ts:301` | same as `--mock` |
+| `LM_STREAM_PARAMS` | `parseStreamParams` `sdk/org/libs/cli/src/stream/stream.ts#parseStreamParams` | JSON `StreamParams` applied to **every** model request of the process |
 | `LM_SYSTEM_SPACES` | `bin.ts:245` | csv of system-space dirs |
 | `LM_ADOPT_SYSTEM_SPACES=1` | `runtime-init.ts:160` | same as `--adopt-system-spaces` |
 | `LM_BUDGET_EPISODES` / `_TOOL_CALLS` / `_FORK_DEPTH` / `_WALLCLOCK_MS` | `readBudget` `bin.ts:165-180` | budget caps |
@@ -183,6 +184,14 @@ The mock module is an ESM file whose default export is either a `MockHandler` fu
 | `LM_DEV_WEB` | `sdk/org/libs/cli/src/server/serve.ts:389-392` | serve the web app in-process via Vite (HMR) instead of the built dist |
 
 **Models resolve lazily, per stream call**, with a cache keyed by the resolved spec, and each call re-reads the env `sdk/org/libs/cli/src/cli/bin.ts:315-328`. So the server boots with no (or an invalid) model configured, and credentials supplied later via `PUT /api/env` take effect **without a process restart**.
+
+**Provider params (`LM_STREAM_PARAMS`).** By default nothing is sent beyond model + prompt, so every request runs at the provider's own defaults. `LM_STREAM_PARAMS` is a JSON object of `StreamParams` — `temperature`, `maxOutputTokens`, `stopSequences`, `providerOptions` (`sdk/org/libs/core/src/eval/stream-types.ts#StreamParams`) — parsed **once** at startup and merged under whatever the individual request already carries (a fork's own `params` win) before `createStream` spreads them into the AI SDK call (`sdk/org/libs/cli/src/stream/stream.ts#createStream`). Invalid JSON, a non-object payload, an unknown key or an out-of-range value never kills the session: each warns on stderr and is dropped, keeping the valid keys (`sdk/org/libs/cli/src/stream/stream.ts#parseStreamParams`).
+
+```bash
+LM_STREAM_PARAMS='{"temperature":0.2,"maxOutputTokens":3000}' lmthing --request "..."
+```
+
+`maxOutputTokens` is also a cost guard: the turn loop aborts the stream on **every** yield, typecheck error and eval error, and a cheap OpenAI-compatible endpoint often keeps generating (and billing) after the socket drops.
 
 ---
 

@@ -30,7 +30,7 @@ Key `TurnLoopDeps` fields (`turn-loop.ts:248-289`):
 | `vm` | the QuickJS VM (`sandbox/quickjs.ts` `VM`) |
 | `history` | `MessageHistory` — the prompt messages (`context/history.ts`) |
 | `systemBlock`, `ambientDts` | system prompt + the ambient `.d.ts` every statement typechecks against |
-| `streamFn(opts) → StreamSession` | provider stream (`eval/stream-types.ts:37-52`) |
+| `streamFn(opts) → StreamSession` | provider stream. `StreamOpts` carries `system` / `messages` / an optional per-request `model` override / optional `params` (`sdk/org/libs/core/src/eval/stream-types.ts#StreamOpts`); the returned `StreamSession` carries `textStream` / `abort()` / optional `usage` / optional `finishReason` (`sdk/org/libs/core/src/eval/stream-types.ts#StreamSession`) |
 | `processYield(req) → Promise<unknown>` | host resolver for a `YieldRequest` |
 | `maxRetries` | default **3** (`turn-loop.ts:355`) |
 | `budget` | `Budget` — episodes / tool calls / wall clock (`eval/budget.ts`) |
@@ -61,8 +61,10 @@ while (attempt < maxRetries)                       // turn-loop.ts:388
         processStatement(stmt)                     // :525
           prose? → drop           typecheck fail? → abort stream, turnError
           eval fail? → abort stream, turnError     pendingYield? → abort stream
+  if finishReason == 'length' and nothing ran → backoff, re-issue the request
   flush fenceFilter + detector tail                // :593-606 (only when not aborted)
   history.append(assistant: parsedStatements)      // :645
+  if finishReason == 'length' → "you were cut off" message, attempt=0, continue
   if turnError   → error block, retry (or 'error')            // :648-666
   if pendingYield→ resolve yields, bind, VARIABLES, attempt=0 // :668-815
   if no statements → 'done'                                   // :826-829
@@ -303,10 +305,17 @@ next turn.
 **Then the model is re-prompted.** The yielding statement is appended to `accumulatedContext`
 (`:764`) and a `user` message with `blockType:'variables'` is appended (`:811`), built from:
 
-- `emitVariables(variables, accumulatedContext)` (`context/variables.ts:9-28`) — a `VARIABLES` list
-  (values via `serialize`: 200-char string cap, depth cap 6, 4 KiB byte cap by default —
-  `globals/serialize.ts#SerializeOpts`), a `SCOPE (already declared — do not redeclare)` line, and an
-  `ALREADY EXECUTED` block;
+- `emitVariables(variables, accumulatedContext, { omitExecuted: true })`
+  (`context/variables.ts#emitVariables`) — a `VARIABLES` list (values via `serialize`: 200-char
+  string cap, depth cap 6, 4 KiB byte cap by default — `globals/serialize.ts#SerializeOpts`) and a
+  `SCOPE (already declared — do not redeclare)` line. The `ALREADY EXECUTED` echo is **not**
+  embedded in the message content: the raw context snapshot is stored on the history message
+  (`context/history.ts#Message` `alreadyExecuted`) and `getPromptMessages` renders ONE bounded echo
+  (`context/variables.ts#formatAlreadyExecuted`) onto the **latest** variables block only — each
+  snapshot supersedes the previous, so re-sending a copy per yield made history quadratic in
+  program size (`context/history.ts#MessageHistory`). Stored history and snapshots are untouched;
+  the dedupe happens at prompt-build time. Callers that still pass a scope context without
+  `omitExecuted` (the fork prelude) get the echo embedded inline, bounded to the same window;
 - `formatInspectResult(inspectArgs)` lines folded into the same `VARIABLES` header — `inspect()` is
   normally called *without* a binding, so without this a bare `inspect(x)` would surface nothing
   (`turn-loop.ts:774-795`). Its own `serialize` call raises the string cap to 20,000 chars
@@ -418,8 +427,22 @@ Notes:
 | **`process.exit(...)`** | intentional termination — returns `'done'` without retrying (`:600-603`) |
 | **stream idle > `streamIdleMs`** | abort + `streamErrored = true` → retried as transient (`:454-459`) |
 | **non-abort stream error, no statements** | retried with backoff `min(2000, 300 × attempt)`; `'error'` once retries are exhausted (`:525-535`) |
+| **`finishReason: 'length'`, no statements** | same path as a stream error — `turn_end{reason:'length_cut'}`, backoff, re-issue the request; `'error'` once retries are exhausted (`sdk/org/libs/core/src/eval/turn-loop.ts#runTurnLoop`) |
+| **`finishReason: 'length'` after statements ran** | the response is *continued*, not re-issued: `turn_end{reason:'length_cut_continue'}`, a "cut off by the output limit" user message, `attempt = 0`, bounded by `maxContinueNudges` (`sdk/org/libs/core/src/eval/turn-loop.ts#runTurnLoop`) |
 | **retries exhausted** | `turn_end{reason:'max_retries'}`, return `'error'` (`:795-796`) |
 | **`BudgetExceededError`** | propagates out of `runTurnLoop` (caller disposes the VM) |
+
+**A length cut is not a completion.** `StreamSession.finishReason` is set from the provider's terminal
+`finish` part — the AI SDK's `fullStream` carries it and `textDeltaStream` hands it to `createStream`,
+which exposes it as a plain (non-promise) getter so reading it can never hang the turn
+(`sdk/org/libs/cli/src/stream/stream.ts#textDeltaStream`, `sdk/org/libs/cli/src/stream/stream.ts#createStream`,
+`sdk/org/libs/core/src/eval/stream-types.ts#StreamSession.finishReason`). It is only meaningful once the
+stream has *ended*: after `abort()` — which every yield, typecheck error and eval error triggers — no
+`finish` part ever arrives, so the loop ignores it whenever `aborted` is set. `'length'` means the
+endpoint hit its output cap and truncated the program mid-statement, which previously either burned a
+retry on a misleading parse error or settled the turn `'done'` on half a program; the loop now treats it
+as a stream-level failure and the `llm_response` trace event carries `finishReason`
+(`sdk/org/libs/core/src/sandbox/trace.ts:61`).
 
 **The error block.** `buildErrorBlock(failingStatement, message, attempt, maxRetries, accumulatedContext)`
 (`eval/error-rewind.ts:45-76`) is appended to history as a `user` message with `blockType:'error'`

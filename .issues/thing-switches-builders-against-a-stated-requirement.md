@@ -88,3 +88,48 @@ Fails when step 3's delegates contain `system-appbuilder` for a project whose `p
 - `.issues/thing-builds-on-the-offer-turn.md` — the other restraint failure from the same scenario.
 - `design/appbuilder-viewspec-plan.md` — the owner decision that routing is explicit opt-in and
   `system-appbuilder` is frozen.
+
+---
+
+## Still reproduces with the prose clause IN PLACE — it needs the structural fix (run 904, 2026-07-31)
+
+The second bullet above ("the routing rule gains an explicit clause: **an existing app keeps its
+builder**") has since been implemented, twice over. It is in THING's ALWAYS-ON instruct body —
+
+> **And an app that already EXISTS keeps the builder that made it** — look at `listProjectDir('pages')`
+> and match what is there (`*.view.json` specs are the spec builder's, `*.tsx` pages the default
+> one's); switching medium halfway reverses a requirement somebody stated, so put it to them rather
+> than settling it yourself.
+
+— and the full rationale, including the two traps ("never reason from the requirement to the switch",
+"never predict on a builder's behalf that it cannot express something"), is in
+`system-appbuilder`-adjacent knowledge at `user-thing/knowledge/playbooks/building/spec-app.md`.
+
+**`20-studio` run 904 mixed the media anyway**, and the run log shows THING *loaded* `spec-app` on
+the very turn it did so. The resulting `pages/` holds both media side by side:
+
+```
+components  index.tsx  index.view.json  jobs  _shell.view.json
+```
+
+Both builders appear in the run's step-01..03 delegates
+(`system-appbuilder/automator#build_live_project` AND `system-viewbuilder/automator#build_live_project`).
+
+This is not new behaviour and not a regression — checking every prior run of the scenario, run 2
+produced `index.tsx` + `index.view.json` + `job-detail` in BOTH media, and run 4 produced `create-job`
+in both. Only run 3 stayed single-medium. But it does settle something the issue left open: **the
+prose clause is not sufficient, and reading it on the turn does not make it hold.** What is left is
+the third bullet — refuse it in the writer:
+
+> `build_live_project` on a project that already has `*.view.json` specs refuses in the appbuilder
+> and says why, making it structural rather than advisory.
+
+That is the same shape as every other rule in this system that actually holds: the medium is already
+separated BY CAPABILITY (`views:write` vs `pages:write`), so the check belongs where the capability
+does — a `writeProjectPage` into a project whose `pages/` holds `*.view.json` (and the reverse)
+should return `{ ok:false }` naming the medium already in use, exactly as `writeProjectPage` already
+refuses a page that would delete sections the user has.
+
+**Repro (post-split):** `node scenarios/run-team-scenario.mjs 20-studio --through 7`, then
+`ls <run>/data/.lmthing/studio-jobs/pages/` — a mix of `*.tsx` and `*.view.json` is the failure.
+Stochastic: 3 of 4 runs to date.

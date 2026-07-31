@@ -265,3 +265,38 @@ Three of the six THING messages in `22-crossfire` run 2 were working material ra
 each by a different route — the memory delegate's raw listing prepended to a good answer (`#yard`
 turn 1), ~1800 characters of generated TypeScript as the reply to *"go on then"* (`#yard` turn 2,
 `display()` of the automator's return value), and this one. All three: `status: done`, `ok: true`.
+
+---
+
+## Two more shapes of the same leak, both post-split (run 904, 2026-07-31)
+
+The rule this violates is ALWAYS ON — it is in THING's instruct body, not behind a knowledge load,
+and the prompt-split guard `libs/core/src/spaces/thing-prompt-split.test.ts` asserts it against
+`instruct.md` alone precisely so it cannot drift behind a load:
+
+> **Everything you say here is permanent, shared, and read by people who did not ask.** Nothing
+> internal ever reaches it — not a compiler error, not the code you wrote, not a retry transcript,
+> not another agent's report. **A failure is one sentence in plain words.**
+
+It leaked twice anyway, in two shapes the original report does not cover:
+
+- **step 3** — the reply's FIRST line is a writer rejection, verbatim:
+  `Write error: page route "index.view.json" has an invalid path segment "index.view.json"`.
+  (Underneath it is a real bug: the model passed a FILENAME where `writeProjectView` wants a ROUTE.
+  The writer was right to refuse; what reached the channel was its refusal.)
+- **step 6** — the reply opens `Build Result — Degraded ... Press-checks table & page exist, but jobs
+  APIs are broken. The pipeline built ...`. Nobody in `#studio` has a word for *pipeline*,
+  *degraded*, or an *API*, and the sentence reads as the thing being broken.
+
+**Not a regression, and that is the point.** Across every run of this scenario: run 2 leaked the same
+pipeline+API vocabulary at step 3, run 4 leaked pipeline vocabulary at step 2, run 3 was clean, run
+904 leaked at steps 3 and 6. So it is stochastic at roughly 2-in-3 and it survived a prompt in which
+the rule is unconditional and permanently in context.
+
+**What that rules out.** "Say it more loudly, or higher up the prompt" is already spent — the rule is
+always-on, first in the team section, and phrased as an absolute. The remaining fix is structural,
+and there is an obvious seam: a team reply goes out through `teamPost`/the channel reply path, which
+is host code. A **host-side scrub on the outbound team message** — reject or strip a reply whose text
+carries a compiler/writer error signature (`Write error:`, `Cannot find name`, `TS####`,
+`ERROR (attempt N of M)`) and ask the model for one plain sentence instead — enforces what the prose
+cannot. That is the same move as `writeProjectPage` refusing a destructive overwrite.

@@ -102,6 +102,22 @@ With its own variable, the absence of a desktop is unambiguous and the function 
 
 **The 27 `system-browser` wrappers** are unchanged and unaware of any of this; the pod forwards their body verbatim. Where a tool has no faithful expression against Chromium it is **refused** — `tree`, `nodeDetails` and `findElement` are `backendNodeId`-shaped, and a selector-based approximation would hand the model ids that do not mean what it thinks they do.
 
+### Opening the pane is what connects it
+
+The browser and the bridge are one feature, not two. Opening the pane starts a browser; it also attaches this desktop to the workspace (`sdk/org/apps/desktop/src/HomeShell.tsx#HomeShell`), because without the bridge the pod has nowhere to send a browser operation and the agent can only answer that no desktop is connected. A browser an agent cannot reach is not what the pane is for.
+
+It does **not** widen what can be read from disk: the grant list is the filesystem boundary and is empty until the person names a folder. And it is an *implied* start, which can never undo a deliberate Disconnect — a kill switch a side effect can reverse is not one (`sdk/org/apps/desktop/src/host-bridge.ts#DesktopHostBridge.start`).
+
+Whether an agent can reach the browser is shown in the pane rather than left to be inferred from an agent's apology (`sdk/org/apps/desktop/src/BrowserPane.tsx#BrowserPane`).
+
+### Telling an agent the desktop is not there
+
+The refusal an agent gets names the remedy, and names the wrong remedy so it will not be offered (`sdk/org/libs/cli/src/rpc/host-bridge.ts#NOT_ATTACHED`).
+
+That is not defensive writing. The message was once a bare statement of fact, and a model handed a problem with no remedy supplies one: it told the person to start a Lightpanda server, with a command line, an operator and a port. The inference was reasonable — the 27 wrappers describe themselves as Lightpanda wrappers, and on a desktop-attached pod `LIGHTPANDA_MCP_URL` genuinely does point at a local endpoint. Nothing was missing; someone had to open a window.
+
+For the same reason the `browser` agent's charter no longer names a product (`sdk/org/libs/core/system-spaces/system-browser/agents/browser/charter.md`). Which browser it drives is not fixed — a headless one beside it, or the real browser on the person's desk — and an agent that believes it knows will explain the wrong one.
+
 ### The DevTools agent
 
 `sdk/org/libs/core/system-spaces/system-desktop-browser/agents/devtools/instruct.md` holds raw CDP behind the `browser:cdp` capability, which is consent-marked and therefore **fails closed wherever there is no prompter** — every headless, fork, delegate and hook context (`sdk/org/libs/core/src/globals/consent.ts`). It is the last resort, not the first: ordinary browsing belongs to `browse`, which needs no per-call approval.

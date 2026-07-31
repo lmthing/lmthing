@@ -213,8 +213,28 @@ modes (`tokens.json` `$meta`, `spectrum.description`).
   `--color-lm-*` Tailwind aliases at `:78-89`), so they are theme-aware and pass the gate. The
   stylesheet states the contract: the palette is owned by `@lmthing/css/theme.css`, "this surface
   must NOT redeclare shared tokens — it only bridges the legacy `--lm-*` aliases … onto shared
-  tokens so they inherit light/dark automatically" (`styles.css:20-26`). `lm-*` is sanctioned;
-  don't churn it.
+  tokens so they inherit light/dark automatically" (`styles.css:20-26`).
+
+  **On web only.** That bridge is a CSS file, and React Native never loads it. The native
+  primitive layer rewrites any `var(--x)` to the Tamagui token `$x`
+  (`sdk/org/libs/ui/src/elements/primitives/_native.tsx#nativeSafeProps`), and there is no
+  `lm-*` entry in the generated token module
+  (`sdk/org/libs/css/src/tamagui/tokens.generated.ts`) — so `var(--lm-text)` resolves to a token
+  that does not exist and the colour is dropped SILENTLY. No crash, no warning, just uncoloured
+  text. So the older advice here — "`lm-*` is sanctioned; don't churn it" — held only while the
+  chat surface was web-only. **In any component that also runs on native, use the shared token
+  directly** (`$foreground`, `$muted-foreground`, `$agent`, …). The renderer every `display()`
+  descriptor passes through has been moved onto shared tokens for exactly this reason
+  (`sdk/org/libs/ui/src/chat/components/render-descriptor.tsx#renderDescriptor`), as have the chat
+  helpers (`sdk/org/libs/ui/src/chat/app/common.tsx`) and the `ask()` form
+  (`sdk/org/libs/ui/src/chat/components/forms/CatalogForm.tsx`).
+
+  The `--lm-*` names are still live for one thing: a space's `theme.json` retints them at runtime
+  through `applyThemeTokens` (`sdk/org/libs/ui/src/theme/theme.ts#applyThemeTokens`), which the
+  CLI's own `--web` DevTools preview uses. That mechanism is web-only and unrelated to the shipped
+  SPA. The desktop-only panels (`app/tree.tsx`, `app/inspector.tsx`, `app/DevPanel.tsx`,
+  `app/replay.tsx`) still use the aliases and are fine where they are, because they are not
+  reachable on a phone.
 - **Component styling pattern** — a component carries its own styling as `$`-token style PROPS on
   a Tamagui primitive; there is no per-component stylesheet
   (`sdk/org/libs/ui/src/elements/forms/button/index.tsx#Button`). `libs/css` no longer ships

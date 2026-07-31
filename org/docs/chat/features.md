@@ -40,15 +40,15 @@ Because the gate has already confirmed the edge is serving, `ChatShell`'s boot f
 
 | Action | Endpoint | Code |
 |---|---|---|
-| list projects | `GET /api/projects` | `Sidebar.tsx:111` |
-| create project | `POST /api/projects {name}` | `Sidebar.tsx:137` |
-| delete project | `DELETE /api/projects/:id` | `Sidebar.tsx:145` |
-| conversation list | `GET /api/projects/:id/sessions` | `Sidebar.tsx:98` |
-| spaces list | `GET /api/projects/:id/spaces` | `Sidebar.tsx:104` |
-| per-token pricing | `GET /api/prices/azure` | `Sidebar.tsx:125` |
-| new chat | `POST /api/sessions {projectId}` | `Sidebar.tsx:155` |
-| resume chat | `POST /api/sessions {projectId, resumeSessionId}` | `Sidebar.tsx:163` |
-| delete chat | `DELETE /api/sessions/:id` | `Sidebar.tsx:169` |
+| list projects | `GET /api/projects` | `Sidebar.tsx:108` |
+| create project | `POST /api/projects {name}` | `Sidebar.tsx:133` |
+| delete project | `DELETE /api/projects/:id` | `Sidebar.tsx:141` |
+| conversation list | `GET /api/projects/:id/sessions` | `Sidebar.tsx:94` |
+| spaces list | `GET /api/projects/:id/spaces` | `Sidebar.tsx:99` |
+| per-token pricing | `GET /api/prices/azure` | `Sidebar.tsx:122` |
+| new chat | `POST /api/sessions {projectId}` | `Sidebar.tsx:148` |
+| resume chat | `POST /api/sessions {projectId, resumeSessionId}` | `Sidebar.tsx:157` |
+| delete chat | `DELETE /api/sessions/:id` | `Sidebar.tsx:163` |
 
 Sessions are grouped Today / Yesterday / Last 7 days / Older by `lastActivity` (`Sidebar.tsx:56-72`) and each row shows its cost (`totalCostUsd`, or the live store cost for the active session) (`Sidebar.tsx:210-211`). Clicking a **space** navigates out to Studio (`crossAppOrigin('studio')` + `/studio/<projectId>/<spaceId>`, `Sidebar.tsx:179-182`). The footer is the shared `SidebarFooter` — cross-app links plus an account row that opens the global settings dialog (`Sidebar.tsx:243`; see [The shared settings dialog](#the-shared-settings-dialog-sidebar-footer) below).
 
@@ -66,7 +66,7 @@ Client → server messages accepted by the pod's agent socket: `sendMessage` (wi
 
 ### Transcript
 
-`ChatView` groups blocks into user messages and assistant turns (`sdk/org/libs/ui/src/chat/app/ChatView.tsx#groupBlocks`), renders the header (title, session cost, follow toggle, connection dot, trace loader, Inspect, Report bug, theme toggle, restart) and the message list, with the single live `<StatusLine/>` sentence under the header title (`ChatView.tsx:206-289`). `handleSend` echoes the message into the transcript (`noteUserMessage`) and pushes it over the socket — unless a budget window is exhausted, in which case the send is refused outright (`ChatView.tsx:117-123`).
+`ChatView` groups blocks into user messages and assistant turns (`sdk/org/libs/ui/src/chat/app/ChatView.tsx#groupBlocks`), renders the header (title, session cost, follow toggle, connection dot, trace loader, Inspect, Report bug, theme toggle, restart) and the message list, with the single live `<StatusLine/>` sentence under the header title (`ChatView.tsx:213-294`). `handleSend` echoes the message into the transcript (`noteUserMessage`) and pushes it over the socket — unless a budget window is exhausted, in which case the send is refused outright (`ChatView.tsx:160-166`).
 
 The header title is whatever the agent set via `setSessionMeta` (a `session_meta` trace event), falling back to `<space/project> · <Agent>` (`ChatView.tsx:157-173`).
 
@@ -89,7 +89,7 @@ A **consent-marked** call (today `installSpace`, or any space function tagged `@
 
 ### Cost and budget
 
-Per-token pricing comes from `GET /api/prices/azure` (`Sidebar.tsx:125`); in-flight LLM cost is accumulated from `llm_request`/`llm_progress`/`llm_response` trace events in the session slice, and the header shows `sessionCostUsd + sessionCostInflight` (`ChatView.tsx:89`).
+Per-token pricing comes from `GET /api/prices/azure` (`Sidebar.tsx:122`); in-flight LLM cost is accumulated from `llm_request`/`llm_progress`/`llm_response` trace events in the session slice, and the header shows `sessionCostUsd + sessionCostInflight` (`ChatView.tsx:112`).
 
 `BudgetWindows` renders one muted line under the composer from same-origin `GET /api/budget` — Today / Week / Month remaining %, refreshed every 30 s and after every cost change; red under 15 % (`sdk/org/libs/ui/src/chat/app/BudgetWindows.tsx#POLL_MS,36-59,66-79`) → [../cli-api/rest/budget.md](../cli-api/rest/budget.md). A window at exactly **0 %** sets `store.budgetBlocked`, which hard-disables the composer (LiteLLM would 429 the turn anyway) (`BudgetWindows.tsx:29-34`, consumed at `ChatView.tsx:118-119` and `Composer.tsx:66`). The endpoint 404s off lmthing.cloud, and the line then renders nothing (`BudgetWindows.tsx:39-42`).
 

@@ -196,6 +196,8 @@ lmthing/
 ├── sdk/org/                # submodule: runtime + unified SPA + shared libs
 │   ├── libs/{core,cli,state,css,ui,auth,utils,config}   # @lmthing/*
 │   ├── apps/web/           # the unified SPA (/studio /computer /chat /apps)
+│   ├── apps/mobile/        # Expo/React Native app (chat, teams, dashboard)
+│   ├── apps/desktop/       # Tauri v2 desktop app (chat, teams, dashboard)
 │   └── common/
 ├── cloud/                  # THE backend — gateway/ (Hono/Node) + litellm/render/zitadel k8s config
 ├── store/                  # catalog SPA + projects/ + spaces/ templates + manifest generator

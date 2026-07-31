@@ -41,5 +41,5 @@ jobs:
       - name: Lint design tokens
         run: >
           node sdk/org/libs/css/scripts/lint-design-tokens.mjs
-          sdk/org/libs/css/src sdk/org/libs/ui/src sdk/org/apps/web/src
+          sdk/org/libs/css/src sdk/org/libs/ui/src sdk/org/apps/web/src sdk/org/apps/desktop/src
           com/src social/src store/src space/src blog/src casa/src org/src automation/app/src

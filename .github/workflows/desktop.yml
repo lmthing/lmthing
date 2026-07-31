@@ -1,0 +1,111 @@
+name: Desktop target
+
+# Proves the Tauri desktop app still typechecks, builds and compiles.
+#
+# Split into two jobs on purpose. `frontend` is the fast one — node only, ~1 minute — and catches
+# everything that is actually likely to break: a shared-lib change that the desktop bundle can no
+# longer resolve, a raw colour, an import that reaches past the `@lmthing/ui` barrels. `rust` needs
+# a system toolchain and GTK/WebKit headers, so it is slower and is kept separate rather than
+# blocking the cheap answer behind the expensive one.
+#
+# `sdk/org` is listed WITHOUT a trailing `/**` as well, and that is NOT redundant: it is a
+# submodule, so bumping it changes the single gitlink path `sdk/org`, which `sdk/org/**` does not
+# match. A submodule bump is how essentially all `sdk/org` source reaches this repo — omitting the
+# bare entry is why `native-target.yml` ran exactly once in its life.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: &desktop_paths
+      - 'sdk/org'
+      - 'sdk/org/**'
+      - '.github/workflows/desktop.yml'
+  push:
+    branches: [main]
+    paths: *desktop_paths
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+
+      - name: Install
+        working-directory: sdk/org
+        run: pnpm install --frozen-lockfile
+
+      # `@lmthing/core`'s `./ui` export points at a gitignored `dist/`, so a clean clone cannot
+      # resolve it until core is built. Both `native-target.yml` and `ota-publish.yml` carry the
+      # same step for the same reason.
+      - name: Build workspace deps
+        working-directory: sdk/org
+        run: pnpm --filter @lmthing/core build
+
+      - name: Typecheck
+        working-directory: sdk/org/apps/desktop
+        run: pnpm typecheck
+
+      # Design tokens + the barrel-import gate. The second is the one that keeps this app a SHELL:
+      # it refuses any import into a shared package's internals, which is how a desktop-only fork
+      # of a product screen would otherwise arrive without anyone deciding to build one.
+      - name: Lint
+        working-directory: sdk/org/apps/desktop
+        run: pnpm lint
+
+      # The generated colour file is committed; this proves it still matches `tokens.json` rather
+      # than having drifted since someone last ran the generator. `include_str!` would happily
+      # compile a stale file.
+      - name: Design tokens are in sync
+        working-directory: sdk/org/apps/desktop
+        run: |
+          pnpm generate:tauri-conf
+          git diff --exit-code src-tauri/tokens.generated.json \
+            || { echo "::error::tokens.generated.json is stale — run 'pnpm generate:tauri-conf' and commit"; exit 1; }
+
+      - name: Build the bundle
+        working-directory: sdk/org/apps/desktop
+        run: pnpm build
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Tauri on Linux links against WebKitGTK; without these the build fails at link time with an
+      # error that reads like a Rust problem and is not one.
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev \
+            libssl-dev libgtk-3-dev build-essential curl wget file
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sdk/org/apps/desktop/src-tauri
+
+      - name: Format
+        working-directory: sdk/org/apps/desktop/src-tauri
+        run: cargo fmt --check
+
+      # Warnings are errors here deliberately. This crate is small and will stay small; the one
+      # file that matters for safety (Phase 2's `grants.rs`, the filesystem jail) is exactly the
+      # kind of code where an ignored warning is the bug.
+      - name: Clippy
+        working-directory: sdk/org/apps/desktop/src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test
+        working-directory: sdk/org/apps/desktop/src-tauri
+        run: cargo test

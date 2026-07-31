@@ -22,7 +22,7 @@ export const KNOWN_ROOTS = [
 // The root must not be glued to a preceding identifier — the negative lookbehind stops `space`
 // from matching inside `workspace` or `store` inside `system-store`. It deliberately allows a
 // leading `/` or `.` so relative-link citations (`../../sdk/org/…`) still match.
-const PATH = String.raw`(?<![\w-])(?:${KNOWN_ROOTS.join('|')})(?:/[\w.@-]+)+\.(?:tsx?|mtsx?|ctsx?|jsx?|mjs|cjs|json|ya?ml|md|sh|css|html)`;
+const PATH = String.raw`(?<![\w-])(?:${KNOWN_ROOTS.join('|')})(?:/[\w.@-]+)+\.(?:tsx?|mtsx?|ctsx?|jsx?|mjs|cjs|json|ya?ml|md|sh|css|html|rs|toml)`;
 
 // Symbol anchor:  path#Ident(.Ident)*     — dotted qualified names allowed.
 const SYMBOL_RE = new RegExp(String.raw`(${PATH})#([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)`, 'g');

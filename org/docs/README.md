@@ -17,6 +17,8 @@ Every page here is written against real source under `sdk/org/libs/{core,cli}`, 
 | **[studio/](./studio/README.md)** | The `/studio` surface (lmthing.studio): project/space IDE — agents, tasklists, knowledge, functions, components — plus the project-app admin tabs and the `/apps` launcher and `/install` routes. | `sdk/org/apps/web/src/routes/studio/**` · `sdk/org/libs/ui/src/studio/**` |
 | **[computer/](./computer/README.md)** | The `/computer` surface (lmthing.computer): a browser IDE over the pod filesystem (Monaco + xterm terminals), a runtime dashboard, and settings. | `sdk/org/apps/web/src/routes/computer/**` · `sdk/org/libs/ui/src/computer/**` |
 | **[app/](./app/README.md)** | The **served project-application**: boot, page build + serve at `/app/<id>/…`, the worker-isolated Node api runtime, the `@app/runtime` client, and generated `@app/types`. | `sdk/org/libs/cli/src/app/**` |
+| **[mobile/](./mobile/README.md)** | The Expo / React Native app: chat, teams and the Home dashboard on a phone — the shared-`@lmthing/ui` invariant, the `.native` fork ratchet, the `platform/` capability seams, and what the gates do and do not prove. | `sdk/org/apps/mobile/**` · `sdk/org/libs/ui/src/platform/**` |
+| **[desktop/](./desktop/README.md)** | The Tauri v2 desktop app: the same three surfaces in a native window, the host-injected `__LMTHING_DESKTOP__` bridge that replaces a meaningless `tauri://` origin, and custom-scheme sign-in. | `sdk/org/apps/desktop/**` · `sdk/org/libs/auth/src/env.ts` |
 
 ---
 
@@ -106,6 +108,8 @@ All three product surfaces are client-side routes of **one** Vite SPA (`sdk/org/
 | `lmthing.computer` | `/computer` | Pod-filesystem IDE + terminals + runtime dashboard | [computer/](./computer/README.md) |
 | `lmthing.app` | `/apps` | Installed-app launcher (`/install` does the installing) | [studio/](./studio/README.md) |
 | — | `/app/<project>/…` | The **served project-application** itself (pod, not SPA) | [app/](./app/README.md) |
+
+The **non-web clients** render the same shared surfaces rather than adding new ones: the phone (`sdk/org/apps/mobile`, [mobile/](./mobile/README.md)) and the desktop window (`sdk/org/apps/desktop`, [desktop/](./desktop/README.md)) each mount chat, teams and the Home dashboard from `@lmthing/ui`. Neither has a hostname to pick a surface from, so both hold it as state.
 
 Unknown hosts (localhost, the `*.test` dev proxy) fall back to `/studio` (`sdk/org/apps/web/src/routes/index.tsx#surfaceForHost`).
 

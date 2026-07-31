@@ -102,7 +102,44 @@ WORKDIR /app
 
 # git — per-user spaces synced from GitHub at runtime; ca-certificates — Node's
 # global fetch (app installs, GitHub) needs the system CA store for HTTPS.
-RUN apt-get update && apt-get install -y git ca-certificates && rm -rf /var/lib/apt/lists/*
+# curl — used by the zerostack install step below (and nothing else at runtime).
+RUN apt-get update && apt-get install -y git ca-certificates curl && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# zerostack — the external coding agent reached by the `system-zerostack` space
+# ---------------------------------------------------------------------------
+# A ~26 MB static Rust binary. The pod runs it over the LMThing data directory when an agent
+# escalates hard engineering work to it (libs/cli/src/host/zerostack-endpoint.ts publishes the
+# loopback endpoint; the space's functions are thin fetch wrappers onto it).
+#
+# The FULL (non-lite) release asset is required, not `zerostack-lite-*`: upstream builds the full
+# one with `--all-features`, and the lite one with `--no-default-features` — which drops `mcp`,
+# `subagents`, `loop` and `git-worktree`. `--loop` in particular is what `zerostackLoop` drives, so
+# the lite binary would fail at the flag with an error about an unknown argument rather than
+# anything that points at the cause.
+#
+# `-gnu` rather than `-musl` because the base image is Debian (node:24-slim).
+#
+# Pinned to an exact version, not `latest`: this binary executes model-authored code against the
+# person's entire data directory, so a silent upstream change in behaviour or permission handling
+# is not something to inherit on the next unrelated image rebuild.
+ARG ZEROSTACK_VERSION=v1.7.2
+ARG TARGETARCH
+RUN set -eux; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) zs_arch=x86_64 ;; \
+      arm64) zs_arch=aarch64 ;; \
+      *) echo "FATAL: no zerostack release for TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    asset="zerostack-${zs_arch}-unknown-linux-gnu.tar.gz"; \
+    curl -fsSL -o /tmp/zs.tar.gz \
+      "https://github.com/gi-dellav/zerostack/releases/download/${ZEROSTACK_VERSION}/${asset}"; \
+    tar -xzf /tmp/zs.tar.gz -C /tmp; \
+    install -m 0755 "$(find /tmp -name zerostack -type f | head -1)" /usr/local/bin/zerostack; \
+    rm -rf /tmp/zs.tar.gz /tmp/zerostack*; \
+    # Fail the BUILD rather than ship an image whose zerostack is broken — otherwise the fault
+    # surfaces only when a user asks for the one feature that needs it, deep inside a pod.
+    zerostack --version
 
 # Where POST /api/apps/install downloads catalog apps from. In-cluster the pod reaches
 # the store via its ClusterIP Service over HTTP — no LB hairpin, no TLS/CA needed. (Local

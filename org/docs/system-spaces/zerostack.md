@@ -1,0 +1,149 @@
+# `system-zerostack` — the external coding agent
+
+**zerostack** is a third-party coding agent — a ~26 MB static Rust binary ([gi-dellav/zerostack](https://github.com/gi-dellav/zerostack), GPL-3.0) — shipped inside the compute image and run by the pod over the **LMThing data directory**. `system-zerostack` is the space that lets an LMThing agent hand it work and read the result back.
+
+It exists because of one structural limit: **there is no generic filesystem on any agent's model surface**, and the single exception — the engineer's `fs:scratch` sandbox — is jailed to a throwaway directory (`sdk/org/libs/core/system-spaces/system-engineer/agents/engineer/instruct.md:33-45`). Nothing in the system could look at a *live* generated app: read the project the user is complaining about, run its typechecker, open its SQLite database. zerostack can, because it is an ordinary process with an ordinary shell.
+
+- The space format these files follow → [`../format/space/README.md`](../format/space/README.md).
+- What a system space *is*, and the twelve of them → [`README.md`](./README.md).
+- The sibling loopback bridge this one is modelled on → [`../desktop/browser.md`](../desktop/browser.md).
+
+---
+
+## 1. Shape
+
+| | |
+|---|---|
+| **Agent** | `zerostack` — model-driven, no actions (`sdk/org/libs/core/system-spaces/system-zerostack/agents/zerostack/instruct.md:1-16`) |
+| **Functions** | `zerostackAsk`, `zerostackLoop`, `zerostackStatus`, `zerostackSessions`, `zerostackCancel` |
+| **Knowledge** | `zerostack/driving` (how to drive it), `zerostack/lmthing_apps` (the repair skillset for generated apps) |
+| **`canDelegateTo`** | `[]` — a leaf. It drives a shell; it does not re-delegate. |
+| **Reached by** | `system-engineer/engineer`, and only it (`sdk/org/libs/core/system-spaces/system-engineer/agents/engineer/instruct.md:14-18`) |
+
+### The escalation chain
+
+```mermaid
+flowchart LR
+  THING["user-thing/thing"] --> ENG
+  ARCH["system-architect/architect"] --> ENG
+  AUTO["system-appbuilder/automator"] --> ENG
+  ENG["system-engineer/engineer<br/>fs:scratch — throwaway sandbox"] -->|"only when scratch cannot see it"| ZS
+  ZS["system-zerostack/zerostack"] -->|"LMTHING_ZEROSTACK_URL"| BR(["loopback bridge"])
+  BR -->|"spawn, cwd = data root"| BIN["/usr/local/bin/zerostack"]
+```
+
+The engineer is the **sole caller** on purpose. Escalation is a judgement about whether a scratch sandbox is enough, and the engineer is the one agent whose own limits make that judgement concrete — so the decision lives where the constraint is, rather than being repeated in every builder's prompt. Every ref in this chain is asserted resolvable by `sdk/org/libs/core/src/spaces/system-delegation.test.ts:69-81`; nothing in `loadSpace` can check a `canDelegateTo` ref, because it points *across* spaces.
+
+---
+
+## 2. How the space reaches the binary
+
+The functions are thin `fetch` wrappers onto a **loopback HTTP endpoint** published by the pod at `LMTHING_ZEROSTACK_URL` (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts#ZEROSTACK_ENV`), started once per pod from `startSessionServer` (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts#startZerostackEndpoint`).
+
+This is the same pattern as the desktop browser endpoint, and for the same two reasons documented there: `process.env` is snapshot-copied into each QuickJS VM at injection time, and the VM's `fetch` is a sandbox yield resolved host-side by real Node `fetch` — so a `127.0.0.1` address is reachable from inside the sandbox and the integration needs no new global, no capability, and no DTS entry (`sdk/org/libs/cli/src/host/browser-endpoint.ts:20-35`).
+
+Loopback rather than a pod route: a `router.add(...)` route would pass through `guardRequest` (which 401s on a team pod) and would publish a public surface for something that only talks to itself. An ephemeral port on `127.0.0.1` is unreachable from outside the pod at all — which matters more here than for the browser, because this endpoint runs arbitrary code against the person's entire data directory.
+
+**The URL is published even when the binary is absent** (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts:514-520`). An unset variable would make every function report the same uninformative "not configured"; a reachable endpoint can say which of the two things is actually wrong.
+
+### Ops
+
+| `op` | Wrapper | Effect |
+|---|---|---|
+| `status` | `zerostackStatus` | version, working dir, model, session count — or why it is unusable |
+| `ask` | `zerostackAsk` | one turn: `zerostack -p [-c] -- <message>` |
+| `loop` | `zerostackLoop` | headless loop: adds `--loop --loop-prompt --loop-max --loop-run` |
+| `sessions` | `zerostackSessions` | existing conversations, newest first, with `busy` |
+| `cancel` | `zerostackCancel` | `SIGTERM` the in-flight turn of one session |
+
+---
+
+## 3. The session model — one data dir per conversation
+
+zerostack mints its own session ids, and `--session` loads them **by id prefix**; there is no flag that creates a session under an id the caller chose. Rather than parse its session files to discover what it picked — a private format that can change underneath us — the bridge gives **each logical session its own `XDG_DATA_HOME`** under `<dataDir>/.zerostack/agents/<uuid>/` (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts:262-268`).
+
+With exactly one session in that directory, `-c` ("continue most recent session") is unambiguous **by construction**, and the id the agent holds is ours. A first turn therefore runs *without* `-c` — passing it on a fresh data dir asks zerostack to continue a session that does not exist yet — and every resume adds it (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts:320-324`).
+
+The cost is that zerostack's own cross-session memory is per-LMThing-session. That is the deliberate trade: a resume that silently attaches to the *wrong* conversation is a far worse failure than a narrower memory, and agents resume deliberately by passing a `sessionId` back.
+
+An unknown `sessionId` is **refused**, never silently promoted to a new conversation (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts:300-307`), and a session already mid-turn refuses a second concurrent call rather than queueing it.
+
+> **The message is a positional argument.** `-p` is zerostack's print-and-exit *flag*, not a value flag (`--print` in its clap definition). The bridge passes `--` before the message so one beginning with `-` is never parsed as options.
+
+---
+
+## 4. What it runs as
+
+**Working directory = the LMThing data root** (`<root>/.lmthing`, `/data/.lmthing` in a pod). That *is* the "full data directory" grant: every project, every generated app, every app's SQLite database, every project space.
+
+**Permission mode = `yolo`**, written into a generated `config.toml` (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts#renderConfigToml`). This is not a preference — it is the only mode that works headless. Every other zerostack mode prompts on a terminal, and nothing is attached to one, so an "ask" would block until the turn timeout and present as a mysterious stall. `yolo` still refuses destructive bash (`rm`, `dd`, `mkfs`); that refusal is a backstop, not the policy, and it does not cover a `DROP TABLE` or a truncating write.
+
+**File tools are confined to the data directory** by a generated `permission.external_directory` block (`/data/.lmthing/** = allow`, `/** = deny`). The runtime image under `/app` and the rest of the container are not merely denied — they are unreachable by the file tools. Bash is bounded only by yolo's destructive-command list.
+
+**Model = the pod's own model, through the pod's own key.** The bridge maps `SessionManager.defaultModel` (`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.defaultModel`) onto a zerostack `custom_providers` entry via `mapProvider` (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts#mapProvider`), so its spend lands on the same LiteLLM budget windows as every other agent. The key is named by **env var** (`api_key_env`), never inlined into the config file.
+
+A provider with no OpenAI-compatible endpoint — `azure:` is the one that arises in practice — is **refused with a reason** rather than falling back. zerostack's own default provider is OpenRouter, so a silent fallback would bill an entirely different account, or fail deep inside the child complaining about a key nobody set. In production the pod runs `lmthingcloud:` (a LiteLLM proxy speaking OpenAI `/v1`), which maps cleanly.
+
+### MCP is disabled outright
+
+zerostack ships **three third-party MCP servers enabled by default** — Exa (`mcp.exa.ai`), Context7 and grep.app — and a live run confirmed the Exa one opens a session even with no `EXA_API_KEY` set. Inside a pod that is pure data egress: this agent works over the person's entire data directory, so anything it reads could be shipped to a third party nobody consented to, billed to an account nobody configured.
+
+The generated config disables it two ways, because they fail differently (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts#renderConfigToml`). `mcp_servers = {}` is load-bearing: the three defaults apply only while that key is **unset**, so an explicit empty map leaves no server defined and a future upstream release cannot add a fourth default underneath us. The `enable-exa-mcp` / `enable-context7-mcp` / `enable-grepapp-mcp` toggles then also refuse each one by name, so a regression that reinstated the defaults for an explicitly-empty map would still find them switched off. `allow_all_mcp_calls = false` completes it.
+
+> TOML is positional — a top-level key written after the first `[table]` header silently joins that table instead. Every top-level key is emitted before `[custom_providers.…]`, and a test asserts the ordering (`sdk/org/libs/cli/src/host/zerostack-endpoint.test.ts:119-126`).
+
+### The two documents zerostack reads
+
+Three documents, three audiences, and merging any two of them is the easy mistake:
+
+| document | audience | holds |
+|---|---|---|
+| the space's `knowledge/` | the **LMThing agent** | how to *drive* zerostack — phrasing a task, reading a result |
+| `ZEROSTACK_ARCHITECTURE_MD` (`sdk/org/libs/cli/src/host/zerostack-architecture.ts#ZEROSTACK_ARCHITECTURE_MD`) | **zerostack** | the REFERENCE — what LMThing is, what is in the data directory, the exact shape of every format |
+| `ZEROSTACK_AGENTS_MD` (`sdk/org/libs/cli/src/host/zerostack-agents.ts#ZEROSTACK_AGENTS_MD`) | **zerostack** | the CONTRACT — what is off-limits, how to verify, how to report back |
+
+Both of the latter are written into the data directory on every boot and loaded automatically as context files, which is why the bridge does *not* pass `--no-context-files`. They are rewritten each boot rather than once because a pod volume outlives the image: a primer written by an older runtime would otherwise persist unnoticed across an upgrade (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts:275-283`).
+
+`ARCHITECTURE.md` carries what is genuinely unguessable from the files alone, and is asserted to keep carrying it (`sdk/org/libs/cli/src/host/zerostack-endpoint.test.ts:195-208`): that a project *is* an application; that `api/` filenames **are** the HTTP method and any other filename is unrouted; that `ctx.db` is an async proxy where a missing `await` fails silently; that a page is a `.view.json` **spec** against a closed 8-kind / 24-element vocabulary with no React escape hatch, beside a generated `.tsx` wrapper; that a table schema failing validation takes the **whole app** down rather than one table; that a space load is all-or-nothing behind a frontmatter allow-list; that space functions run in QuickJS with no filesystem and no `child_process`; and that `types/generated.d.ts`, `.data/` and `system/spaces/` are generated or re-materialized (`sdk/org/libs/cli/src/cli/runtime-init.ts#materializeRuntime`).
+
+`ARCHITECTURE.md` must also simply **exist**: without it zerostack asks "No ARCHITECTURE.md found … Create one? [y/N]", and it asks even under `-p`. The bridge gives the child no stdin so the read EOFs and it continues — but that is the prompt failing safe, not the prompt not happening.
+
+---
+
+## 5. Timeouts, and why a timeout is its own outcome
+
+A turn defaults to 10 minutes and is capped at 30; a loop is capped at 60 (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts:60-67`). A coding turn is not a web request — read, edit, typecheck, read the failure, edit again routinely runs into minutes.
+
+On timeout the bridge sends `SIGTERM` first (so zerostack can flush its session file), then `SIGKILL` after 5s, and returns `timedOut: true` **with the partial output** (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts:363-396`). This is the result that must not be rounded to either "done" or "failed": zerostack has usually already edited files, so half-applied edits are on disk and the correct move is to *resume the session*, not to start over on top of them.
+
+Output is capped at 2 MB and explicitly marked when truncated.
+
+---
+
+## 6. Shipping the binary
+
+The compute image downloads a pinned release into `/usr/local/bin/zerostack` (`devops/argocd/compute/Dockerfile:114-146`) and runs `zerostack --version` as a build step, so a broken binary fails the **build** rather than surfacing inside a pod when a user asks for the one feature that needs it.
+
+Two constraints on the asset choice:
+
+- **The full build, not `zerostack-lite-*`.** Upstream builds the full asset with `--all-features` and the lite one with `--no-default-features`, which drops `loop`, `mcp`, `subagents` and `git-worktree`. `zerostackLoop` drives `--loop`, so the lite binary would fail at an unknown-argument error that points nowhere near the cause.
+- **`-gnu`, not `-musl`**, because the base image is Debian (`node:24-slim`).
+
+The version is pinned exactly rather than tracking `latest`: this binary executes model-authored code against the person's entire data directory, so a silent upstream change in behaviour or permission handling is not something to inherit on the next unrelated image rebuild.
+
+`LMTHING_ZEROSTACK_BIN` overrides the location for local development and tests.
+
+---
+
+## 7. Failure modes the design forecloses
+
+| Failure | What prevents it |
+|---|---|
+| A resume silently starts a new conversation | one `XDG_DATA_HOME` per session makes `-c` unambiguous; an unknown id is refused |
+| Spend lands on an unrelated OpenRouter account | `mapProvider` refuses a non-OpenAI-compatible provider instead of falling back |
+| Files from a private data directory leak to a third-party MCP server | `mcp_servers = {}` plus each default refused by name; upstream ships three ON |
+| A "fix" to `system/spaces/` reports success and reverts on reboot | stated in `AGENTS.md`, in the agent's rules, and in the `lmthing_apps` knowledge |
+| A turn hangs forever waiting on a permission prompt | `yolo` is written into the generated config; no mode that prompts is reachable |
+| The binary is missing and every function says "not configured" | the endpoint is published regardless and `status` reports the real reason |
+| A `canDelegateTo` typo silently disables the escalation | `sdk/org/libs/core/src/spaces/system-delegation.test.ts:38-60` resolves every shipped ref |
+| An unverified fix is relayed as done | the agent's rules and the `reading-a-result` aspect both require the command and its output |

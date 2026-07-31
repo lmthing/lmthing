@@ -122,13 +122,24 @@ jobs:
       # no human in the loop, and the only rehearsal that exists is the staging channel —
       # so production is reachable only through it.
       #
-      # The test is on the SUBMODULE POINTER, not on branch topology: the app and every
-      # library it bundles live in sdk/org, so that gitlink IS the JavaScript this run
-      # would publish. Asking "was this exact pointer ever on staging" survives merge
-      # commits, rebases and squashes, all of which change main's own SHA while carrying
-      # the same JS. Checking `origin/staging`'s CURRENT pointer alone would not: staging
-      # legitimately moves ahead while a main run is still queued, so the whole history of
-      # the pointer is the race-free question.
+      # The test is on the SUBMODULE POINTER, not on the parent repo's branch topology.
+      # The app and every library it bundles live in sdk/org, so that gitlink IS the
+      # JavaScript this run would publish — and comparing pointers survives merge commits,
+      # rebases and squashes, all of which change main's own SHA while carrying identical
+      # JS.
+      #
+      # It must NOT be an ancestry question about the PARENT repo. `staging` is branched
+      # from `main` and therefore contains all of main's history, so "was this pointer ever
+      # seen on staging" is true of every pointer main has ever had — a check that passes
+      # for everything and proves nothing.
+      #
+      # The honest question is about the SUBMODULE's own history: is staging at, or ahead
+      # of, the JavaScript main is publishing? Shared parent history cannot fake that. The
+      # accident being guarded against is new JS pushed straight to main, and new JS is by
+      # definition a pointer staging does not have yet — so it is neither equal to nor an
+      # ancestor of staging's tip, and it fails. Allowing "staging is ahead" is what keeps
+      # the check race-free: staging legitimately moves on while a main run sits queued,
+      # and that must not turn into a spurious red on main.
       #
       # This FAILS rather than skipping, unlike the runtimeVersion check below. A native
       # change landing on main is a normal state of the branch; JavaScript reaching
@@ -146,24 +157,25 @@ jobs:
           fi
 
           TARGET="$(git rev-parse 'HEAD:sdk/org')"
-          echo "this run would publish sdk/org $TARGET"
+          STAGED="$(git rev-parse 'origin/staging:sdk/org')"
+          echo "publishing sdk/org $TARGET"
+          echo "staging is at sdk/org $STAGED"
 
-          STAGED=""
-          for c in $(git log --format=%H origin/staging -- sdk/org); do
-            if [ "$(git rev-parse -q --verify "$c:sdk/org" 2>/dev/null)" = "$TARGET" ]; then
-              STAGED="$c"
-              break
-            fi
-          done
+          # The pinned submodule checkout holds this run's commit; staging's may be a
+          # different one, and --is-ancestor cannot answer about an object it does not have.
+          git -C sdk/org fetch --no-tags --quiet origin || true
 
-          if [ -z "$STAGED" ]; then
-            echo "::error title=Not staged first::sdk/org $TARGET has never been on the staging" \
-                 "branch, so this JavaScript would reach production without a rehearsal. Merge it" \
+          if [ "$TARGET" = "$STAGED" ]; then
+            echo "staging is at exactly this JavaScript — ok"
+          elif git -C sdk/org merge-base --is-ancestor "$TARGET" "$STAGED"; then
+            echo "staging is ahead of this JavaScript, so it has been through it — ok"
+          else
+            echo "::error title=Not staged first::sdk/org $TARGET is not in staging, which is at" \
+                 "$STAGED. This JavaScript would reach production without a rehearsal. Merge it" \
                  "through 'staging' first. For a genuine hotfix, publish by hand with the" \
                  "workflow_dispatch trigger, which skips this check deliberately."
             exit 1
           fi
-          echo "staged by parent commit $STAGED — ok"
 
       # One place the two triggers become the same thing, so the publish steps below never
       # branch on the event again. A push ships the whole update at once: a partial

@@ -910,6 +910,15 @@ unzip -p build-artifacts/lmthing-staging.apk assets/fingerprint    # → runtime
 Then add it under `android.staging` in `apps/mobile/shipped-runtime-versions.json`, or
 every staging publish skips with "no binary has ever been built for this channel".
 
+**A tester cannot hold both builds at once.** Every profile shares one
+`android.package` (`sdk/org/apps/mobile/app.config.js:152-153`), so Android treats the
+staging APK as the *same app* as the store build — and because the two are signed by
+different keys, installing one over the other fails with
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures do not match`. Switching a device between
+channels means uninstalling first, which takes its OTA cache and its session with it. If
+side-by-side ever matters, that is an `applicationIdSuffix`-shaped change to the staging
+profile, and it would move the fingerprint.
+
 **`babel-preset-expo` must be an explicit dependency** even though `expo` pulls it in
 (`sdk/org/apps/mobile/package.json:38-44`). `babel.config.js` names it as a preset, and
 under pnpm's strict layout Babel resolves presets from *its own* location in the store,
@@ -1083,7 +1092,7 @@ whose OTA is quietly dead (`sdk/org/apps/mobile/app.config.js:23-40`). Set
 ### Publishing — two stages, and the branch decides which
 
 **A push publishes automatically, and the branch chooses the audience**
-(`.github/workflows/ota-publish.yml:58` · `.github/workflows/ota-publish.yml:187-191`):
+(`.github/workflows/ota-publish.yml:58` · `.github/workflows/ota-publish.yml:199-203`):
 
 | push to | publishes to channel | reaches |
 |---|---|---|
@@ -1101,13 +1110,21 @@ That also makes the pointer the right signal: JavaScript `main` does not point a
 what the rest of the product is running, and has no business reaching phones ahead of it.
 
 **Staging-first is enforced, not merely documented.** A push to `main` whose `sdk/org`
-pointer has never been on the `staging` branch fails
-(`.github/workflows/ota-publish.yml:138-166`). The test is on the pointer rather than on
-branch topology, because the pointer *is* the JavaScript: that survives merge commits,
-rebases and squashes, all of which change main's own SHA while carrying identical JS. It
-searches the whole history of staging's pointer rather than comparing against its current
-one, so a staging branch that has legitimately moved ahead while a main run sat queued
-does not fail the run.
+pointer is not one the `staging` branch already has fails
+(`.github/workflows/ota-publish.yml:149-179`). The test is on the pointer rather than on
+the parent repo's branch topology, because the pointer *is* the JavaScript: comparing
+pointers survives merge commits, rebases and squashes, all of which change main's own SHA
+while carrying identical JS.
+
+It specifically must **not** be an ancestry question about the parent repo. `staging` is
+branched from `main` and so contains all of main's history, which makes "was this pointer
+ever seen on staging" true of every pointer main has ever had — a check that passes for
+everything and proves nothing. The question is asked of the **submodule's** history
+instead: is staging at, or ahead of, the JavaScript main is publishing? Shared parent
+history cannot fake that. New JS pushed straight to main is by definition a pointer staging
+does not have yet, so it is neither equal to nor an ancestor of staging's tip and it fails;
+allowing "staging is ahead" is what stops a staging branch that legitimately moved on while
+a main run sat queued from turning into a spurious red.
 
 This one **fails** rather than skipping, unlike the runtimeVersion check below, and the
 difference is deliberate: a native change landing on main is a normal state of the branch,

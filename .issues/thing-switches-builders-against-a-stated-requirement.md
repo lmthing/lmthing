@@ -133,3 +133,23 @@ refuses a page that would delete sections the user has.
 **Repro (post-split):** `node scenarios/run-team-scenario.mjs 20-studio --through 7`, then
 `ls <run>/data/.lmthing/studio-jobs/pages/` — a mix of `*.tsx` and `*.view.json` is the failure.
 Stochastic: 3 of 4 runs to date.
+
+## Not the same bug as the `spaceRef` mis-resolution (sdk/org 3e8e49a8)
+
+A separate defect found the same day made every `system-*` **spaceRef** resolve to a directory that
+does not exist, so the agent slug fell through to the flattened merge of all system spaces — where
+the viewbuilder, being listed later, won `automator`. A session bound to `system-appbuilder/automator`
+therefore ran the VIEWBUILDER and wrote `.view.json` specs.
+
+That is NOT what is happening here, and the distinction matters for anyone picking this up:
+
+- the spaceRef bug affects space-**bound** sessions only (the harness's `space_session`, a chat bound
+  to `<space>/<agent>`). The **delegate** path was unaffected — `DelegateRegistry#matchesSpace` falls
+  back to `space.dir.endsWith('/' + name)`, which matches the real space dir;
+- THING reaches both builders through `delegate()`. In run 904 BOTH appear in the recorded delegates,
+  and the project ends up holding `index.tsx` AND `index.view.json`. That is two deliberate
+  delegations to two different builders, not one delegation silently resolving to the wrong space.
+
+So the spaceRef fix does not close this issue, and a rerun after it will still reproduce. It does mean
+any OLDER evidence gathered through `space_session` (e.g. `13-plant-care`, which drives
+`system-viewbuilder/automator` directly) needs re-reading before it is cited about which builder ran.

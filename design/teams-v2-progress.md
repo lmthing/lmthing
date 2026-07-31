@@ -38,9 +38,77 @@ THING-in-thread defects fixed 2026-07-31 (`design/thing-thread-parity-progress.m
 
 | Wave | Work | State |
 |---|---|---|
-| 1 | GLOBALS · HARNESS · UX-AUDIT (parallel, disjoint paths) | HARNESS ✅ · AUDIT ✅ · GLOBALS 🔄 |
-| 2 | Team runner + play the scenarios · Part-B fixes | 🔄 |
-| 3 | Fix what the live runs find · re-run to green · docs + push | ⏳ |
+| 1 | GLOBALS · HARNESS · UX-AUDIT | ✅ all three |
+| 2 | Team runner · play 20-studio + 21-newsroom · Part-B fixes | ✅ |
+| 3 | Fix what the runs found · prompting + tasklists · rerun | 🔄 reruns in flight |
+
+## Fixed, each with a test verified failing first
+
+| # | defect | commit |
+|---|---|---|
+| 1 | free-tier pod sized to **135%** of its memory limit | `39a1e436` lane |
+| 2 | the crash path dropped the `mentions` stamp, so a failure never reached the asker | `db5989cd` |
+| 3 | a bad pagination cursor returned the newest page and said `hasMore: true` — an infinite loop | `70d8ea81` |
+| 4 | the app card fired only on first build; every **update** was silent | `bf2953d5` |
+| 5 | the history fallback survived in `runHeadlessThreaded`, so a channel posted the agent's TypeScript | `1c3ef2a1` |
+| 6 | threaded turns were absent from the session ledger (**753k tokens** for one turn, unrecorded) | `39a1e436` |
+| 7 | threaded turns never finalized their ledger record — stuck at `running` for ever | `1c3ef2a1` |
+| 8 | a turn that gave up after its final retry was reported `ok: true` | `58999ec5` |
+| 9 | **B4** parked ask had no id, no status, no bound; any reply consumed it | `0278ce54` |
+| 10 | **B8** no ordering key, no idempotency key | `0278ce54` |
+| 11 | **B9** read state derived from a file mtime | `0278ce54` |
+| 12 | a viewer was refused only if the agent chose to — now the grants are withheld | `8cb910e7` + `7051ffc8` |
+| 13 | a channel showed a member `"Lifetime not alive"` | `e23f144a` |
+| 14 | THING could not create a channel, so "give it a room of its own" was unsatisfiable | `9977beb0` |
+
+### The pattern behind 5, 6 and 7
+
+Three defects, one shape: **a fix landed on one of two near-identical tails and not the other**, and a
+team channel is the only caller of the one that keeps being missed. The per-path tests could never
+catch it — they all passed throughout, sitting on opposite sides of the divergence. There is now a
+test that asserts `runHeadless` and `runHeadlessThreaded` **agree**, and that records the one place
+they deliberately differ so it stays a decision rather than becoming the fourth instance (`76cc06c6`).
+
+### The viewer, and why prose was not enough
+
+Both outcomes were observed on the same day. In 20-studio, Rita asked THING to mark a job invoiced:
+the turn read her role, ignored it, ran `display(db.tables())` and settled `done` — her reply was the
+two words `jobs press_checks`. In 21-newsroom, Joan got a proper role-based refusal. Same rule, same
+code, two answers, because the rule was **advice**: the role arrives as data and the agent held
+`db:write` regardless.
+
+`SessionOpts.readOnly` withholds the grants, reusing the read-only fork gate (`intersectAppCaps`)
+rather than inventing a second one — the two questions are the same question. Not granted ⇒ not
+injected **and** absent from the DTS, so a write is a typecheck error the model sees. It fails closed
+when no verified caller reached the pod.
+
+## Three team tasklists — guarantees, not instructions
+
+`user-thing` had eight tasklists and none about the team, so every team job was improvised in one
+turn. The new three put the failing step in a node that **cannot** do its neighbours' work:
+
+- **`tell_the_team`** — the nodes that choose the channel and write the wording are `role: explore`
+  with `team:read`, and `intersectAppCaps` strips `team:post` from a read-only role, so they cannot
+  post. A first-class `"here"` verdict means "the only place is the channel I am already in" can
+  never be reported as a delivery — which is exactly what went wrong live.
+- **`answer_from_team_record`** — every node read-only; rules out the thread in front of it as a
+  source, and a required `checked` field makes "there is no record of that" sayable only by something
+  that looked.
+- **`settle_team_decision`** — a fork has no `ask()`, so the terminal node holds `capabilities: []`
+  and returns a verdict that is **not a reply**. THING cannot end a turn on it.
+
+A class guard walks every node of every shipped space: `team:post` is reachable from exactly one.
+
+## Still open, and honest about it
+
+- **1-in-14 restraint slip** — THING builds on the offer turn. Not the surface (measured 14 ways).
+- **The builder switch** — needs an owner decision on whether an existing app's builder is fixed
+  structurally; the strongest option lives in the frozen `system-appbuilder`.
+- **Two silent turns** in 21-newsroom — `0 statements` on "yes, do that". The most damaging finding
+  of that run, since everything downstream tested against state never built. Unexplained.
+- **The `Lifetime not alive` disposal race** — presentation fixed, root cause not. No repro.
+- **`display(rawValue)` as a channel reply** — cannot be gated on content.
+- **The upload authorization gap** — must close *before* attachments ship, not with them.
 
 ### HARNESS — delivered and live-verified
 

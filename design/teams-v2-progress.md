@@ -60,6 +60,8 @@ THING-in-thread defects fixed 2026-07-31 (`design/thing-thread-parity-progress.m
 | 12 | a viewer was refused only if the agent chose to — now the grants are withheld | `8cb910e7` + `7051ffc8` |
 | 13 | a channel showed a member `"Lifetime not alive"` | `e23f144a` |
 | 14 | THING could not create a channel, so "give it a room of its own" was unsatisfiable | `9977beb0` |
+| 15 | an upload had no owner and the serve route checked nothing | `5c9e5db0` |
+| 16 | **a channel turn ran in the default project, blind to the app it had just built** | `eb093897` |
 
 ### The pattern behind 5, 6 and 7
 
@@ -107,8 +109,18 @@ A class guard walks every node of every shipped space: `team:post` is reachable 
 - **Two silent turns** in 21-newsroom — `0 statements` on "yes, do that". The most damaging finding
   of that run, since everything downstream tested against state never built. Unexplained.
 - **The `Lifetime not alive` disposal race** — presentation fixed, root cause not. No repro.
-- **`display(rawValue)` as a channel reply** — cannot be gated on content.
-- **The upload authorization gap** — must close *before* attachments ship, not with them.
+- **`display(rawValue)` as a channel reply** — I said this could not be gated on content; that was
+  wrong and the seam is written up in the issue. `displayedThisTurn` means "`display()` was called",
+  not "a person can read what came out", so a turn whose only output is a file listing satisfies the
+  anti-silent guard built to catch turns that told the user nothing. Not landed yet: the guard
+  re-prompts once and then FAILS LOUD, and turning a `/chat` turn that legitimately ends on
+  `display(someTable)` into an error would be worse than the bug.
+- ~~The upload authorization gap~~ — **fixed** (`5c9e5db0`): an upload records its uploader and the
+  serve route checks the caller, 404 not 403 so the error cannot be used to test which ids exist.
+- **THING invented a colleague** — "@Rui", not in the cast, in a team surface. Fabricating a person
+  is the one thing a directory-backed agent should be incapable of.
+- **A built app failing its own typecheck** — 17 errors, `endpointCount: 0`. May be downstream of the
+  project-resolution bug rather than independent.
 
 ### HARNESS — delivered and live-verified
 

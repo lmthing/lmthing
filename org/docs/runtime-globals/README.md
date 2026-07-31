@@ -220,14 +220,20 @@ model code must never call it directly.
 ## 4. Known lockstep exceptions
 
 `COMMON_DTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts#COMMON_DTS`) is the always-declared
-set. Three names in it are declared unconditionally but **not always injected** — a stray
+set. Two names in it are declared unconditionally but **not always injected** — a stray
 call there passes typecheck and fails at runtime:
 
 | Global | Declared | Injected only when |
 |---|---|---|
-| `registerSpace` | `library-dts.ts:40` (the comment at `:29-34` says so explicitly) | `caps.registerSpace` — not for delegates, not for read-only fork roles (`bootstrap.ts:234`) |
-| `progress()` | `library-dts.ts:106` | `ChildVMOpts.progress` is supplied (`host-tools.ts:219-220`) — the delegate site passes none |
-| `integrationStatus` | `library-dts.ts:101` | `opts.projectRoot` is set (`bootstrap.ts:212`) — it has no capability seam yet, justified because it leaks only the *names* of missing env vars |
+| `progress()` | `sdk/org/libs/core/src/typecheck/library-dts.ts:120` | `ChildVMOpts.progress` is supplied (`sdk/org/libs/core/src/globals/host-tools.ts:219-220`) — the delegate site passes none |
+| `integrationStatus` | `sdk/org/libs/core/src/typecheck/library-dts.ts:116` | `opts.projectRoot` is set (`sdk/org/libs/core/src/exec/bootstrap.ts:247`) — it has no capability seam yet, justified because it leaks only the *names* of missing env vars |
+
+> `registerSpace` was the third, and the one that mattered: it is a write primitive, and it
+> was declared for delegates and read-only forks that cannot call it. It is no longer in
+> `COMMON_DTS` — it has its own `REGISTER_SPACE_DTS` fragment emitted under `caps.registerSpace`
+> (`sdk/org/libs/core/src/exec/bootstrap.ts:396-400`), pinned per context by
+> `sdk/org/libs/core/src/exec/bootstrap.test.ts`. The two rows above are the remaining
+> exceptions; neither carries write authority. Don't add to the list on purpose.
 
 ---
 

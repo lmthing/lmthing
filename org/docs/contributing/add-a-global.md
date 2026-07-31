@@ -186,9 +186,11 @@ on the gate:
 - **Ungated (every VM)** — add the `declare` line to `COMMON_DTS`
   (`sdk/org/libs/core/src/typecheck/library-dts.ts:35-108`).
 
-> **Known lockstep exceptions.** Three names are declared unconditionally but not always
-> injected (`registerSpace`, `progress`, `integrationStatus`) — a stray call there passes
-> typecheck and fails at runtime. Don't add to that list on purpose; see
+> **Known lockstep exceptions.** Two names are declared unconditionally but not always
+> injected (`progress`, `integrationStatus`) — a stray call there passes typecheck and fails
+> at runtime. `registerSpace` used to be the third and was moved to its own gated fragment
+> once it turned out to be a write primitive declared where it could not be called. Don't add
+> to that list on purpose; see
 > [../runtime-globals/README.md](../runtime-globals/README.md#4-known-lockstep-exceptions).
 
 ### 7. Tell the model it exists

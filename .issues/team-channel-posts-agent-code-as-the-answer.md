@@ -173,3 +173,70 @@ gets the nudge and then accepts what it gets.
 **Not done yet, deliberately.** The scenario runner spawns `lmthing serve` from TS source and
 `20-studio` has a `restart_pod` step, so an edit to `libs/core` mid-run would be picked up by that
 restart and invalidate the run in flight.
+
+## The specimen that corrects the diagnosis: `display()` is being used as a DEBUG PRINT
+
+`22-crossfire` run 2 step 3 (2026-07-31), `#office`. Rae asked a plain business question — *"can you
+put the lift-out fee on there as its own thing? I keep having to work it out again at invoicing and
+it is never the same twice"*. The **entire** message the channel received:
+
+```
+Current project state
+The project has these tables: ["boats","work_items"]
+Pages: {"ok":true,"entries":["_layout.tsx","boats","index.tsx"]}
+API routes: {"ok":true,"entries":["boats-add","boats-detail","boats-list","work-items-add", …]}
+```
+
+The agent's own source for that turn (`runs/2/step-03.full.json`, `turns[rae].wrote.code`) is the
+whole story, comment included:
+
+```ts
+// Let me inspect the existing project tables and pages to understand what we have.
+display(
+  <Stack gap={2}>
+    <Heading level={2}>Current project state</Heading>
+    <Paragraph>The project has these tables: {JSON.stringify(tables)}</Paragraph>
+    <Paragraph>Pages: {JSON.stringify(pages)}</Paragraph>
+    <Paragraph>API routes: {JSON.stringify(api)}</Paragraph>
+  </Stack>
+);
+```
+
+That is the **complete** turn. Status `done`, `ok: true`, `globals: ["display","teamContext"]`.
+
+So the framing above — "displayed only raw data" — was too kind, and a content classifier aimed at
+it would be aimed at the wrong thing. The displayed value here is a proper JSX descriptor with
+headings and prose. What is wrong is **why it was called**: the model reached for `display()` to
+*look at values itself*, mid-orientation, and the turn ended on that statement.
+
+Two false beliefs are visible in that one comment:
+
+1. **That `display()` is how it inspects.** It is not — the eval loop already feeds every binding's
+   value back in the VARIABLES block on the next cycle, so `tables`, `pages` and `api` were coming
+   back to it for free. `display()` was pure loss.
+2. **That a display is cheap.** In `/chat` a stray data blob is noise beside the conversation. In a
+   channel the last display **is** the message: it went to `#office` under THING's name, stamped with
+   `mentions`, and pushed to phones.
+
+And the anti-silent guard *rewarded* it — `displayedThisTurn` became true, so a turn that answered
+nobody reported `done`.
+
+### What this implies for the fix
+
+The prompt half is now the load-bearing half, and it is cheap and certain:
+
+- `display()` is never for looking. You already receive every binding's value.
+- In a team channel the last `display()` **is** the message the whole room reads, permanently. It
+  must be addressed to the person who asked, in their words.
+
+The guard half stays, but its job narrows to catching the residue rather than classifying content:
+a turn that ran statements and displayed something **but never addressed the asker** gets ONE nudge
+("you showed working material; now answer the person"), then accepts whatever it gets. Never fail
+loud on this branch — a `/chat` turn ending on `display(someTable)` is legal and must stay legal.
+
+### Frequency in this run
+
+Three of the six THING messages in `22-crossfire` run 2 were working material rather than an answer,
+each by a different route — the memory delegate's raw listing prepended to a good answer (`#yard`
+turn 1), ~1800 characters of generated TypeScript as the reply to *"go on then"* (`#yard` turn 2,
+`display()` of the automator's return value), and this one. All three: `status: done`, `ok: true`.

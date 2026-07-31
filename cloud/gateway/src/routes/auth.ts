@@ -22,6 +22,7 @@ import {
   hashOriginToken,
   hashesEqual,
   isAllowedRedirect,
+  isReviewDemoLogin,
   maskEmail,
   normalizeEmail,
   normalizeOtp,
@@ -478,6 +479,17 @@ auth.post(
     const code = normalizeOtp(body.code);
     if (!email || !code) {
       return c.json({ error: "email and a 6-digit code are required" }, 400);
+    }
+
+    // The store-review demo account, when one is configured. It has to come
+    // before the lookup rather than after a miss: nothing was ever mailed for it,
+    // so there is no row, and a fallback after "that code has expired" would be a
+    // second code path reached only by an error. The IP rate limit above has
+    // already run — this is deliberately inside it, not around it.
+    if (isReviewDemoLogin(email, code)) {
+      const session = await mintEmailSession(email);
+      if (!session) return c.json({ error: "Could not complete sign-in" }, 500);
+      return c.json(sessionBody(session, email));
     }
 
     const row = await db.findLiveEmailLoginCode(email).catch((err) => {

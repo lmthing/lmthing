@@ -80,6 +80,21 @@ One request issues **two credentials for one single-use row**: a 6-digit code to
 
 3. **`GET /email/callback?token=`** (public) — the magic link `cloud/gateway/src/routes/auth.ts#auth`. Looks the row up by `hashLinkToken` `cloud/gateway/src/lib/db.ts#findLiveEmailLoginCodeByLink`, then asks **which device is this?** before spending anything (below). For the browser that started the flow it consumes the row and `302`-redirects to the `redirect_uri` **recorded at issue time** with the token trio appended as a URL fragment `cloud/gateway/src/lib/email-login.ts#redirectWithTokens` — the same shape `/oauth/callback` produces, which is why `com`'s `/callback` route handles both without knowing which flow it came from. With no `redirect_uri` on the row (an API-only caller) it returns the session as JSON instead.
 
+#### One address signs in with a code that was never mailed
+
+Google Play requires working credentials for anything behind a login, and every screen past launch is. The problem is that this login's only factor is a code sent to a mailbox — and the reviewer's mailbox is not ours, so there is nothing to put in the **App access** form. Left alone, a reviewer sees the sign-in screen, cannot get past it, and the submission is rejected as inaccessible.
+
+`REVIEW_DEMO_EMAIL` + `REVIEW_DEMO_CODE` name one address whose code is fixed rather than mailed `cloud/gateway/src/lib/email-login.ts#isReviewDemoLogin`. `/email/verify` checks it *before* the row lookup, because nothing was ever mailed for it and there is no row to find `cloud/gateway/src/routes/auth.ts:470-520`.
+
+This is an auth bypass, and the shape is what keeps it small:
+
+- **Inert unless both are set**, so no deployment has one by default and clearing either revokes it with a `make deploy-secrets` — no code change, no image.
+- **One constant-time comparison over `hashCode(email, code)`**, not two field comparisons: a mismatch cannot reveal which half was wrong, and the address is not exposed by a timing difference.
+- **Inside the rate limit, not around it.** `/email/verify` is `ipRateLimit(30, 15 min)` and that middleware has already run. Six digits is 10⁶, so this limiter is the only thing between the account and a guess — which is the reason the account must be worth nothing: it is an *ordinary* user, and the workspace behind it should hold demo content and nothing else.
+- **It does not weaken the normal path for that address** — a wrong code still 401s.
+
+Blank `vault_review_demo_code` once the review is through `devops/ansible/vault.yml.example:104-116`.
+
 #### A link opened on a different device does not sign that device in
 
 A magic link is a bearer credential sitting in an inbox, and an inbox is read on whatever device is to hand. Handing a session to whoever opens it is wrong twice: the browser that actually asked is still sitting on the sign-in page logged out, and a **forwarded link becomes an account takeover**.

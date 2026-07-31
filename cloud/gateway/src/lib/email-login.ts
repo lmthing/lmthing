@@ -91,6 +91,40 @@ export function hashLinkToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+// ─── The store-review demo account ───────────────────────────────────────────
+
+/**
+ * Whether `email` and `code` are the credentials handed to an app-store reviewer.
+ *
+ * Google Play requires working credentials for anything behind a login, and every
+ * screen past launch here is. The only sign-in mails a one-time code, which a
+ * reviewer cannot read because the mailbox is not theirs — and there is no
+ * password to put in the App access form at all. Without this the reviewer sees
+ * the sign-in screen and nothing else, and the submission is rejected as
+ * inaccessible.
+ *
+ * This IS an auth bypass, so it is written to be the smallest one that does the
+ * job. It is inert unless BOTH variables are set, so no deployment gets it by
+ * default and unsetting either one revokes it. It is scoped to a single address.
+ * And it compares `hashCode(email, code)` rather than the two fields separately:
+ * one constant-time comparison over a fixed-length digest covers the address and
+ * the code together, so a mismatch cannot reveal which half was wrong, and the
+ * address is not leaked by a timing difference.
+ *
+ * Two things it does NOT do, and must not be made to do. It does not skip the
+ * `email-verify` IP rate limit — that is middleware and has already run by the
+ * time this is called, and it is the only thing standing between six digits and
+ * a guess. And it does not create a privileged account: the session it opens is
+ * an ordinary user's, so the workspace behind it should hold demo content and
+ * nothing else. Unset `REVIEW_DEMO_CODE` once the review is through.
+ */
+export function isReviewDemoLogin(email: string, code: string): boolean {
+  const demoEmail = normalizeEmail(process.env.REVIEW_DEMO_EMAIL);
+  const demoCode = normalizeOtp(process.env.REVIEW_DEMO_CODE);
+  if (!demoEmail || !demoCode) return false;
+  return hashesEqual(hashCode(email, code), hashCode(demoEmail, demoCode));
+}
+
 // ─── Which device asked? ─────────────────────────────────────────────────────
 
 /**

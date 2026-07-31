@@ -68,6 +68,17 @@
         SMTP_PASSWORD: "{{ vault_smtp_password | default('') }}"
         SMTP_SECURITY: "{{ vault_smtp_security | default('') }}"
         EMAIL_LOGIN_ALLOWED_ORIGINS: "{{ vault_email_login_allowed_origins | default('') }}"
+        # The app-store reviewer's way past the login. Google Play requires working
+        # credentials for anything behind one, and the only sign-in here mails a code
+        # to a mailbox the reviewer does not have — so these two name one address
+        # whose code is fixed instead of mailed.
+        #
+        # It is an auth bypass for that single account, so treat it as temporary:
+        # BOTH must be set for it to do anything, clearing either one revokes it with
+        # a `make deploy-secrets`, and the account behind it should hold demo content
+        # and nothing else. Unset REVIEW_DEMO_CODE once the review is through.
+        REVIEW_DEMO_EMAIL: "{{ vault_review_demo_email | default('') }}"
+        REVIEW_DEMO_CODE: "{{ vault_review_demo_code | default('') }}"
         # Shared token authenticating requests to the in-cluster headless-browser
         # render service (browserless). Consumed by the `render` Deployment as TOKEN
         # and injected by the gateway into each pod's user-env as RENDER_SERVICE_TOKEN.

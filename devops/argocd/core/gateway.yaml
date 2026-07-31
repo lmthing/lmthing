@@ -284,6 +284,23 @@ spec:
                   name: lmthing-secrets
                   key: EMAIL_LOGIN_ALLOWED_ORIGINS
                   optional: true
+            # One address whose sign-in code is fixed rather than mailed, so an app
+            # store reviewer can get past a login whose only factor is a code sent to
+            # a mailbox they do not have. Inert unless BOTH are set — clearing either
+            # revokes it — and it is a bypass for that one account only, so keep
+            # nothing but demo content behind it. See org/docs/cloud/auth.md.
+            - name: REVIEW_DEMO_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: REVIEW_DEMO_EMAIL
+                  optional: true
+            - name: REVIEW_DEMO_CODE
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: REVIEW_DEMO_CODE
+                  optional: true
             # Where a team invite email sends the recipient: the teams list, which
             # is what shows a pending invite with its Accept button. Not a secret —
             # only overridden to point a test deploy at a different front end.

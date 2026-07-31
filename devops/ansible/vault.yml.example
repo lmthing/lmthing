@@ -101,6 +101,20 @@ vault_smtp_security: ""           # tls | starttls | none — blank ⇒ 465 tls,
 # any lmthing.* host plus the local dev hosts, which is what production wants.
 vault_email_login_allowed_origins: ""
 
+# ── App-store review access ────────────────────────────────────────────────────
+# Google Play requires working credentials for anything behind a login, and the
+# only sign-in here mails a one-time code — to a mailbox the reviewer does not
+# have. These name ONE address whose code is fixed instead of mailed, so the
+# App access form has a username and a password to give.
+#
+# This is an auth bypass for that single account. Both must be set or it does
+# nothing; clearing either one revokes it on the next `make deploy-secrets`. Keep
+# only demo content in the workspace behind it, and blank the code once the
+# review is through. The code must be exactly 6 digits — that is what the sign-in
+# screen accepts, and anything else is silently ignored.
+vault_review_demo_email: ""
+vault_review_demo_code: ""       # 6 digits, e.g. openssl rand -hex 3 | tr -dc 0-9
+
 # ── Render service (in-cluster headless-browser used by webSearch google provider) ──
 # Shared bearer token authenticating pod → render service requests. Generate:
 #   openssl rand -base64 32

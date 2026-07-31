@@ -944,9 +944,17 @@ declaration, and — because every screen past launch is behind a login — **re
 credentials in App access**, or the reviewer sees only the sign-in screen.
 
 Sign-in is GitHub SSO through an in-app browser
-(`sdk/org/libs/auth/src/platform/sso.native.ts#startLogin`); there is no password path
-(`.issues/zitadel-password-login-disabled.md`), so the demo account handed to the
-reviewer has to be a GitHub account, and one without 2FA prompts they cannot satisfy.
+(`sdk/org/libs/auth/src/platform/sso.native.ts#startLogin`) or a one-time code emailed to
+any address; there is no password path (`.issues/zitadel-password-login-disabled.md`).
+
+**Neither of those is reviewable as it stands**, which is why `REVIEW_DEMO_EMAIL` /
+`REVIEW_DEMO_CODE` exist — see "One address signs in with a code that was never mailed" in
+[../cloud/auth.md](../cloud/auth.md).
+A GitHub demo account means handing over real GitHub credentials and hoping no device
+check fires; email sign-in mails the code to a mailbox the reviewer does not have. The
+demo pair gives App access an actual username and password, and is revoked by blanking
+one vault key. Put demo content in that workspace — it is an ordinary account, and the
+credentials are written down in a form at Google.
 
 ## Over-the-air updates
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { Hono } from "hono";
 
 /**
@@ -393,6 +393,54 @@ describe("POST /email/verify", () => {
     expect(vi.mocked(zitadel.findOrCreateUserByEmail)).toHaveBeenCalledWith(
       "brand-new@example.com",
     );
+  });
+
+  // The app-store reviewer's way in. Every screen past launch is behind a login
+  // and the only login mails a code to a mailbox the reviewer does not have, so
+  // without this Google sees the sign-in screen and rejects the submission.
+  describe("the store-review demo account", () => {
+    const DEMO_EMAIL = "review@lmthing.com";
+    const DEMO_CODE = "314159";
+
+    afterEach(() => {
+      delete process.env.REVIEW_DEMO_EMAIL;
+      delete process.env.REVIEW_DEMO_CODE;
+    });
+
+    it("signs in with credentials that were never mailed, so a reviewer can get in", async () => {
+      process.env.REVIEW_DEMO_EMAIL = DEMO_EMAIL;
+      process.env.REVIEW_DEMO_CODE = DEMO_CODE;
+
+      // Deliberately no `start()` first: nothing was sent, and there is no row.
+      const res = await verify({ email: DEMO_EMAIL, code: DEMO_CODE });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(await verifyAccessToken(body.access_token)).toEqual({
+        userId: "user-1",
+        email: DEMO_EMAIL,
+      });
+    });
+
+    it("is closed unless configured — the same request 401s on a normal deployment", async () => {
+      const res = await verify({ email: DEMO_EMAIL, code: DEMO_CODE });
+      expect(res.status).toBe(401);
+    });
+
+    it("opens only that one address, not every address", async () => {
+      process.env.REVIEW_DEMO_EMAIL = DEMO_EMAIL;
+      process.env.REVIEW_DEMO_CODE = DEMO_CODE;
+
+      const res = await verify({ email: "someone-else@example.com", code: DEMO_CODE });
+      expect(res.status).toBe(401);
+    });
+
+    it("does not weaken the real code path for that address", async () => {
+      process.env.REVIEW_DEMO_EMAIL = DEMO_EMAIL;
+      process.env.REVIEW_DEMO_CODE = DEMO_CODE;
+
+      const res = await verify({ email: DEMO_EMAIL, code: "000000" });
+      expect(res.status).toBe(401);
+    });
   });
 
   it("burns the code — a replay of the same correct code fails", async () => {

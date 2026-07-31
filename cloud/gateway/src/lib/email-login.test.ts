@@ -12,6 +12,7 @@ import {
   hashLinkToken,
   hashesEqual,
   isAllowedRedirect,
+  isReviewDemoLogin,
   maskEmail,
   normalizeEmail,
   normalizeOtp,
@@ -263,5 +264,76 @@ describe("the origin cookie", () => {
     expect(hashOriginToken(a)).not.toBe(hashOriginToken(b));
     expect(hashOriginToken(a)).toBe(hashOriginToken(a));
     expect(hashOriginToken(a)).not.toContain(a);
+  });
+});
+
+describe("isReviewDemoLogin", () => {
+  const EMAIL = "review@lmthing.com";
+  const CODE = "314159";
+
+  function withDemo(email: string | undefined, code: string | undefined, fn: () => void) {
+    const prevEmail = process.env.REVIEW_DEMO_EMAIL;
+    const prevCode = process.env.REVIEW_DEMO_CODE;
+    if (email === undefined) delete process.env.REVIEW_DEMO_EMAIL;
+    else process.env.REVIEW_DEMO_EMAIL = email;
+    if (code === undefined) delete process.env.REVIEW_DEMO_CODE;
+    else process.env.REVIEW_DEMO_CODE = code;
+    try {
+      fn();
+    } finally {
+      if (prevEmail === undefined) delete process.env.REVIEW_DEMO_EMAIL;
+      else process.env.REVIEW_DEMO_EMAIL = prevEmail;
+      if (prevCode === undefined) delete process.env.REVIEW_DEMO_CODE;
+      else process.env.REVIEW_DEMO_CODE = prevCode;
+    }
+  }
+
+  // The property that matters most: an ordinary deployment has no bypass at all.
+  it("is inert when unconfigured — this is a bypass, so absence is the default", () => {
+    withDemo(undefined, undefined, () => {
+      expect(isReviewDemoLogin(EMAIL, CODE)).toBe(false);
+      expect(isReviewDemoLogin("", "")).toBe(false);
+    });
+  });
+
+  it("stays inert when only one half is set, so a partial config opens nothing", () => {
+    withDemo(EMAIL, undefined, () => {
+      expect(isReviewDemoLogin(EMAIL, CODE)).toBe(false);
+    });
+    withDemo(undefined, CODE, () => {
+      expect(isReviewDemoLogin(EMAIL, CODE)).toBe(false);
+    });
+  });
+
+  it("accepts exactly the configured pair", () => {
+    withDemo(EMAIL, CODE, () => {
+      expect(isReviewDemoLogin(EMAIL, CODE)).toBe(true);
+    });
+  });
+
+  it("rejects the right address with the wrong code, and the reverse", () => {
+    withDemo(EMAIL, CODE, () => {
+      expect(isReviewDemoLogin(EMAIL, "000000")).toBe(false);
+      expect(isReviewDemoLogin("someone@example.com", CODE)).toBe(false);
+      expect(isReviewDemoLogin("someone@example.com", "000000")).toBe(false);
+    });
+  });
+
+  // The caller normalizes before this runs; the configured values go through the
+  // same normalizers, so a stray space or capital in the ENV cannot lock the
+  // reviewer out of an account whose credentials look correct.
+  it("normalizes the configured side the same way the request side is normalized", () => {
+    withDemo("  Review@LMTHING.com ", "314 159", () => {
+      expect(isReviewDemoLogin(EMAIL, CODE)).toBe(true);
+    });
+  });
+
+  it("refuses a configured code that is not a real 6-digit OTP", () => {
+    withDemo(EMAIL, "12345", () => {
+      expect(isReviewDemoLogin(EMAIL, "12345")).toBe(false);
+    });
+    withDemo(EMAIL, "not-a-code", () => {
+      expect(isReviewDemoLogin(EMAIL, "not-a-code")).toBe(false);
+    });
   });
 });

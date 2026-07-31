@@ -57,6 +57,15 @@ jobs:
         working-directory: sdk/org
         run: pnpm install --frozen-lockfile
 
+      # `@lmthing/core`'s type declarations live in a GITIGNORED `dist/`, so a clean
+      # clone cannot resolve `@lmthing/core` at all and every file importing it fails
+      # with TS2307 — around a hundred errors that look like a broken import map and
+      # are actually just an unbuilt dependency. Every other workflow in this repo
+      # carries the same step for the same reason.
+      - name: Build workspace deps
+        working-directory: sdk/org
+        run: pnpm --filter @lmthing/core build
+
       - name: Typecheck
         working-directory: sdk/org
         run: pnpm --filter @lmthing/cli typecheck

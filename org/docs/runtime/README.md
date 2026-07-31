@@ -117,7 +117,7 @@ Token usage is awaited only on a clean end and is bounded by a 10 s race — a p
 
 `CapabilityProfile` (`sdk/org/libs/core/src/exec/capability.ts#CapabilityProfile`) is the single description of what a VM context may do: `kind`, `ask`, `orchestrate` (`fork`+`tasklist`), `delegate`, `registerSpace`, `setSessionMeta`, `allowWrite`, `scratchFs` (the engineer's `fs:scratch` code sandbox — `createScratch()` + a scratch-rooted `execShell`), and the parsed project-app grants `app` (`capabilities:` frontmatter). Three constructors:
 
-- `sessionCapabilities` — full toolkit incl. interactive `ask` (`capability.ts:L91-L93`);
+- `sessionCapabilities` — full toolkit incl. interactive `ask`, but **not** `registerSpace`: registering a space is a write-capable-fork grant only (`sdk/org/libs/core/src/exec/capability.ts#sessionCapabilities`);
 - `forkCapabilities` — headless (no `ask`), non-orchestrating (no `fork`/`tasklist`); `delegate` only when the task's `canDelegateTo` allows it; write + `registerSpace` follow the role, and read-only roles (`explore`/`plan`) get an `intersectAppCaps`-narrowed grant set (`capability.ts:L16-L28`, `L101-L105`);
 - `delegateCapabilities` — autonomous but a full orchestrator over its own actions/tasklists; no `registerSpace` (`capability.ts:L114-L116`).
 

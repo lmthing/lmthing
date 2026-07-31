@@ -86,7 +86,7 @@ model-authored `teamPost(...)` is therefore `Cannot find name 'teamPost'`: a cle
 typecheck error the model sees and corrects, not a runtime throw.
 
 Dropped, never rejected: THING's `instruct.md` is one file shipped to both kinds of pod
-`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:1-20`, so throwing would
+`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:1-35`, so throwing would
 make the system space fail to load on every personal pod. Validation still runs on every pod
 (an unknown id, or a config on a bare-only team cap, throws everywhere), so a malformed
 declaration cannot hide on a laptop and surface in production.
@@ -219,7 +219,7 @@ Three properties, each answering a way a created channel is worse than none
   re-ask must not redraw everyone's sidebar. The other half of "somebody knows about it"
   is not the surface's job — THING is told to put the first message in there with
   `teamPost` and `@`-mention the people it concerns
-  `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:L1177-L1184`.
+  `sdk/org/libs/core/system-spaces/user-thing/knowledge/playbooks/team/conduct.md:L18-L34`.
 * **The caller gets the id back**, which is what the following `teamPost` needs. A create
   that returned only `ok` would leave the turn unable to say the first word in the room it
   just made.

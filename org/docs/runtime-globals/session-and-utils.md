@@ -361,8 +361,10 @@ stray `execShell(...)` fails typecheck.
 
 ### `readFileRaw(path, opts?)` → `{ ok, content, lines, truncated, error? }` — internal-only
 
-**Not on any agent's model DTS** (it was moved out of `COMMON_DTS` into `READ_FILE_RAW_DTS`,
-which `buildAmbientDts` never emits) — an internal primitive for host/space-function callers.
+**Not on any agent's model DTS, and it has no DTS fragment at all** (it was moved out of
+`COMMON_DTS`, and the `READ_FILE_RAW_DTS` fragment it briefly lived in was deleted with the
+`WRITE_PRIMITIVES_DTS` re-append, `sdk/org/libs/core/src/typecheck/library-dts.ts#EXEC_SHELL_DTS`) — an internal primitive for
+host/space-function callers.
 Node `fs` read (no shell-quoting hazards) via the shared `readFileRawAt`. Binary-safe: a NUL
 byte in the first **8192** bytes ⇒ `{ ok:false, error:'binary file' }`
 `sdk/org/libs/core/src/globals/host-tools.ts#BINARY_SCAN_BYTES,59-67`. Optional `offset`/`limit` slice
@@ -419,11 +421,10 @@ under `LMTHING_PROJECT_SPACES_DIR`, defaulting to `.lmthing/user/spaces`
 
 ### `typecheckSource(src)` → `{ ok, errors }`
 
-Runs `tsc` over a standalone TS string against the **full** `LIBRARY_DTS` — which re-appends
-`WRITE_PRIMITIVES_DTS` (`execShell`/`writeFileRaw`/`readFileRaw`) so the check still sees the
-full global set even though the per-agent model DTS omits them
-`sdk/org/libs/core/src/globals/host-tools.ts:264-274`,
-`sdk/org/libs/core/src/typecheck/library-dts.ts:309-317`. `Cannot find name` diagnostics
+Runs `tsc` over a standalone TS string against the **full** `LIBRARY_DTS`
+`sdk/org/libs/core/src/globals/host-tools.ts:264-274`, `sdk/org/libs/core/src/typecheck/library-dts.ts#LIBRARY_DTS`. That bundle no longer
+re-appends the raw fs/shell primitives: the re-append existed so this check saw `execShell`/
+`writeFileRaw`/`readFileRaw`, but the very next sentence is why it never mattered. `Cannot find name` diagnostics
 (**TS2304 / TS2552**) are dropped — an isolated function may legitimately reference sibling
 space functions — while syntax and real type errors still surface
 `sdk/org/libs/core/src/globals/host-tools.ts:264-274`. Pure/read-only, so it is available in

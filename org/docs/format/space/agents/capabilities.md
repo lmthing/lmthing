@@ -77,8 +77,8 @@ App-building splits its authority across two agents: **THING** picks the target 
 
 | Agent | `capabilities:` |
 |---|---|
-| `user-thing/thing` | `project:manage`, `db:read`, `db:write`, `store:read`, `store:install`, `api:call` (`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:6-19`) |
-| `system-appbuilder/automator` | `hooks:write`, `db:schema`, `db:read`, `db:write`, `pages:write`, `api:write` (`sdk/org/libs/core/system-spaces/system-appbuilder/agents/automator/instruct.md:7-13`) |
+| `user-thing/thing` | `project:manage`, `db:read`, `db:write`, `store:read`, `store:install`, `api:call` (`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:12-20`) |
+| `system-appbuilder/automator` | `hooks:write`, `db:schema`, `db:read`, `db:write`, `pages:write`, `api:write` (`sdk/org/libs/core/system-spaces/system-appbuilder/agents/automator/instruct.md:10-16`) |
 | `system-viewbuilder/automator` | `hooks:write`, `db:schema`, `db:read`, `db:write`, `api:write`, `views:write` — the same set with the TSX writer swapped for the spec writers (`sdk/org/libs/core/system-spaces/system-viewbuilder/agents/automator/instruct.md:8-14`) |
 | `system-viewbuilder/spec-builder` | `views:write`, `db:read` — the narrow UI specialist (`sdk/org/libs/core/system-spaces/system-viewbuilder/agents/spec-builder/instruct.md:7-9`) |
 

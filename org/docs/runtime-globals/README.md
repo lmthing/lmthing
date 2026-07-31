@@ -109,7 +109,7 @@ The profile has seven boolean flags plus the parsed app grants
 | `ask` | ✅ | ❌ | ❌ |
 | `orchestrate` (`fork`, `tasklist`) | ✅ | ✅ | ❌ |
 | `delegate` | policy | policy | only via task `canDelegateTo` |
-| `registerSpace` | ✅ | ❌ | only when `allowWrite` |
+| `registerSpace` | ❌ | ❌ | only when `allowWrite` |
 | `setSessionMeta` | ✅ | ❌ | ❌ |
 | `setActivity` (ungated — NOT a profile flag; injected in every VM like `display`) | ✅ | ✅ | ✅ |
 | `allowWrite` (mutating `execShell`, the internal `writeFileRaw` — neither on the model DTS) | ✅ | ✅ | `role !== explore\|plan` |
@@ -237,14 +237,27 @@ model code must never call it directly.
 ## 4. Known lockstep exceptions
 
 `COMMON_DTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts#COMMON_DTS`) is the always-declared
-set. Three names in it are declared unconditionally but **not always injected** — a stray
+set. Two names in it are declared unconditionally but **not always injected** — a stray
 call there passes typecheck and fails at runtime:
 
 | Global | Declared | Injected only when |
 |---|---|---|
-| `registerSpace` | `library-dts.ts:40` (the comment at `:29-34` says so explicitly) | `caps.registerSpace` — not for delegates, not for read-only fork roles (`bootstrap.ts:234`) |
 | `progress()` | `library-dts.ts:106` | `ChildVMOpts.progress` is supplied (`host-tools.ts:219-220`) — the delegate site passes none |
 | `integrationStatus` | `library-dts.ts:101` | `opts.projectRoot` is set (`bootstrap.ts:212`) — it has no capability seam yet, justified because it leaks only the *names* of missing env vars |
+
+**`registerSpace` used to be the third row, and it is the reason this list is worth keeping.** It sat
+in `COMMON_DTS`, declared unconditionally "matching the pre-unification DTS, where only
+ask/tasklist/fork/delegate were stripped", while its *injection* was already gated on
+`caps.registerSpace` — so in a delegate and in a read-only fork the model could write
+`await registerSpace(dir)`, watch it typecheck, and take a runtime throw. It now has its own
+fragment emitted under the same flag that gates the injection
+(`sdk/org/libs/core/src/typecheck/library-dts.ts#REGISTER_SPACE_DTS`,
+`sdk/org/libs/core/src/exec/bootstrap.ts:L460-L465`), and the grant narrowed to **write-capable fork
+roles only** — no session, no delegate — which is where the architect's `register`/`reregister`
+nodes actually run (`sdk/org/libs/core/src/exec/capability.ts#sessionCapabilities`). THING loses it,
+which makes its own Rules line ("you cannot scaffold spaces … those exist only inside the architect")
+host-enforced rather than prose. An injected-iff-declared assertion per context now pins the two
+halves together (`sdk/org/libs/core/src/exec/bootstrap.test.ts`).
 
 ---
 

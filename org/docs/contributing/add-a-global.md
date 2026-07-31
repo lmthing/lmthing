@@ -240,9 +240,11 @@ one place session and fork VMs share this substrate; do not duplicate shims in c
 2. **Honour the write gate** if it mutates: read `profile.allowWrite` the way `writeFileRaw`
    and `execShell` do (`../runtime-globals/README.md#5-full-global-table`), so a read-only
    `fork({ role: 'explore' })` cannot use it.
-3. **Declare the DTS**: put mutating primitives in a gated fragment (`EXEC_SHELL_DTS` /
-   `WRITE_FILE_RAW_DTS`, appended only under `allowWrite`,
-   `sdk/org/libs/core/src/exec/bootstrap.ts:324-325`); read-only ones go in `COMMON_DTS`.
+3. **Declare the DTS under the SAME flag that gates the injection** — a fragment of its own
+   (`EXEC_SHELL_DTS` under `caps.scratchFs`, `REGISTER_SPACE_DTS` under `caps.registerSpace`,
+   `sdk/org/libs/core/src/typecheck/library-dts.ts#REGISTER_SPACE_DTS`). Only a global injected UNCONDITIONALLY belongs in
+   `COMMON_DTS`; declaring a gated one there is how `registerSpace` came to typecheck in a
+   context that then threw at runtime.
 4. Test in `sdk/org/libs/core/src/globals/host-tools.test.ts` — inject into a bare VM and
    `evalCode` a call.
 

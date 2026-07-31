@@ -154,27 +154,39 @@ A workflow artifact cannot serve that purpose: it 404s for anyone not signed in 
 after 14 days, and downloads only as a zip — which a phone cannot install. Asset names are
 deliberately **version-free**, because Tauri encodes the version into its own filenames
 (`lmthing_0.1.0_amd64.AppImage`) and publishing those as-is would break every link already handed
-out the moment `version` in `tauri.conf.json` changes `.github/workflows/desktop.yml:242-247`.
+out the moment `version` in `tauri.conf.json` changes `.github/workflows/desktop.yml:248-253`.
 
 **Two jobs writing one release is a race, and the design avoids it rather than sequencing it.**
 Creation is idempotent — `gh release view` short-circuits the common case and `|| true` covers the
-window where the other job created it in between `.github/workflows/desktop.yml:262-268`. Provenance
+window where the other job created it in between `.github/workflows/desktop.yml:268-274`. Provenance
 then travels *with* each asset as a sibling `BUILD-INFO-linux.txt` / `BUILD-INFO-android.txt`
-rather than in the release body `.github/workflows/desktop.yml:249-258`: distinct filenames cannot
+rather than in the release body `.github/workflows/desktop.yml:255-264`: distinct filenames cannot
 collide, whereas two jobs rewriting one body would silently lose whichever write landed first. The
 Android file records the APK's embedded `runtimeVersion`
-`.github/workflows/mobile-android.yml:193-202`.
+`.github/workflows/mobile-android.yml:199-208`.
 
 The notes are re-rendered from a committed template on every run
 `.github/workflows/nightly-release-notes.md:1-27`, because `--notes-file` is read only at
 *creation* — without that an edit to the template would never reach the live release. Running it
 unconditionally is safe precisely because both jobs render the same committed file, so concurrent
-writes agree instead of clobbering `.github/workflows/desktop.yml:270-273`.
+writes agree instead of clobbering `.github/workflows/desktop.yml:276-279`.
+
+**Both publish steps MUST set `GH_REPO`, and the reason is not obvious.** Each runs with a
+`working-directory` inside the `sdk/org` **submodule**, whose git remote is `github.com/lmthing/org`
+— so `gh` infers *that* repo and tries to publish the release there, where the workflow token has no
+write access. Shipping without it failed with `HTTP 403: Resource not accessible by integration`
+naming `lmthing/org`, after the entire 20-minute build had already succeeded. Pinning
+`GH_REPO: ${{ github.repository }}` is what keeps `gh` pointed at this repository
+`.github/workflows/desktop.yml:238-243`.
 
 Consequences worth knowing: the assets are replaced **independently**, so the desktop and Android
-downloads are not guaranteed to come from the same commit (check the `BUILD-INFO` beside each). And
-the `nightly` git tag stays at whichever commit first created the release — it is a container, not
-a version marker; the assets are what move.
+downloads are not guaranteed to come from the same commit (check the `BUILD-INFO` beside each). The
+`nightly` git tag stays at whichever commit first created the release — it is a container, not a
+version marker; the assets are what move. And because `mobile-android.yml` sets
+`cancel-in-progress: true` `.github/workflows/mobile-android.yml:62-64`, a push landing during the
+~40-minute Android build cancels it, so a busy stretch of commits publishes an APK only for the last
+one — the correct trade for a rolling release, but it does mean "no new APK" is an expected outcome
+rather than a failure.
 
 ### Repo-hygiene workflows
 

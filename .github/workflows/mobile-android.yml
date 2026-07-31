@@ -176,6 +176,12 @@ jobs:
       - name: Publish to the rolling release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # REQUIRED, and the failure is not obvious. `working-directory` below is inside the
+          # `sdk/org` SUBMODULE, whose git remote is github.com/lmthing/org — so `gh` infers that
+          # repo and tries to publish the release there, where this token has no write access. The
+          # error is `HTTP 403: Resource not accessible by integration` naming a repo you did not
+          # mean to touch, after the whole build has already run.
+          GH_REPO: ${{ github.repository }}
         working-directory: sdk/org/apps/mobile
         run: |
           set -euo pipefail

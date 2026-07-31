@@ -115,6 +115,20 @@ Three findings the live run produced that nothing else could:
    healthy project and zerostack reaches any project on disk, but it is worth knowing that
    "delegate into the broken project" is not a route.
 
+## Round 4 — the primers are created on first use, not on every boot
+
+They were written into the data root at endpoint startup, so every pod dropped two files at the top
+of the person's own directory — beside their projects — whether or not zerostack was ever called.
+`ensureWorkspace()` now materializes `.zerostack/`, `config.toml` and both primers together on the
+first `ask`/`loop`; `startZerostackEndpoint` writes nothing and `status` stays a pure read.
+
+Still once per PROCESS and always overwriting, never "write if absent": a pod volume outlives the
+image, so writing only when missing would let an older runtime's primer survive an upgrade while
+describing formats that have since changed.
+
+Verified live on a fresh dir with the real binary — empty after boot, empty after `status`, then
+`.zerostack` + both primers appear with the first turn, which answers correctly.
+
 ## New gate worth keeping
 
 `libs/core/src/spaces/system-delegation.test.ts` — `loadSpace` validates `functions:`,

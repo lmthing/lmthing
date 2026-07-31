@@ -115,11 +115,17 @@ Three documents, three audiences, and merging any two of them is the easy mistak
 | `ZEROSTACK_ARCHITECTURE_MD` (`sdk/org/libs/cli/src/host/zerostack-architecture.ts#ZEROSTACK_ARCHITECTURE_MD`) | **zerostack** | the REFERENCE — what LMThing is, what is in the data directory, the exact shape of every format |
 | `ZEROSTACK_AGENTS_MD` (`sdk/org/libs/cli/src/host/zerostack-agents.ts#ZEROSTACK_AGENTS_MD`) | **zerostack** | the CONTRACT — what is off-limits, how to verify, how to report back |
 
-Both of the latter are written into the data directory on every boot and loaded automatically as context files, which is why the bridge does *not* pass `--no-context-files`. They are rewritten each boot rather than once because a pod volume outlives the image: a primer written by an older runtime would otherwise persist unnoticed across an upgrade (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts:275-283`).
+Both of the latter are written into the data directory and loaded automatically as context files, which is why the bridge does *not* pass `--no-context-files`.
+
+**They are materialized on the FIRST TURN, not at boot** (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts:275-304`). The data root is the person's own directory — their projects sit in it and they look at it — and most pods never call zerostack at all, so a feature nobody used has no business dropping two files at the top of it on every boot. Nothing is created until the moment it is needed: `startZerostackEndpoint` writes nothing, `status` stays a pure read (asking whether zerostack works must not be what creates it), and the first `ask`/`loop` materializes `.zerostack/`, `config.toml` and both primers together.
+
+The guard is **once per process, always overwriting** — not "write if absent". A pod volume outlives the image, so writing only when missing would let a primer authored by an older runtime survive an upgrade unnoticed, describing formats that have since changed; that is worse than no primer at all. The first call after a boot rewrites both; every later call in the same boot costs nothing.
+
+`ARCHITECTURE.md` must also be in place *before the first child starts*, which is why `ensureWorkspace` runs in `startTurn` rather than lazily around the spawn: without it zerostack asks "No ARCHITECTURE.md found … Create one? [y/N]", and it asks even under `-p`.
 
 `ARCHITECTURE.md` carries what is genuinely unguessable from the files alone, and is asserted to keep carrying it (`sdk/org/libs/cli/src/host/zerostack-endpoint.test.ts:195-208`): that a project *is* an application; that `api/` filenames **are** the HTTP method and any other filename is unrouted; that `ctx.db` is an async proxy where a missing `await` fails silently; that a page is a `.view.json` **spec** against a closed 8-kind / 24-element vocabulary with no React escape hatch, beside a generated `.tsx` wrapper; that a table schema failing validation takes the **whole app** down rather than one table; that a space load is all-or-nothing behind a frontmatter allow-list; that space functions run in QuickJS with no filesystem and no `child_process`; and that `types/generated.d.ts`, `.data/` and `system/spaces/` are generated or re-materialized (`sdk/org/libs/cli/src/cli/runtime-init.ts#materializeRuntime`).
 
-`ARCHITECTURE.md` must also simply **exist**: without it zerostack asks "No ARCHITECTURE.md found … Create one? [y/N]", and it asks even under `-p`. The bridge gives the child no stdin so the read EOFs and it continues — but that is the prompt failing safe, not the prompt not happening.
+The bridge gives the child no stdin, so that prompt would EOF and continue anyway — but that is the question failing safe, not the question not being asked.
 
 ---
 

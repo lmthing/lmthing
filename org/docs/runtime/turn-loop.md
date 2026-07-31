@@ -537,6 +537,29 @@ emitted a top-level `display()`, tracked by the Session's per-turn `displayedThi
 > The consequence is deliberate: a channel turn that stays output-less after its one nudge now ends
 > `'error'` and posts a visible failure, where before it ended quietly with nothing to show.
 
+**Working-material guard** (`WORKING_MATERIAL_NUDGE`; dep
+`sdk/org/libs/core/src/eval/turn-loop.ts#TurnLoopDeps.hadReadableOutput`). The guard above asks
+whether `display()` was *called*, which is not the same question as whether the person who asked can
+*read* the reply. A turn that uses `display()` as a debug print — dumping `db.tables()`, a
+`listProjectDir()` listing, a raw JSON value, a module of generated source — satisfies
+`hadVisibleOutput` and settles `'done'` while telling the asker nothing. In `/chat` that is noise
+beside the conversation; in a team channel the last display **is** the message, posted under THING's
+name and pushed to phones.
+
+`TurnLoopDeps.hadReadableOutput` reports whether any display this turn carried prose a person can
+read, tracked by the Session's per-turn `readableDisplayThisTurn` flag
+(`sdk/org/libs/core/src/session/session.ts#Session.readableDisplayThisTurn`) through
+`hasReadableProse` (`sdk/org/libs/core/src/ui/readability.ts#hasReadableProse`) — which strips fenced
+code, parseable JSON literals and source lines, drops the labels those hung off, and asks whether any
+surviving line reads like language. The flag is sticky, so an answer preceded by a dump still counts
+as answered.
+
+The branch is **disjoint** from the one above (that one requires no display at all) and it **never
+escalates**: one re-prompt (`turn_end{reason:'working_material_nudge'}`, `attempt` reset to 0), then
+the turn is accepted whatever comes back. The asymmetry is deliberate — readability is a heuristic
+whereas "displayed nothing" is certain, and `display(someTable)` ending a `/chat` turn is legal and
+must stay legal. A host that passes no `hadReadableOutput` is unaffected.
+
 **Delegate structural termination** (`shouldStop`, `turn-loop.ts:307`, checked at `turn-loop.ts:427`). A
 delegate's main loop sets no `beforeTurn` and, left alone, would re-prompt forever after its action
 tasklist resolves — only a real model voluntarily emits no further statements; a weak or looping model

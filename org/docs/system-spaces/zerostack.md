@@ -51,10 +51,23 @@ Loopback rather than a pod route: a `router.add(...)` route would pass through `
 | `op` | Wrapper | Effect |
 |---|---|---|
 | `status` | `zerostackStatus` | version, working dir, model, session count — or why it is unusable |
-| `ask` | `zerostackAsk` | one turn: `zerostack -p [-c] -- <message>` |
-| `loop` | `zerostackLoop` | headless loop: adds `--loop --loop-prompt --loop-max --loop-run` |
+| `ask` | `zerostackAsk` | **starts** one turn (`zerostack -p [-c] -- <message>`), returns `{ sessionId, running: true }` |
+| `loop` | `zerostackLoop` | **starts** a headless loop: adds `--loop --loop-prompt --loop-max --loop-run` |
+| `wait` | *(internal to both)* | long-polls one turn; `{ running: true }` or the finished result |
 | `sessions` | `zerostackSessions` | existing conversations, newest first, with `busy` |
 | `cancel` | `zerostackCancel` | `SIGTERM` the in-flight turn of one session |
+
+### Why a turn is started and polled, never awaited
+
+The sandbox's `fetch` aborts at **25 seconds** and reports the failure as `status: 0` (`sdk/org/libs/core/src/eval/fetch-yield.ts:15,28`). A coding turn takes **minutes**. So a blocking `ask` could essentially never come back — and `status: 0` is indistinguishable from a dead endpoint, which is exactly the wrong conclusion to invite: the turn is still running, and starting over is the one thing that must not happen.
+
+This was not theoretical. A live engineer→zerostack run over a genuinely broken project hit it **eight times**, twice announcing that the service was down before blundering into a call short enough to survive. Every unit test used a fake binary that answered instantly, so none of them could see it — the "wiring gaps need live runs" class of fault.
+
+`ask`/`loop` therefore start the child and answer immediately with a `sessionId`; `wait` long-polls in 15-second slices, comfortably inside the sandbox limit (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts#WAIT_SLICE_MS`). The space functions loop over `wait` internally, so the agent-facing shape is unchanged — `zerostackAsk` still just returns the answer (`sdk/org/libs/core/system-spaces/system-zerostack/functions/zerostackAsk.ts#runZerostack`).
+
+A result is recorded when the turn's promise settles in `startTurn`, **not** in the child's own settle path (`sdk/org/libs/cli/src/host/zerostack-endpoint.ts:464-471`): a turn refused up front — no binary, unusable model, unknown session — resolves without ever spawning a child, and a `wait` that found neither a pending nor a finished turn would report "no turn is running" instead of the actual reason.
+
+The regression test runs a child that outlives many slices, asserting each slice returns promptly, that at least one poll was genuinely needed, and that the answer survives intact (`sdk/org/libs/cli/src/host/zerostack-endpoint.test.ts:297-323`).
 
 ---
 
@@ -145,5 +158,6 @@ The version is pinned exactly rather than tracking `latest`: this binary execute
 | A "fix" to `system/spaces/` reports success and reverts on reboot | stated in `AGENTS.md`, in the agent's rules, and in the `lmthing_apps` knowledge |
 | A turn hangs forever waiting on a permission prompt | `yolo` is written into the generated config; no mode that prompts is reachable |
 | The binary is missing and every function says "not configured" | the endpoint is published regardless and `status` reports the real reason |
+| A minutes-long turn dies at the sandbox's 25s fetch cap, reported as a dead endpoint | `ask` starts and returns; `wait` polls in 15s slices |
 | A `canDelegateTo` typo silently disables the escalation | `sdk/org/libs/core/src/spaces/system-delegation.test.ts:38-60` resolves every shipped ref |
 | An unverified fix is relayed as done | the agent's rules and the `reading-a-result` aspect both require the command and its output |

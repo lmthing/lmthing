@@ -88,6 +88,33 @@ four right (`handler.ts` is not routed and why; a page is `.view.json`; one bad 
 whole app; `types/generated.d.ts` is never hand-edited). stderr came back **empty**, where the
 first run carried the Exa MCP error — MCP is genuinely silent.
 
+## Round 3 — the live engineer→zerostack run, and what it broke
+
+Ran the real chain: a fresh data dir with a deliberately broken project (a schema column with no
+`description`, a handler named `handler.ts`, a missing `await` on `ctx.db`), `lmthing serve`, and an
+**engineer** session told to escalate.
+
+**It works.** zerostack found all three seeded faults plus a legitimate fourth (no
+tsconfig/package.json), with the right fix for each and the right repair order.
+
+Three findings the live run produced that nothing else could:
+
+1. **A turn could never outlive the sandbox's 25s `fetch` cap.** `fetch-yield.ts` aborts at 25s and
+   reports `status: 0`; a coding turn takes minutes. The agent saw a bare "HTTP 0" — indistinguish-
+   able from a dead endpoint — and twice announced the service was down. **Eight** occurrences in
+   one run. Fixed: `ask`/`loop` start a turn and return a `sessionId`; a new `wait` op long-polls in
+   15s slices; the space functions loop internally so the agent-facing shape is unchanged. Zero
+   HTTP 0 on the re-run. Every unit test used an instant fake binary, so none could see it.
+2. **The agent treated its own primers as a fabrication.** zerostack cited `ARCHITECTURE.md`; the
+   driving agent had never sent it, challenged the answer, and burned a round trip demanding proof.
+   The `driving` knowledge now states that the pod writes both primers and that citing them is
+   sourced, not invented.
+3. **A broken schema takes down the session scoped to that project.** `_initProjectSession` throws
+   `todos.done: column is missing required "description"` — so the in-project agent cannot be asked
+   to fix the thing that is breaking it. The escalation still works because the engineer runs in a
+   healthy project and zerostack reaches any project on disk, but it is worth knowing that
+   "delegate into the broken project" is not a route.
+
 ## New gate worth keeping
 
 `libs/core/src/spaces/system-delegation.test.ts` — `loadSpace` validates `functions:`,

@@ -64,8 +64,6 @@ Two things about this were only found by measuring, and both are worth keeping w
 
 Windows and macOS take `build_as_child`, where a child webview is a real child view and Tauri's `set_position`/`set_size` work as documented. One rectangle, one meaning, two mechanisms — the renderer measures the same pane and sends the same numbers, so the layout is identical and only the plumbing differs (`sdk/org/apps/desktop/src-tauri/src/browser_view.rs:L114-L140`).
 
-`LMTHING_OPEN_BROWSER=1` opens the pane on launch, retrying until it takes. Developing a layout that only exists after someone clicks a menu item is a click-per-iteration loop, and the emit is fire-and-forget — one sent before the page mounts its listener is silently lost, which made a fixed delay work most times and not all.
-
 ### The one rule that follows
 
 **The app cannot draw on top of it.** A child webview is an OS rectangle, not an element in the document, so a drawer, a dialog or a menu over that area is painted *underneath* and is simply invisible. Anything that must cover the pane has to hide it first, which is why visibility drives `browserview_hide`/`show` rather than a CSS property (`sdk/org/apps/desktop/src-tauri/src/browser_view.rs:L122-L127`).
@@ -96,13 +94,13 @@ Two catalogues arrive over the same loopback endpoint and are dispatched by name
 
 **The 27 `system-browser` wrappers** are unchanged and unaware of any of this; the pod forwards their body verbatim. `tree`, `nodeDetails` and `findElement` are `backendNodeId`-shaped and are **refused** — a selector-based approximation would hand the model ids that do not mean what it thinks they do.
 
-### Opening the pane is what connects it
+### The agent opens the pane
 
-The browser and the bridge are one feature, not two. Opening the pane attaches this desktop to the workspace (`sdk/org/apps/desktop/src/HomeShell.tsx#HomeShell`); without the bridge the pod has nowhere to send a browser operation and the agent can only answer that no desktop is connected.
+An agent asked for a page gets one: the pane opens **visibly, in the split** (`sdk/org/apps/desktop/src/page-driver.ts#ensurePaneOpen`). The request goes through the shell, which owns the layout, rather than an offscreen webview being created behind everyone's back — giving an agent a browser nobody can see is the single thing this design exists to prevent.
 
-It does not widen what can be read from disk — the grant list is the filesystem boundary and is empty until the person names a folder — and it is an *implied* start, which can never undo a deliberate Disconnect (`sdk/org/apps/desktop/src/host-bridge.ts#DesktopHostBridge.start`).
+For that to be possible the bridge connects **as soon as somebody is signed in** (`sdk/org/apps/desktop/src/HomeShell.tsx#HomeShell`). It used to wait for the pane to be opened by hand, on the reasoning that a cloud agent reaching this machine should follow from a deliberate act, and that produced a dead end: an agent asked for a browser, the pod had no desktop attached, and it told the person to **install the app they were already using** — because the only thing that would have connected it was the very action they had asked the agent to perform.
 
-When an agent reaches for the browser and the person never opened one, **the pane opens visibly, in the split** (`sdk/org/apps/desktop/src/page-driver.ts#ensurePaneOpen`). Giving an agent a page it was asked for is right; giving it one in a view nobody can see is the single thing this design exists to prevent, so the request goes through the shell rather than an offscreen webview being created behind everyone's back.
+The deliberate act is signing in. What the bridge can reach is bounded elsewhere and stays bounded: the grant list is the filesystem boundary and is empty until a folder is named, so a connected bridge with no grants reaches no files at all. Disconnect remains the kill switch, and an *implied* start can never undo it (`sdk/org/apps/desktop/src/host-bridge.ts#DesktopHostBridge.start`).
 
 ### Telling an agent the desktop is not there
 

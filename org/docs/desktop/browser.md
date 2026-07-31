@@ -49,6 +49,23 @@ The toolbar is ordinary React in the app's document. The area below it is **empt
 
 The rectangle is measured by the renderer and sent to Rust, rather than computed in Rust, because the split divider is draggable and the toolbar is laid out by the same CSS as everything else — deriving it twice means keeping two derivations agreeing.
 
+### Linux positions it by hand
+
+`Window::add_child` takes a position and a size, and **on Linux it discards both**. `tauri-runtime-wry` builds a child webview into `window.default_vbox()` — a `GtkBox` — and wry, handed a `GtkBox`, calls `pack_start(webview, true, true, 0)`: the child is stacked, expanded to full width, and the position is dropped. It also records `is_in_fixed_parent = false`, which makes wry's own `set_bounds` a no-op. There is no combination of arguments that positions a child webview there, on Wayland or X11.
+
+So the widgets are rearranged once, into a `GtkFixed` (`sdk/org/apps/desktop/src-tauri/src/gtk_pane.rs:L53-L110`): the app's webview at the origin, the browser placed over it with `Fixed::move_`. A `GtkFixed` gives its children no size at all, so the app's webview is told the container's size on every allocation — which is also what keeps the app **full height** rather than sharing vertical space with the pane the way the original box did.
+
+`GtkOverlay` was tried first and rejected on evidence, not taste: given a full rectangle through its `get-child-position` hook, GTK used the size and allocated the child at `0,0` anyway.
+
+Two things about this were only found by measuring, and both are worth keeping written down:
+
+- **The vbox holds three children** — `["GtkMenuBar", "WebKitWebView", "WebKitWebView"]`. Selecting "the one that is not the browser" picks the **menu bar**. That version stretched the menu bar to fill the window and left the real app webview behind, which presented as an app rendering black with `Edit View Window` floating in the middle of it — a symptom that looks nothing like a mis-selection. The app surface is selected by type.
+- **A widget's allocation cannot answer "where is it"** — it is relative to whichever `GdkWindow` the widget sits in, and GTK stacks wrapper windows. `0,0` reads identically whether the pane is correctly placed inside a wrapper or not placed at all. Two rounds of diagnosis were lost to that.
+
+Windows and macOS take `build_as_child`, where a child webview is a real child view and Tauri's `set_position`/`set_size` work as documented. One rectangle, one meaning, two mechanisms — the renderer measures the same pane and sends the same numbers, so the layout is identical and only the plumbing differs (`sdk/org/apps/desktop/src-tauri/src/browser_view.rs:L114-L140`).
+
+`LMTHING_OPEN_BROWSER=1` opens the pane on launch, retrying until it takes. Developing a layout that only exists after someone clicks a menu item is a click-per-iteration loop, and the emit is fire-and-forget — one sent before the page mounts its listener is silently lost, which made a fixed delay work most times and not all.
+
 ### The one rule that follows
 
 **The app cannot draw on top of it.** A child webview is an OS rectangle, not an element in the document, so a drawer, a dialog or a menu over that area is painted *underneath* and is simply invisible. Anything that must cover the pane has to hide it first, which is why visibility drives `browserview_hide`/`show` rather than a CSS property (`sdk/org/apps/desktop/src-tauri/src/browser_view.rs:L122-L127`).

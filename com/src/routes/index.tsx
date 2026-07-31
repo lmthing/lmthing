@@ -1,4 +1,26 @@
+import type { ComponentType } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
+import {
+  Blocks,
+  Bot,
+  Braces,
+  FolderOpen,
+  FolderTree,
+  GitBranch,
+  Globe,
+  Mail,
+  Monitor,
+  MonitorPlay,
+  Package,
+  Plug,
+  Radio,
+  ShieldCheck,
+  Smartphone,
+  TerminalSquare,
+  Wallet,
+  Waypoints,
+  Zap,
+} from 'lucide-react'
 import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 
 export const Route = createFileRoute('/')({
@@ -154,111 +176,179 @@ const SPACE_TREE = `newsroom/
 ├── components/         # the UI it renders back to you
 └── events/             # webhook · cron · db · internal`
 
-const features: { title: string; description: string; badge?: string }[] = [
+interface FeatureItem {
+  icon: ComponentType<{ className?: string; strokeWidth?: number }>
+  title: string
+  description: string
+}
+
+interface FeatureGroup {
+  key: string
+  label: string
+  tagline: string
+  color: string
+  items: FeatureItem[]
+}
+
+const FEATURE_GROUPS: FeatureGroup[] = [
   {
-    title: 'Apps with a real backend',
-    badge: 'Build',
-    description:
-      'Describe it and you get a database schema, typed API endpoints that are typechecked before they are saved, and a UI built against them — then an acceptance pass that asks whether the app is actually right.',
+    key: 'build',
+    label: 'Build',
+    tagline: 'Describe it, and it gets built — with a real backend behind it.',
+    color: 'var(--brand-3)',
+    items: [
+      {
+        icon: Blocks,
+        title: 'Apps with a real backend',
+        description:
+          'A database schema, typed API endpoints checked before they save, and a UI built against them — then an acceptance pass that asks whether the app is actually right.',
+      },
+      {
+        icon: Bot,
+        title: 'Agents that build agents',
+        description:
+          'THING writes new specialists, forks itself to work in parallel, and delegates to agents with narrower powers than its own — one that only touches schemas, one with a throwaway sandbox.',
+      },
+      {
+        icon: ShieldCheck,
+        title: 'Capabilities, not permissions',
+        description:
+          'An agent without a grant does not get "access denied" — the function is absent from its world entirely. No generic filesystem on any agent surface, ever.',
+      },
+    ],
   },
   {
-    title: 'Agents that build agents',
-    badge: 'Build',
-    description:
-      'THING writes new specialists, forks itself to work in parallel, and delegates to agents with narrower powers than its own — a data modeler that only touches schemas, an engineer with a throwaway sandbox.',
+    key: 'desktop',
+    label: 'Desktop',
+    tagline: 'A native app for the two things a browser tab can never give an agent.',
+    color: 'var(--spectrum-12)',
+    items: [
+      {
+        icon: MonitorPlay,
+        title: 'A browser you and your agent share',
+        description:
+          'A real browser view inside the desktop app: one page, one login, one scroll position. You watch it; the agent clicks, types and reads it. Nothing to download.',
+      },
+      {
+        icon: FolderOpen,
+        title: 'Your local files',
+        description:
+          'Point the desktop app at a folder and your agent can work on what is actually on your machine. Nothing is reachable until you name it, and disconnect is a kill switch.',
+      },
+    ],
   },
   {
-    title: 'Capabilities, not permissions',
-    badge: 'Build',
-    description:
-      'An agent without a grant does not get "access denied" — the function is absent from its world entirely. No generic filesystem on any agent surface, ever.',
+    key: 'cli',
+    label: 'CLI',
+    tagline: 'The whole runtime, portable as one file.',
+    color: 'var(--brand-1)',
+    items: [
+      {
+        icon: Package,
+        title: 'One file, no install',
+        description:
+          'The whole runtime as a single executable — CLI, REST API, WebSocket and agents — on a machine with no Node and no checkout. A coding agent is bundled inside it.',
+      },
+    ],
   },
   {
-    title: 'A browser you and your agent share',
-    badge: 'Desktop',
-    description:
-      'A real browser view inside the desktop app: one page, one login, one scroll position. You watch it; the agent clicks, types and reads it. No screenshot streams, no hidden headless copy, nothing to download.',
+    key: 'mobile',
+    label: 'Mobile',
+    tagline: 'The same app, natively.',
+    color: 'var(--spectrum-28)',
+    items: [
+      {
+        icon: Smartphone,
+        title: 'On your phone, in your pocket',
+        description:
+          'Push notifications sent only by your own pod, over-the-air updates, drafts, message editing and an honest offline state.',
+      },
+    ],
   },
   {
-    title: 'Your local files',
-    badge: 'Desktop',
-    description:
-      'Point the desktop app at a folder and your agent can work on what is actually on your machine. Nothing is reachable until you name it, and disconnect is a kill switch.',
+    key: 'automate',
+    label: 'Automate',
+    tagline: 'Reach the outside world, and let it wake your agents.',
+    color: 'var(--brand-4)',
+    items: [
+      {
+        icon: Radio,
+        title: 'Events, webhooks and cron',
+        description:
+          'A space can declare what it emits — a webhook arrives, a schedule fires, a row changes — and hooks wake your agents to deal with it. Automations that run while you sleep.',
+      },
+      {
+        icon: Plug,
+        title: 'Integrations you own',
+        description:
+          'Slack, Telegram, email and more, each a self-contained space installed from the store with your own token. No broker in the middle holding your access.',
+      },
+      {
+        icon: Globe,
+        title: 'It can read the web',
+        description:
+          'Search and page-fetch backed by a real headless browser, so JavaScript-heavy pages are readable — plus images, transcribed audio, spreadsheets and office documents.',
+      },
+    ],
   },
   {
-    title: 'One file, no install',
-    badge: 'CLI',
-    description:
-      'The whole runtime as a single executable — CLI, REST API, WebSocket and agents — on a machine with no Node and no checkout. A coding agent is bundled inside it.',
-  },
-  {
-    title: 'On your phone, in your pocket',
-    badge: 'Mobile',
-    description:
-      'The same app, natively: push notifications sent only by your own pod, over-the-air updates, drafts, message editing and an honest offline state.',
-  },
-  {
-    title: 'Events, webhooks and cron',
-    badge: 'Automate',
-    description:
-      'A space can declare what it emits — a webhook arrives, a schedule fires, a row changes — and hooks wake your agents to deal with it. Automations that run while you sleep.',
-  },
-  {
-    title: 'Integrations you own',
-    badge: 'Automate',
-    description:
-      'Slack, Telegram, email and more, each a self-contained space installed from the store with your own token. No broker in the middle holding your access.',
-  },
-  {
-    title: 'It can read the web',
-    badge: 'Automate',
-    description:
-      'Search and page-fetch backed by a real headless browser, so JavaScript-heavy pages are readable — plus images, transcribed audio, spreadsheets and office documents.',
-  },
-  {
-    title: 'Every model, one endpoint',
-    badge: 'Platform',
-    description:
-      'An OpenAI-compatible API in front of every model we route to. Point your existing code at it and it just works.',
-  },
-  {
-    title: 'Budgets, not surprise bills',
-    badge: 'Platform',
-    description:
-      'Rolling daily, weekly and monthly spend caps on every account. A request is refused when a window is exhausted — there is no overage to discover later.',
-  },
-  {
-    title: 'Costs nothing while you are away',
-    badge: 'Platform',
-    description:
-      'Your pod scales to zero and is woken by the edge on any request, in about a second, with real boot progress on screen. Scheduled jobs still fire while it sleeps.',
-  },
-  {
-    title: 'Sign in with an email address',
-    badge: 'Platform',
-    description:
-      'A six-digit code or a magic link that signs in the browser that asked for it and nobody else. GitHub too. No password to choose, leak or reset.',
-  },
-  {
-    title: 'Your workspace is a git repo',
-    badge: 'Platform',
-    description:
-      'Back the whole thing up to your own GitHub repository. Version control, history and diffs over everything your agents wrote.',
+    key: 'platform',
+    label: 'Platform',
+    tagline: 'The infrastructure underneath, so you never have to think about it.',
+    color: 'var(--brand-5)',
+    items: [
+      {
+        icon: Waypoints,
+        title: 'Every model, one endpoint',
+        description: 'An OpenAI-compatible API in front of every model we route to. Point your existing code at it and it just works.',
+      },
+      {
+        icon: Wallet,
+        title: 'Budgets, not surprise bills',
+        description:
+          'Rolling daily, weekly and monthly spend caps on every account. A request is refused when a window is exhausted — there is no overage to discover later.',
+      },
+      {
+        icon: Zap,
+        title: 'Costs nothing while you are away',
+        description:
+          'Your pod scales to zero and is woken by the edge on any request, in about a second, with real boot progress on screen. Scheduled jobs still fire while it sleeps.',
+      },
+      {
+        icon: Mail,
+        title: 'Sign in with an email address',
+        description:
+          'A six-digit code or a magic link that signs in the browser that asked for it and nobody else. GitHub too. No password to choose, leak or reset.',
+      },
+      {
+        icon: GitBranch,
+        title: 'Your workspace is a git repo',
+        description:
+          'Back the whole thing up to your own GitHub repository. Version control, history and diffs over everything your agents wrote.',
+      },
+    ],
   },
 ]
 
-const clients = [
-  { name: 'Web', detail: 'chat, studio, computer and your apps in any browser' },
-  { name: 'Desktop', detail: 'macOS, Windows and Linux — plus local files and the shared browser' },
-  { name: 'Phone', detail: 'the same app natively, with push and over-the-air updates' },
-  { name: 'Terminal', detail: 'one downloadable file, no Node and no checkout required' },
+const clients: { name: string; detail: string; icon: ComponentType<{ className?: string; strokeWidth?: number }> }[] = [
+  { name: 'Web', detail: 'chat, studio, computer and your apps in any browser', icon: Globe },
+  { name: 'Desktop', detail: 'macOS, Windows and Linux — plus local files and the shared browser', icon: Monitor },
+  { name: 'Phone', detail: 'the same app natively, with push and over-the-air updates', icon: Smartphone },
+  { name: 'Terminal', detail: 'one downloadable file, no Node and no checkout required', icon: TerminalSquare },
+]
+
+const jumpLinks = [
+  { href: '#surfaces', label: 'Surfaces' },
+  { href: '#features', label: 'Features' },
+  { href: '#clients', label: 'Clients' },
+  { href: '#pricing', label: 'Pricing' },
 ]
 
 function Landing() {
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="relative overflow-hidden px-6 py-24 sm:py-32 lg:py-40">
+      <section className="relative overflow-hidden px-6 py-24 sm:py-32 lg:py-36">
         <div className="absolute inset-0 -z-10 overflow-hidden">
           <div
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full opacity-[0.08] blur-3xl"
@@ -292,6 +382,19 @@ function Landing() {
               View pricing
             </Link>
           </div>
+
+          {/* Wayfinding */}
+          <div className="mt-14 flex flex-wrap items-center justify-center gap-2 animate-fade-in-up-delay-3">
+            {jumpLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="rounded-full border border-border bg-card px-4 py-1.5 text-xs font-medium text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -308,13 +411,18 @@ function Landing() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="rounded-xl border border-border bg-card p-7">
-              <span
-                className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: 'var(--brand-3)' }}
-              >
-                The runtime
-              </span>
-              <h3 className="mt-2 text-xl font-semibold">The model writes code, not tool calls</h3>
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg"
+                  style={{ backgroundColor: 'color-mix(in srgb, var(--brand-3) 12%, transparent)', color: 'var(--brand-3)' }}
+                >
+                  <Braces className="h-5 w-5" strokeWidth={1.75} />
+                </span>
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-3)' }}>
+                  The runtime
+                </span>
+              </div>
+              <h3 className="mt-4 text-xl font-semibold">The model writes code, not tool calls</h3>
               <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
                 One TypeScript statement at a time, streamed, evaluated as it arrives inside a
                 WebAssembly sandbox. That means real loops, real conditionals, real variables — one
@@ -328,13 +436,18 @@ function Landing() {
             </div>
 
             <div className="rounded-xl border border-border bg-card p-7">
-              <span
-                className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: 'var(--brand-4)' }}
-              >
-                The format
-              </span>
-              <h3 className="mt-2 text-xl font-semibold">An agent is not a prompt. It is a folder.</h3>
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg"
+                  style={{ backgroundColor: 'color-mix(in srgb, var(--brand-4) 12%, transparent)', color: 'var(--brand-4)' }}
+                >
+                  <FolderTree className="h-5 w-5" strokeWidth={1.75} />
+                </span>
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-4)' }}>
+                  The format
+                </span>
+              </div>
+              <h3 className="mt-4 text-xl font-semibold">An agent is not a prompt. It is a folder.</h3>
               <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
                 Every agent is a directory you can read, diff, edit by hand, commit to git, publish
                 and install. Its frontmatter <em>is</em> its wiring — which functions it may call,
@@ -367,7 +480,7 @@ function Landing() {
       </section>
 
       {/* Services Grid */}
-      <section className="px-6 py-20 sm:py-28">
+      <section id="surfaces" className="scroll-mt-20 px-6 py-20 sm:py-28">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-16 animate-fade-in-up-delay-3">
             <h2 className="text-3xl sm:text-4xl tracking-tight">
@@ -442,26 +555,71 @@ function Landing() {
         </div>
       </section>
 
-      {/* Features */}
-      <section className="px-6 py-20 sm:py-28 border-t border-border bg-secondary/30">
+      {/* Features, grouped */}
+      <section id="features" className="scroll-mt-20 px-6 py-20 sm:py-28 border-t border-border bg-secondary/30">
         <div className="mx-auto max-w-6xl">
-          <div className="text-center mb-16">
+          <div className="text-center mb-6">
             <h2 className="text-3xl sm:text-4xl tracking-tight">Everything it does</h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
               Real infrastructure behind every one of these — not a roadmap.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10">
-            {features.map((feature) => (
-              <div key={feature.title} className="space-y-2">
-                {feature.badge && (
-                  <span className="inline-block rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {feature.badge}
+          {/* Group nav */}
+          <div className="mb-16 flex flex-wrap items-center justify-center gap-2">
+            {FEATURE_GROUPS.map((group) => (
+              <a
+                key={group.key}
+                href={`#group-${group.key}`}
+                className="rounded-full border px-3.5 py-1 text-xs font-medium transition-opacity hover:opacity-70"
+                style={{
+                  color: group.color,
+                  borderColor: `color-mix(in srgb, ${group.color} 35%, transparent)`,
+                  backgroundColor: `color-mix(in srgb, ${group.color} 10%, transparent)`,
+                }}
+              >
+                {group.label}
+              </a>
+            ))}
+          </div>
+
+          <div className="space-y-14">
+            {FEATURE_GROUPS.map((group) => (
+              <div key={group.key} id={`group-${group.key}`} className="scroll-mt-24">
+                <div className="mb-6 flex items-baseline gap-3">
+                  <span
+                    className="text-sm font-semibold uppercase tracking-wider whitespace-nowrap"
+                    style={{ color: group.color }}
+                  >
+                    {group.label}
                   </span>
-                )}
-                <h3 className="font-semibold text-base">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+                  <span className="h-px flex-1" style={{ backgroundColor: `color-mix(in srgb, ${group.color} 25%, transparent)` }} />
+                  <span className="hidden sm:block text-sm text-muted-foreground text-right">
+                    {group.tagline}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {group.items.map((feature) => {
+                    const Icon = feature.icon
+                    return (
+                      <div
+                        key={feature.title}
+                        className="rounded-xl border border-border bg-card p-6"
+                      >
+                        <span
+                          className="flex h-9 w-9 items-center justify-center rounded-lg"
+                          style={{ backgroundColor: `color-mix(in srgb, ${group.color} 12%, transparent)`, color: group.color }}
+                        >
+                          <Icon className="h-4.5 w-4.5" strokeWidth={1.75} />
+                        </span>
+                        <h3 className="mt-3.5 font-semibold text-base">{feature.title}</h3>
+                        <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+                          {feature.description}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             ))}
           </div>
@@ -469,7 +627,7 @@ function Landing() {
       </section>
 
       {/* Clients */}
-      <section className="px-6 py-20 sm:py-28">
+      <section id="clients" className="scroll-mt-20 px-6 py-20 sm:py-28">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl tracking-tight">Wherever you work</h2>
@@ -478,18 +636,26 @@ function Landing() {
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {clients.map((client) => (
-              <div key={client.name} className="rounded-xl border border-border bg-card p-6">
-                <h3 className="font-semibold text-base">{client.name}</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{client.detail}</p>
-              </div>
-            ))}
+            {clients.map((client) => {
+              const Icon = client.icon
+              return (
+                <div key={client.name} className="rounded-xl border border-border bg-card p-6 text-center">
+                  <span
+                    className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+                  >
+                    <Icon className="h-5 w-5" strokeWidth={1.5} />
+                  </span>
+                  <h3 className="mt-3.5 font-semibold text-base">{client.name}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{client.detail}</p>
+                </div>
+              )
+            })}
           </div>
         </div>
       </section>
 
       {/* Pricing Teaser */}
-      <section className="px-6 py-20 sm:py-28 border-t border-border">
+      <section id="pricing" className="scroll-mt-20 px-6 py-20 sm:py-28 border-t border-border">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl sm:text-4xl tracking-tight">Start free, scale when ready</h2>
           <p className="mt-4 text-lg text-muted-foreground">

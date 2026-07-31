@@ -205,6 +205,21 @@ looked at. More history is a deliberate walk backwards through `before`, one pag
 > into the thread it was asked in `sdk/org/libs/cli/src/server/routes/team-channels.ts#runThingReply`.
 > `teamPost` is for when the request is genuinely about somewhere else.
 
+### The writers are reachable from exactly ONE tasklist node
+
+Holding the capability is not the same as being able to reach it from wherever a turn happens
+to be. Across every shipped space, exactly one tasklist node calls `teamPost`/`teamPinApp` —
+the terminal `post` node of THING's `tell_the_team`, which chooses neither its channel nor its
+words (both are settled upstream by `explore` nodes that `intersectAppCaps` has already
+stripped the writers from)
+`sdk/org/libs/core/system-spaces/user-thing/tasklists/tell_the_team/03-post.md:L1-L38`. A new
+node that grants itself the writers — or one that simply omits `capabilities:` and therefore
+inherits THING's whole set — fails a class guard
+`sdk/org/libs/core/src/spaces/system-spaces-dag.test.ts:L359-L376`. The reason is the failure
+mode: a step that can both *look things up* and *broadcast* is how one "let the others know"
+request ends up posting into the wrong channel and then posting a correction on top of it.
+The workflows themselves → [system-spaces §6](../system-spaces/README.md#the-three-team-workflows--reachable-only-on-a-team-pod).
+
 ## 5. The two refusals
 
 Both are enforced host-side, in the resolver, where the caller is known — never in prose and

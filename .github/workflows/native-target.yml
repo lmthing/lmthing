@@ -18,6 +18,15 @@ name: Native target
 on:
   pull_request:
     paths:
+      # `sdk/org` — the bare SUBMODULE POINTER, and it is the only entry here that can
+      # actually fire. The globs below name paths INSIDE the submodule, which no commit in
+      # this repository ever touches: a submodule update changes exactly one gitlink entry,
+      # at `sdk/org`. Without this line the filter matched nothing, and this workflow — a
+      # HARD GATE on the React Native target — ran exactly once in its life, on the push
+      # that created it. Every `libs/ui` change since went past it unguarded.
+      # `design-tokens.yml` gets this right (`paths: &token_paths` starts with `sdk/org`);
+      # this one did not.
+      - 'sdk/org'
       - 'sdk/org/libs/ui/**'
       - 'sdk/org/libs/css/**'
       - 'sdk/org/libs/state/**'
@@ -26,6 +35,15 @@ on:
   push:
     branches: [main]
     paths:
+      # `sdk/org` — the bare SUBMODULE POINTER, and it is the only entry here that can
+      # actually fire. The globs below name paths INSIDE the submodule, which no commit in
+      # this repository ever touches: a submodule update changes exactly one gitlink entry,
+      # at `sdk/org`. Without this line the filter matched nothing, and this workflow — a
+      # HARD GATE on the React Native target — ran exactly once in its life, on the push
+      # that created it. Every `libs/ui` change since went past it unguarded.
+      # `design-tokens.yml` gets this right (`paths: &token_paths` starts with `sdk/org`);
+      # this one did not.
+      - 'sdk/org'
       - 'sdk/org/libs/ui/**'
       - 'sdk/org/libs/css/**'
       - 'sdk/org/libs/state/**'

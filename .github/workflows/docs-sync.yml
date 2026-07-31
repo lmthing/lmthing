@@ -9,6 +9,13 @@ on:
   pull_request:
     paths:
       - 'org/docs/**'
+      # The bare SUBMODULE POINTER. `sdk/org/**` below cannot match: a submodule update
+      # changes exactly one gitlink entry, at `sdk/org`, and never a path inside it. Every
+      # citation in org/docs resolves INTO that code, so without this a pure sdk bump could
+      # move or delete a cited symbol and this gate — the thing that makes "org/docs is the
+      # source of truth" true — would not run. It only ever fired here because a doc edit
+      # usually rode along in the same parent commit.
+      - 'sdk/org'
       - 'sdk/org/**'
       - 'cloud/**'
       - 'store/**'
@@ -18,6 +25,13 @@ on:
     branches: [main]
     paths:
       - 'org/docs/**'
+      # The bare SUBMODULE POINTER. `sdk/org/**` below cannot match: a submodule update
+      # changes exactly one gitlink entry, at `sdk/org`, and never a path inside it. Every
+      # citation in org/docs resolves INTO that code, so without this a pure sdk bump could
+      # move or delete a cited symbol and this gate — the thing that makes "org/docs is the
+      # source of truth" true — would not run. It only ever fired here because a doc edit
+      # usually rode along in the same parent commit.
+      - 'sdk/org'
       - 'sdk/org/**'
       - 'cloud/**'
       - 'store/**'

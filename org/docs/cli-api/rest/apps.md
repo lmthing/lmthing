@@ -202,7 +202,7 @@ Full serving behaviour of the page bundle (asset-manifest SPA fallback, `<base h
 
 `:id` is a **project** id in the runtime root (not a catalog app id). Registered right after the install route `sdk/org/libs/cli/src/server/serve.ts#startSessionServer`, handler `sdk/org/libs/cli/src/server/routes/app-views.ts#handleAppViews`.
 
-A `system-viewbuilder` app's pages are not a bundle — they are **specs** (the contract is `sdk/org/libs/cli/src/app/view-spec/schema.ts#ViewSpec`), rendered by the shared `ViewRenderer` on both targets. This route is the transport for the target that has no host page: on web the wrapper page carries its spec inline and the endpoint manifest arrives as the injected `window.__APP_ENDPOINTS__` `sdk/org/libs/cli/src/app/runtime/client.ts:L58-L63`, while on native there is nothing to inject into — which is why `endpoints` travels **in this payload** rather than in a second request `sdk/org/libs/cli/src/server/routes/app-views.ts:L1-L40`.
+A spec app's pages are not a bundle — they are **specs** (the contract is `sdk/org/libs/cli/src/app/view-spec/schema.ts#ViewSpec`), rendered by the shared `ViewRenderer` on both targets. This route is the transport for the target that has no host page: on web the wrapper page carries its spec inline and the endpoint manifest arrives as the injected `window.__APP_ENDPOINTS__` `sdk/org/libs/cli/src/app/runtime/client.ts:L58-L63`, while on native there is nothing to inject into — which is why `endpoints` travels **in this payload** rather than in a second request `sdk/org/libs/cli/src/server/routes/app-views.ts:L1-L40`.
 
 ### Response
 
@@ -220,7 +220,7 @@ A `system-viewbuilder` app's pages are not a bundle — they are **specs** (the 
 
 - `views` — every page spec, sorted by route. `components` — every named component def, sorted by name. `shell` — the app shell or `null` (absent ⇒ the renderer predicts one).
 - `endpoints` is keyed by endpoint **name** and carries the two fields the web manifest carries (`method`, `routePath`) plus `inputSchema`/`outputSchema` `sdk/org/libs/cli/src/server/routes/app-views.ts#AppViewEndpoint`. The schemas ride along because a `create` section derives its form fields from the mutation's Input schema `sdk/org/libs/cli/src/app/view-spec/schema.ts#CreateSection` and native has no second place to get them. It is built from the same `EndpointContract[]` the page build projects into `window.__APP_ENDPOINTS__`, preferring the manager's cached contracts exactly as the app manifest does `sdk/org/libs/cli/src/server/routes/app-admin.ts#loadEndpoints`.
-- **`views: []` is not an error — it is the answer.** A project with no specs is a `system-appbuilder` app, and an empty list is precisely the signal the mobile host branches on `sdk/org/apps/mobile/src/app-views.ts#fetchAppTarget`.
+- **`views: []` is not an error — it is the answer.** A project with no specs is a TSX app — one from the store catalog, or one built before `system-appbuilder` became spec-only — and an empty list is precisely the signal the mobile host branches on to fall back to the WebView `sdk/org/apps/mobile/src/app-views.ts#fetchAppTarget`.
 
 ### Where the specs are read from
 

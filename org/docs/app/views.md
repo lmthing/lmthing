@@ -1,11 +1,14 @@
 # App views — the client layer of a project-app
 
-> **Two builders, two view layers, one page.** `system-appbuilder` produces **React pages** —
-> the whole of this document down to [Gotchas](#gotchas). `system-viewbuilder` produces **view
-> specs**, rendered by a shared `ViewRenderer` that runs on the web bundle *and* natively in the
-> mobile app with no WebView — [The ViewRenderer](#the-viewrenderer--spec-pages-rendered-natively)
-> at the end. The two are interchangeable at one routing seam and never mix within an app. The
-> spec FORMAT the model authors is [../format/project/pages/view-spec.md](../format/project/pages/view-spec.md).
+> **Two view layers, one page.** A page may be **React** — the whole of this document down to
+> [Gotchas](#gotchas) — or a **view spec**, rendered by a shared `ViewRenderer` that runs on the web
+> bundle *and* natively in the mobile app with no WebView
+> ([The ViewRenderer](#the-viewrenderer--spec-pages-rendered-natively) at the end). They meet at one
+> routing seam and never mix within an app. **Only the spec layer is authored by an agent today**:
+> `system-appbuilder`, the sole app builder, holds `views:write` and not `pages:write`. The React
+> layer is still live — it serves the store catalog's shipped apps and any project built before the
+> builder became spec-only. The spec FORMAT the model authors is
+> [../format/project/pages/view-spec.md](../format/project/pages/view-spec.md).
 
 A project-app's views are **real client-side React**. Every non-`_`-prefixed `.tsx`/`.jsx` under `<projectRoot>/pages/` is a file-routed page, bundled once (on save / boot / install — never per request) into a self-contained static bundle under `<projectRoot>/.data/pages-dist/` and served under `…/app/<project>/*` `sdk/org/libs/cli/src/app/build/pages.ts:1-26`. There is no pod-side loader and no descriptor flattening: a page is browser code that pulls its data over HTTP from the project's own `api/` endpoints through the `@app/runtime` module `sdk/org/libs/cli/src/app/runtime/index.ts:1-11`.
 
@@ -40,7 +43,7 @@ The barrel exports exactly these values `sdk/org/libs/cli/src/app/runtime/index.
 
 A view addresses an endpoint by its stable exported `name` (`export const name = 'markRead'` in the handler — see [../format/project/api/README.md](../format/project/api/README.md)); the network layer addresses it by route. The bridge is the **endpoint manifest** `name → { method, routePath, inputSchema? }`, projected at build time from the typed `EndpointContract[]` `sdk/org/libs/cli/src/app/build/pages.ts#endpointManifest` and injected onto `window.__APP_ENDPOINTS__` by `mountApp` `sdk/org/libs/cli/src/app/runtime/router.tsx#mountApp`.
 
-The manifest carries each endpoint's **Input JSON Schema** as well as its routing, because a `create` section declares no fields and derives every one of them from that schema — and on the web target there is no second source for it (the native target reads it from `GET /api/apps/:id/views`). Without it every `create` section in a browser-served viewbuilder app renders "Nothing to fill in." The same schema is what stops the renderer sending a route parameter to an endpoint that does not declare it `sdk/org/libs/ui/src/view/sections/common.tsx#useSectionSource`: every handler's Input is `additionalProperties: false` and ajv-validated pod-side, so an undeclared key is a 400 for the whole section. `apiCall` reads that manifest, and throws `HttpError(500, 'unknown endpoint "<name>"')` for an unknown name (or a 500 if the manifest was never injected) `sdk/org/libs/cli/src/app/runtime/client.ts#manifest`, `sdk/org/libs/cli/src/app/runtime/client.ts#apiCall`.
+The manifest carries each endpoint's **Input JSON Schema** as well as its routing, because a `create` section declares no fields and derives every one of them from that schema — and on the web target there is no second source for it (the native target reads it from `GET /api/apps/:id/views`). Without it every `create` section in a browser-served spec app renders "Nothing to fill in." The same schema is what stops the renderer sending a route parameter to an endpoint that does not declare it `sdk/org/libs/ui/src/view/sections/common.tsx#useSectionSource`: every handler's Input is `additionalProperties: false` and ajv-validated pod-side, so an undeclared key is a 400 for the whole section. `apiCall` reads that manifest, and throws `HttpError(500, 'unknown endpoint "<name>"')` for an unknown name (or a 500 if the manifest was never injected) `sdk/org/libs/cli/src/app/runtime/client.ts#manifest`, `sdk/org/libs/cli/src/app/runtime/client.ts#apiCall`.
 
 Request assembly is **method-aware** and mirrors the server's input assembly `sdk/org/libs/cli/src/app/runtime/client.ts#buildRequest`:
 
@@ -120,7 +123,7 @@ Inside the open panel it renders the **same connected-session surface as `AgentC
 
 **`agent` picks which agent, and the shape of the session body follows from it** `sdk/org/libs/cli/src/app/runtime/chat-protocol.ts#sessionCreateBody`: a `"space/agent"` ref → `{ spaceRef, projectId }`, a **project space's** agent (a concierge, a curator). A **bare slug** — `agent="thing"` — → `{ agentSlug, projectId }`, the project's own top-level agent: the same THING the `/chat` surface talks to, scoped to this project, with its **full authoring capability**, so from inside the app the user can ask for a new table/page/space and it lands live. THING is not a project space, so a `spaceRef` cannot name it — before this an app-embedded chat could only reach a lesser agent. Both shapes are accepted by the create-session route `sdk/org/libs/cli/src/server/routes/sessions.ts:20-35`.
 
-**Every app the automator builds ships a bare `<Chat agent="thing" title="Assistant" />` in `pages/_layout`** — the persistent chrome the router wraps every route in `sdk/org/libs/cli/src/app/runtime/router.tsx#wrap` — so the assistant is on every page by construction, not page-by-page, and never a hand-rolled dock around it (`sdk/org/libs/core/system-spaces/system-appbuilder/agents/automator/instruct.md:186-212`). A link back to `/chat` is not a dock.
+**A TSX app puts the assistant on every page by declaring a bare `<Chat agent="thing" title="Assistant" />` in `pages/_layout`** — the persistent chrome the router wraps every route in `sdk/org/libs/cli/src/app/runtime/router.tsx#wrap` — rather than hand-rolling a dock around it per page; a link back to `/chat` is not a dock. A spec app gets the same thing without a layout file: the shell declares an `assistant` dock, written once by `implement_shell` (`sdk/org/libs/core/system-spaces/system-appbuilder/tasklists/build_live_project/15b-implement_shell.md`).
 
 ## `@app/types` — generated from `database/` + `api/`
 
@@ -165,7 +168,9 @@ Views must style with **design tokens only** — no hex, no literal `rgb()/hsl()
 
 The tokens are made to *work* by the build: the generated HTML shell pins `data-theme="light"` so project apps start on the light token set, while the generated entry imports a synthesized `app.css` that `@import`s `@lmthing/css`'s theme, declares `@source` globs over the project's `pages/`, `components/`, `lib/` plus the design-system source trees, and applies `bg-background text-foreground font-sans antialiased` to `body` `sdk/org/libs/cli/src/app/build/pages.ts#renderIndexHtml`, `sdk/org/libs/cli/src/app/build/pages.ts#renderAppCss`, `sdk/org/libs/cli/src/app/build/pages.ts#renderEntry`. A Tailwind-v4 esbuild plugin compiles it (esbuild alone cannot expand `@theme`/`@apply`) `sdk/org/libs/cli/src/app/build/pages.ts:231-236`, and `@lmthing/css` / `@lmthing/ui` are located via `resolveDesignSystem`; if they are unresolvable the build proceeds *without* the stylesheet rather than failing `sdk/org/libs/cli/src/app/build/pages.ts:542-566`. Pages may import `@lmthing/ui` elements — a build-only plugin rewrites `@lmthing/ui/elements/<dir>` to its concrete `index.*` because esbuild honors `exports` maps exactly `sdk/org/libs/cli/src/app/build/pages.ts:504-532`.
 
-For views the rule is an **authoring mandate, not an automated gate**. The linter walks only the roots it is handed on argv `sdk/org/libs/css/scripts/lint-design-tokens.mjs:75-90`, and both the root `pnpm lint:tokens` script and the CI job pass the same SPA source trees — `sdk/org/libs/{css,ui}/src`, `sdk/org/apps/web/src`, `com/src social/src store/src space/src blog/src casa/src`, `org/src` — never `store/projects/` or a pod project root `package.json:14`, `.github/workflows/design-tokens.yml:39-43`. (The workflow *triggers* on `store/**`, so touching a shipped project app runs the job — it just never lints that app's pages `.github/workflows/design-tokens.yml:6-27`.) The page build has no color-lint step either `sdk/org/libs/cli/src/app/build/pages.ts`. What actually holds the line for generated apps is the appbuilder prompt: the automator agent and its `implement_pages` tasklist step both mandate tokens only — "never a raw hex, `rgb()/hsl()`, or a stock Tailwind color" `sdk/org/libs/core/system-spaces/system-appbuilder/agents/automator/instruct.md:37-41`, `sdk/org/libs/core/system-spaces/system-appbuilder/tasklists/build_live_project/15-implement_pages.md:40-41`.
+**For a TSX page nothing automated enforces this.** The linter walks only the roots it is handed on argv `sdk/org/libs/css/scripts/lint-design-tokens.mjs:75-90`, and both the root `pnpm lint:tokens` script and the CI job pass the same SPA source trees — `sdk/org/libs/{css,ui}/src`, `sdk/org/apps/web/src`, `com/src social/src store/src space/src blog/src casa/src`, `org/src` — never `store/projects/` or a pod project root `package.json:14`, `.github/workflows/design-tokens.yml:39-43`. (The workflow *triggers* on `store/**`, so touching a shipped project app runs the job — it just never lints that app's pages `.github/workflows/design-tokens.yml:6-27`.) The page build has no color-lint step either `sdk/org/libs/cli/src/app/build/pages.ts`. So the rule holds for a TSX app only as an authoring mandate on whoever wrote it.
+
+**A spec page cannot break the rule at all.** There is no class name and no colour in the spec vocabulary; the only styling dial is a semantic `tone` drawn from a closed seven-value set (`neutral accent success warning danger info auto`) that the renderer maps to a design token `sdk/org/libs/cli/src/app/view-spec/schema.ts#TONES`. A prompt asking a model not to write a hex is advisory; a vocabulary with no place to put one is not.
 
 ## Gotchas
 
@@ -178,12 +183,11 @@ For views the rule is an **authoring mandate, not an automated gate**. The linte
 
 # The ViewRenderer — spec pages, rendered natively
 
-Everything above describes a page that is **React the model wrote**. A `system-viewbuilder` page
-is not code at all: it is a **spec**, a plain object validated at save time against the project's
-endpoint contracts and drawn by one shared renderer. Because a spec is DATA, the mobile app can
-fetch it and render it with the same component the web bundles — which is the one thing no amount
-of improvement to a TSX-authoring builder can produce, since its output is an esbuild browser
-bundle.
+Everything above describes a page that is **React**. The page `system-appbuilder` authors is not
+code at all: it is a **spec**, a plain object validated at save time against the project's endpoint
+contracts and drawn by one shared renderer. Because a spec is DATA, the mobile app can fetch it and
+render it with the same component the web bundles — which is the one thing no amount of improvement
+to a TSX-authoring builder could produce, since its output is an esbuild browser bundle.
 
 The renderer lives in `@lmthing/ui`, not in the CLI, precisely so both consumers can import it
 `sdk/org/libs/ui/package.json:12`.

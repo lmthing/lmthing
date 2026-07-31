@@ -520,14 +520,17 @@ corner `×` always has, via the same `onDismiss` seam `Drawer`/`Dialog` already 
 {name}…`, the state before the pod has answered which kind of app this is, now shows an
 `ActivityIndicator` rather than bare text alone.
 
-### Two builders, and only one of them needs a WebView
+### A spec app needs no WebView — a TSX app still does
 
-Everything above describes a `system-appbuilder` app, which is the default and is unchanged. The
-other builder, `system-viewbuilder`, does not produce a bundle at all: its pages are **view specs**
-— data — and `@lmthing/ui/view` renders them on the `Prim.*` primitives, so they mount as real
-native views. **A viewbuilder app never touches a WebView, on any page.** That is the single
-capability the spec pipeline exists to deliver, and no amount of improvement to a TSX-authoring
-builder can produce it, because its output is a browser bundle.
+Everything above describes a project whose pages are **TSX**: a browser bundle, so on a phone it can
+only be a WebView. That is still a real shape — the store catalog ships TSX apps
+(`store/projects/blog/pages/index.tsx`), and any project built before the builder became spec-only
+has TSX pages — but **nothing authors one any more**: `system-appbuilder` holds `views:write` and not
+`pages:write`, so its pages are **view specs** — data — and `@lmthing/ui/view` renders them on the
+`Prim.*` primitives, so they mount as real native views. **A spec app never touches a WebView, on any
+page.** That is the single capability the spec pipeline exists to deliver, and no amount of
+improvement to a TSX-authoring builder could have produced it, because its output is a browser
+bundle.
 
 The branch is one question asked once, when the app is opened
 (`sdk/org/apps/mobile/src/app-views.ts#fetchAppTarget`):
@@ -545,9 +548,9 @@ because on web the manifest is injected into the host page as `window.__APP_ENDP
 there is no host page to inject anything into.
 
 **Every failure resolves to the WebView.** A pod that predates the route, an offline moment, a 500
-— none of those is evidence that the project is a spec app, and the appbuilder path is the one that
-works for every app built so far. The branch that must never be partial is the one *inside* a known
-viewbuilder app, and that one is settled by this single answer
+— none of those is evidence that the project is a spec app, and the WebView path works for every app
+whatever its medium. The branch that must never be partial is the one *inside* a known spec app, and
+that one is settled by this single answer
 (`sdk/org/apps/mobile/src/app-views.ts#fetchAppTarget`).
 
 What the native host contributes is exactly the two things the divergence budget is for
@@ -570,7 +573,7 @@ pod token — the `teamTokenGetter` pattern, no cookie and no same-origin assump
 
 The **team rail gets the same branch**. `onOpenApp` no longer sets the rail directly: it starts the
 probe, and the answer picks the destination — the native screen full-width, or the rail exactly as
-before for an appbuilder app (`sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`). On a phone the
+before for a TSX app (`sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`). On a phone the
 rail is full-width anyway, so what actually differs is the back affordance, and each screen brings
 its own. The probe's answer is handed to `AppScreen` rather than re-asked, since the team surface
 had to ask before it could choose.

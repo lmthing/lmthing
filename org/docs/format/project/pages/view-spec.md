@@ -1,8 +1,8 @@
 # View specs — a page as data
 
-A project page can be authored in **two media**. The one described in [README.md](./README.md) is a React `.tsx` file. This page describes the other: a **view spec** — a plain object, validated against the project's own endpoint contracts at save time and rendered by a shared `ViewRenderer` on the web bundle **and** natively in the mobile app.
+A project page exists in **two media**. The one described in [README.md](./README.md) is a React `.tsx` file. This page describes the other — and the only one an agent authors today: a **view spec** — a plain object, validated against the project's own endpoint contracts at save time and rendered by a shared `ViewRenderer` on the web bundle **and** natively in the mobile app.
 
-Which medium an agent can use is decided by capability, not by instruction: `pages:write` earns the TSX writers, `views:write` earns the spec writers, and they are disjoint `sdk/org/libs/core/src/typecheck/library-dts.ts#CAPABILITY_DTS_FRAGMENTS`. `system-appbuilder` writes TSX; `system-viewbuilder` writes specs and **cannot name** `writeProjectPage`, so freehand UI in a viewbuilder agent is a typecheck error rather than a policed instruction `sdk/org/libs/core/src/exec/app-globals.ts:229-231`.
+Which medium an agent can use is decided by capability, not by instruction: `pages:write` earns the TSX writers, `views:write` earns the spec writers, and they are disjoint `sdk/org/libs/core/src/typecheck/library-dts.ts#CAPABILITY_DTS_FRAGMENTS`. **Today only the spec medium has an author.** `system-appbuilder`, the one shipped app builder, holds `views:write` and **cannot name** `writeProjectPage`, so freehand UI is a typecheck error there rather than a policed instruction `sdk/org/libs/core/src/exec/app-globals.ts:229-231`. TSX pages are still served — the store catalog ships them (`store/projects/blog/pages/index.tsx`) — but nothing writes a new one.
 
 The writers themselves → [../../../runtime-globals/app-authoring.md](../../../runtime-globals/app-authoring.md).
 
@@ -50,7 +50,7 @@ Every text-ish key of the flat form takes a string **or** that string with its m
 
 `chat.agent` is an agent **slug** — kebab-case, the naming style every agent in this codebase uses (`pantry-keeper`, `data-modeler`) `sdk/org/libs/cli/src/app/view-spec/schema.ts#AGENT_NAME_PATTERN`. The pattern is deliberately thin: its job is to keep a URL or a sentence out of the field, and whether the agent *exists* is not a shape question.
 
-**There is no `custom` kind and no React escape hatch.** A surface that cannot be expressed is *reported* by the planner; the escape hatch is one level up — `system-appbuilder` `sdk/org/libs/cli/src/app/view-spec/schema.ts:24-27`.
+**There is no `custom` kind and no React escape hatch — and no builder to escape to.** A surface this vocabulary cannot express is *reported* by the planner and carried, verbatim, all the way out to the user by `finalize`; naming the gap is the correct answer, and forcing the surface into the nearest section kind is the failure that answer exists to prevent `sdk/org/libs/cli/src/app/view-spec/schema.ts:24-27`.
 
 ### Bindings are paths, never expressions
 
@@ -78,7 +78,7 @@ It is load-bearing rather than a convenience: **one endpoint called with differe
 
 ## Validation — three tiers, all structured
 
-All three return a finding list, never a verdict: exit-status ground truth, the same philosophy as `buildApp` and `smoke_endpoints`. The writers, the `system-viewbuilder` tasklist nodes and the tests all call the **same** functions `sdk/org/libs/cli/src/app/view-spec/validate.ts:1-35`.
+All three return a finding list, never a verdict: exit-status ground truth, the same philosophy as `buildApp` and `smoke_endpoints`. The writers, the `system-appbuilder` tasklist nodes and the tests all call the **same** functions `sdk/org/libs/cli/src/app/view-spec/validate.ts:1-35`.
 
 ### 1. `validateViewSpec(spec, contracts)` — save time
 

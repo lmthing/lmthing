@@ -140,6 +140,35 @@ are overwhelmingly "the last N", and a line torn by a mid-append kill is dropped
 without taking the rest of the history with it
 `sdk/org/libs/cli/src/server/team-channels.ts#readMessages`.
 
+### Ordering, and a send that arrives twice
+
+**`seq` is the ordering key** `sdk/org/libs/cli/src/server/team-channels.ts#ChannelMessage`
+— a per-channel position, 0 for the first message ever posted there. `ts` is not
+one: it is a wall-clock ISO string, two messages written in the same millisecond
+tie with nothing to break them, and a clock adjustment can move it backwards.
+
+Every append on a channel takes that channel's lock and mints the next position
+under it `sdk/org/libs/cli/src/server/team-channels.ts#appendMessageOnce`, so
+file order, `seq` order and `ts` order all agree — appends used to be
+unserialized `appendFile` calls, so they could interleave and leave the file
+disagreeing with the timestamps in it, with nothing to reconcile them. `ts` is
+also clamped so it never runs backwards within a channel.
+
+Reads then sort `sdk/org/libs/cli/src/server/team-channels.ts#readMessages`.
+Rows written before positions existed have no `seq`, so the sort falls back to
+`ts` and then to file order — a log that predates this keeps exactly the order it
+has always had, and numbering continues from the end of it rather than restarting
+at 0.
+
+**`clientId` makes a send idempotent.** A composer that posts, times out and
+retries used to store the message twice, because the id was minted server-side
+per call and nothing could tell a retry from a second send. A repeat of a
+`clientId` this channel has already seen returns **200** with the row the first
+attempt stored and `deduplicated:true`, and — just as importantly — does not
+broadcast, badge or push it again. The window is bounded and lives in the pod
+(`DEDUPE_WINDOW`, 500 sends per channel): a retry follows its timeout by seconds,
+so it only has to outlive a request.
+
 ### Routes
 
 Registered only in team mode `sdk/org/libs/cli/src/server/serve.ts:209-217`:
@@ -149,19 +178,29 @@ Registered only in team mode `sdk/org/libs/cli/src/server/serve.ts:209-217`:
 | GET | `/api/team/channels` | member | List the channels this caller can see, **plus** the categories, in one response `sdk/org/libs/cli/src/server/routes/team-channels.ts#handleListChannels` |
 | POST | `/api/team/channels` | **editor** | Create a channel (`{name, categoryId?}`); the id is the slugified name |
 | PATCH | `/api/team/channels/:channelId` | **editor** | Rename it, file it under a category, or set the apps pinned to it (`{name?, categoryId?, apps?}`) `sdk/org/libs/cli/src/server/team-channels.ts#patchChannel` |
-| GET | `/api/team/channels/:channelId/messages` | member | History, newest last; `?limit=` (≤200) and `?before=<messageId>` page backwards |
-| POST | `/api/team/channels/:channelId/messages` | member | Post `{text, threadId?}`; **404** if the channel does not exist or is not visible to the caller `sdk/org/libs/cli/src/server/routes/team-channels.ts#handlePostMessage` |
+| GET | `/api/team/channels/:channelId/messages` | member | History, newest last; `?limit=` (≤200) and `?before=<messageId>` page backwards. Also returns `turns` — the THING turns running in this channel right now (below) |
+| POST | `/api/team/channels/:channelId/messages` | member | Post `{text, threadId?, clientId?, answersAskId?}`; **404** if the channel does not exist or is not visible to the caller `sdk/org/libs/cli/src/server/routes/team-channels.ts#handlePostMessage`. **200** (not 201) with `deduplicated:true` when `clientId` repeats a send; **409** when `answersAskId` names a question the thread is not waiting on |
+| POST | `/api/team/channels/:channelId/read` | member | Mark read, optionally `{messageId}` to say how far `sdk/org/libs/cli/src/server/routes/team-channels.ts#handleMarkRead` |
 | POST | `/api/team/dms` | member | Open (or reopen) the direct conversation with `{userId}` |
 | GET/POST | `/api/team/categories` | member / **editor** | List, or create `{name}` |
 | PATCH/DELETE | `/api/team/categories/:categoryId` | **editor** | Rename or reorder `{name?, order?}`; delete |
 | GET | `/api/team/directory` | member | The `@`-picker's data: members (with handles) and projects (with `hasApp`) |
 | GET/PUT | `/api/team/profile` | member | Read, or set `{handle?, displayName?}` — **409** when a handle is taken or reserved |
 
+The `?limit=`/`?before=` cursor on `GET …/messages` is not just a server capability — the shared UI
+consumes it. `TeamClient.messages` (`sdk/org/libs/ui/src/team/client.ts#TeamClient`) takes an
+optional `{limit?, before?}`, `useTeamChat` surfaces the response's `hasMore` and a `loadOlder()`
+that pages backwards from the oldest message currently loaded, and the team surface offers a "Load
+earlier messages" affordance at the top of the transcript once there is more to fetch
+(`sdk/org/libs/ui/src/team/channels-view.tsx#LoadEarlierButton`) — round-2 detail (DM ordering,
+Escape-to-dismiss, copy) is at [`mobile/README.md#round-2`](../../mobile/README.md#round-2--older-history-dm-ordering-escape-to-dismiss-copy).
+
 A fresh team is seeded with `#general` `sdk/org/libs/cli/src/server/team-channels.ts#ensureDefaultChannel`. The trigger is the channels file not existing yet, and **every** entry point above seeds before it acts — listing, creating, and posting. Keying it off an empty list instead let whichever route ran first decide: creating a channel before anyone listed wrote the file without `#general`, and the team never got one. Because the trigger is file absence, a team that deliberately removes every channel stays empty rather than having `#general` reappear underneath it.
 
 `WS /api/team/ws` is a per-pod hub `sdk/org/libs/cli/src/server/ws/team-channels.ts`.
 Server frames are `{type:'message'}`, `{type:'thing_status'}`, `{type:'typing'}`,
-`{type:'channel'}`, `{type:'categories'}` and `{type:'app_created'}`. A named
+`{type:'channel'}`, `{type:'categories'}` and `{type:'app_created'}`
+`sdk/org/libs/cli/src/server/ws/team-channels.ts#ChannelEvent`. A named
 channel's events go to every connected member and the client filters by the
 channel it is showing; a **DM's** events are restricted to its participants'
 sockets by an explicit audience
@@ -339,17 +378,52 @@ instead of starting a second turn
 `sdk/org/libs/cli/src/server/routes/team-channels.ts#answerPendingAsk`. The value
 is the raw text: a channel reply is prose, and that is what a person would say.
 
+**The question says it is one.** The row carries `ask: {id, expiresAt}`
+`sdk/org/libs/cli/src/server/team-channels.ts#ChannelMessage`, and parking
+broadcasts `{type:'thing_status', status:'waiting', askId}`
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#runThingReply`. Neither
+existed: the question was stored as an ordinary `thing` reply and the last frame
+a client had seen said `running`, so no client could tell a question from an
+answer *even in principle*, and the busy indicator went on saying THING was
+working while it was in fact blocked on a person. Answering broadcasts `running`
+again, so a thread a client dimmed does not stay dimmed for the rest of the turn.
+
+**Who answered it, and with what, is in the log.** A reply that resolves an ask
+is stamped `answersAsk: <askId>`. A client that *knew* it was answering says
+`answersAskId` in its POST; one that did not — any reply in the thread, which is
+the fallback that lets a client knowing nothing about asks answer one at all —
+gets a `system` receipt appended before the agent is unblocked, naming the member
+and quoting what was submitted
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#answerPendingAsk`. Without
+it the fallback is spooky rather than helpful: two people are in a thread, one
+types "brb", and those words go to the agent with nothing anywhere admitting it.
+A POST whose `answersAskId` is **not** the question the thread is waiting on
+answers **409** and stores nothing — a client with a stale picture must re-read,
+not have its words submitted to whichever question happens to be open now.
+
 The turn is held **indefinitely** — the owner's decision, taken over a flagged
 objection that an unanswered ask pins a session. In practice a thread heals
 itself, because every reply in a THING thread addresses THING, so the first thing
-anybody says resolves it; only a thread nobody returns to stays suspended, and a
-pod restart clears those.
+anybody says resolves it.
+
+What is bounded is the **question**, not the turn. An open ask holds the thread's
+session lock, so every later message in that thread queues behind it: a thread
+that is not merely stuck but silently stuck. After one hour
+(`LMTHING_TEAM_ASK_TIMEOUT_MS` overrides it) the pod stops waiting — it appends a
+`system` row saying so, resolves the ask with prose telling the agent nobody
+answered, and the run **resumes and finishes normally**
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#runThingReply`. Nothing is
+cancelled: an agent that receives a value can decide for itself whether to
+proceed or to stop and say what it still needs, where throwing into the turn
+would have turned "nobody was around" into a crash report.
 
 > A parked turn is deliberately **not** counted as work in flight
 > `sdk/org/libs/cli/src/server/routes/team-channels.ts#beginThingReply`. It is
 > waiting on a human and may wait forever, so leaving it in `inFlight` made
 > `settleChannelWork` never return — one unanswered question would have hung the
-> pod's graceful shutdown. The run continues untracked and posts when answered.
+> pod's graceful shutdown. It is put **back** in flight the moment the question is
+> answered: only the waiting is untrackable, and the rest of the turn (its answer,
+> its app card, its badges) is work a shutdown should still wait for.
 
 ### Live activity
 
@@ -358,6 +432,24 @@ tracer's `activity` events (every `setActivity()` the agent makes)
 `sdk/org/libs/cli/src/server/routes/team-channels.ts#runThingReply`. A build runs
 for minutes; with nothing on screen a reader cannot tell it apart from a hang.
 The thread shows it beside THING's name and clears it on `done`/`error`.
+
+Every `running`/`waiting` frame also carries **`startedAt`**, so elapsed time is
+renderable at all — without it a client can only time a turn from whichever frame
+it happened to receive.
+
+And the live state is **readable, not only broadcast**: `GET …/messages` returns
+a `turns` array of the THING turns running in that channel — `{channelId,
+threadId, status, startedAt, activity?, askId?}`
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#ThingTurn`. A frame is sent
+once and then forgotten, so a member who opened the channel one minute into a
+seventeen-minute build received none of them and saw a thread that looked
+finished and empty — which for a long build is the common case, not an edge one.
+
+It is in memory rather than on a message row on purpose: a turn in flight is a
+property of *this process*, and a "running" turn recovered from disk after a
+crash would be a lie. Turning it into a placeholder row that gets patched as the
+turn proceeds needs a message-update frame the socket does not have — see the
+protocol gaps in `design/teams-ux-audit.md` (B1).
 
 The client also holds a **client-side safety timeout** on top of that terminal
 frame `sdk/org/libs/ui/src/team/use-team-chat.ts#useTeamChat` (90s, reset on
@@ -402,15 +494,38 @@ badges on is worse to look at than one that waits for both.
 
 The two numbers are deliberately different in kind:
 
-- **unread** is a boolean, DERIVED. "Is there anything I have not seen" is
-  `lastActivityAt(channel) > readAt`, and the last activity is the channel log's
-  mtime `sdk/org/libs/cli/src/server/team-reads.ts#lastActivityAt` — free, exact
-  (nothing else writes those files) and no bookkeeping on the hot path. An exact
-  unread COUNT would mean scanning every log on every sidebar render.
+- **unread** is a boolean, DERIVED — from a POSITION in the channel, not from a
+  clock. "Is there anything I have not seen" is `readSeq < lastSeq`, where
+  `lastSeq` is where the log currently ends
+  `sdk/org/libs/cli/src/server/team-channels.ts#lastMessageOf` and `readSeq` is
+  what the member has read up to
+  `sdk/org/libs/cli/src/server/team-reads.ts#ChannelReadState`. Still O(1) on the
+  hot path — the end of a channel is in-process state the writer maintains, not a
+  scan. An exact unread COUNT would mean scanning every log on every sidebar
+  render, and is still not offered.
 - **mentions** is a counter, MAINTAINED at write time
   `sdk/org/libs/cli/src/server/team-reads.ts#addMentions`. It has to be exact — a
   badge reading "2" when three people asked you something is worse than none —
   and it has to answer a client that has read no history. O(1) both ways.
+
+It used to be `lastActivityAt(channel) > readAt` against the channel log file's
+**mtime** `sdk/org/libs/cli/src/server/team-reads.ts#lastActivityAt`, and an
+mtime is not a message counter. It moves for anything that writes the file — a
+workspace restore rewrites every one of them — it has a resolution the ISO
+timestamp it was compared against does not, so the same message could read as
+already-seen or as never-seen depending on where a millisecond fell, and it
+cannot express "I have read up to HERE" at all. That last one is why there was no
+"new messages since" divider anywhere: nothing stored the boundary. `lastActivityAt`
+survives only as the one-time fallback for read state recorded before positions
+existed.
+
+`markRead` records the position as well as the instant
+`sdk/org/libs/cli/src/server/team-reads.ts#markRead`. It defaults to the end of
+the channel — opening it means seeing what is in it — but a caller that knows the
+exact message says so, and the delivery path does: marking the *sender* read to
+the end of the channel would also mark them read on whatever a colleague posted
+in the same instant. `GET /api/team/channels` returns `readMessageId` alongside
+`hasUnread`, which is the divider.
 
 They are drawn differently for the same reason: bold says "there is something
 here" and can be ignored; a number says "somebody is waiting on you".
@@ -421,12 +536,13 @@ addressed to you. THING's answer is stamped as a mention of whoever asked, becau
 an agent turn can take minutes, which is exactly the span over which somebody
 closes the tab.
 
-**Posting is reading**: `POST …/messages` marks the channel read for its sender.
-Without it your own message leaves the channel looking unread to you, since unread
-comes from the mtime you just moved.
+**Posting is reading**, up to your own message and no further: `POST …/messages`
+marks the channel read for its sender at that message's position
+`sdk/org/libs/cli/src/server/routes/team-channels.ts#handlePostMessage`.
 
-`POST /api/team/channels/:channelId/read` marks a channel read (viewer-allowed).
-The client calls it when a channel is opened — opening a channel IS reading it.
+`POST /api/team/channels/:channelId/read` marks a channel read (viewer-allowed),
+optionally `{messageId}` for how far. The client calls it when a channel is
+opened — opening a channel IS reading it.
 
 ### What may interrupt somebody
 

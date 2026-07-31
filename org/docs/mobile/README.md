@@ -328,6 +328,34 @@ imports `Platform` from `react-native` at module scope, and Vite/Rollup cannot p
 Native's Flow syntax outside Metro's own babel transform
 (`sdk/org/apps/mobile/src/push-deeplink.test.ts`).
 
+A malformed or foreign shape — a full `https://…` URL rather than the bare path the gateway actually
+sends, an unrelated custom-scheme link — resolves to `null` rather than a half-match or a crash;
+`parseTeamDeepLink`'s own test file asserts this rather than leaving it implied
+(`sdk/org/apps/mobile/src/push-deeplink.test.ts`).
+
+**Wiring both the cold-start check and the live listener risks handling the SAME tap twice** — Expo's
+own docs note both can fire for one delivered notification in the same launch, which reads as a
+duplicate deep link (closing a rail the member had just opened, or worse if a future handler were
+not idempotent). Every response is now deduped by its own `request.identifier` first
+(`sdk/org/apps/mobile/src/push-deeplink.ts#createNotificationDeduper`,
+`sdk/org/apps/mobile/src/push.ts#watchPushDeepLinks`) — a pure last-seen-id guard, tested without
+`react-native` in the import graph for the same reason `parseTeamDeepLink` is split out. It only ever
+suppresses a REPEAT of the exact same id: two distinct notifications arriving moments apart both
+still open, which is the case a naive "ignore anything while one is in flight" debounce would have
+gotten wrong.
+
+A tap landing on a screen that is already showing that team/channel is not specially handled and
+does not need to be: `App.tsx`'s handler unconditionally calls `setTeamFocus`/`setTab` with the same
+values, React bails out of an identical state update, and `TeamScreen`'s own effects are keyed on
+`openTeamId`/`openChannelId` changing, not on the deep link firing
+(`sdk/org/apps/mobile/App.tsx#HomeShell`, `sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`). A
+deep link naming a team the member has since left is caught one layer down, by
+`resolveFocusTeamId` (`sdk/org/apps/mobile/src/team-focus.ts#resolveFocusTeamId`) refusing to select
+a team not in the member's own list — already covered by
+`sdk/org/apps/mobile/src/team-focus.test.ts`. None of this — the double-tap dedup, the
+already-there case, or the stale-team case — has run on a device or emulator; all three are proven
+by unit tests against the pure decision functions only.
+
 ## Boot order
 
 `App.tsx` holds the tree back until `hydrateAuth()` resolves. `getSession()` is
@@ -663,13 +691,128 @@ Two more things go stale the same hidden-not-unmounted way, and both are now cov
   rules cannot race each other's `setTeamId` in one commit
   (`sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`).
 
-**Not fixed — pull-to-refresh.** Neither the Home dashboard nor the Teams channel list has a
-`RefreshControl`; `apps/mobile` has zero. The actual scrollable region in both cases is owned by a
-shared `libs/ui` component with no `onRefresh`/`refreshing` prop to give one —
-`sdk/org/libs/ui/src/dashboard/DashboardHome.tsx#DashboardHome`'s `Prim.Scroll` and
-`TeamChannelsView`'s channel list (`sdk/org/libs/ui/src/team/channels-view.tsx`) — so wiring a native
-`RefreshControl` genuinely needs a prop added to each, which is a `libs/ui` change outside
-`apps/mobile`'s own surface.
+**Pull-to-refresh — Home fixed, Teams still not.** `DashboardHome`'s own `Prim.Scroll` now wires
+`onRefresh`/`refreshing` to its internal `useDashboardData()` result
+(`sdk/org/libs/ui/src/dashboard/DashboardHome.tsx:187-188`), and the native `Scroll` fork renders a
+real `RefreshControl` whenever `onRefresh` is given
+(`sdk/org/libs/ui/src/elements/primitives/scroll/index.native.tsx:126-130`) — entirely inside
+`libs/ui`, so `apps/mobile` needed no change at all to inherit it; `App.tsx` never touches
+`DashboardHome`'s refresh props because there are none to pass. The Teams channel list has no such
+prop yet (`TeamChannelsView`, `sdk/org/libs/ui/src/team/channels-view.tsx`), so pulling down on a
+channel list still does nothing — that half remains a `libs/ui` change outside this app's own
+surface.
+
+### Round 2 — older history, DM ordering, Escape-to-dismiss, copy
+
+A second UI/UX pass over `libs/ui/src/team/**`, scoped to the shared package (both targets inherit
+it; nothing here touched `apps/mobile` itself).
+
+- **Older history was unreachable.** `TeamClient.messages` called `/channels/:id/messages` with no
+  parameters and threw away the `hasMore` the pod already returned — a channel showed one page
+  (the pod's own default, 50 messages) and nothing before it, with no hint more existed, even
+  though the route already reads `?limit=`/`?before=` and pages backwards
+  (`sdk/org/libs/cli/src/server/routes/team-channels.ts#handleListMessages`, documented at
+  [`cli-api/rest/team.md`](../cli-api/rest/team.md)). `TeamClient.messages` now takes an optional
+  `{limit?, before?}` (`sdk/org/libs/ui/src/team/client.ts#TeamClient`), `useTeamChat` surfaces
+  `hasMore`/`loadingOlder`/`loadOlder` (paging backwards from the oldest message currently loaded,
+  discarding an in-flight page if the channel changes before it resolves), and a "Load earlier
+  messages" affordance sits at the TOP of the transcript
+  (`sdk/org/libs/ui/src/team/channels-view.tsx#LoadEarlierButton`). Prepending older messages had
+  to not fight `stickToEnd` (`Scroll`'s own layout effect can snap the region to its bottom on
+  every render) and had to preserve the reader's scroll position rather than shove the transcript
+  down by the height of what just arrived — `useScrollAnchor`
+  (`sdk/org/libs/ui/src/team/channels-view.tsx`) captures the anchor synchronously before the
+  fetch's state update and restores it in a `useLayoutEffect`, which — because React runs a
+  child's layout effects before its parent's, and `Scroll` is a descendant — fires AFTER `Scroll`'s
+  own and so has the last word.
+- **The DM list had no ordering.** `sidebar.tsx#DirectMessages` drew `directory().members` in
+  whatever order the API returned them, while a channel already got bold/mention treatment
+  (`MentionBadge`). Now ranked — mentions first, then anything unread, then an existing (read)
+  conversation, then someone never messaged, alphabetical within each tier. Deliberately NOT
+  "most recently active": the pod hands the client a boolean `hasUnread` and an exact mention
+  count, never a timestamp (`team-reads.ts#ChannelUnread`) — the same reason the previous pass
+  declined to draw an unread divider (`design/team-chat-ux-progress.md`). A recency guess built
+  from whichever messages happened to arrive over the socket since mount would be wrong for
+  anyone who was not watching the whole time, and unstable besides.
+- **Escape closed nothing.** The thread rail, the app rail and the compact channel drawer could
+  only be dismissed by finding and clicking their own close control. `RailPane` now calls
+  `onDismiss` unconditionally on mount (`sdk/org/libs/ui/src/team/rail.tsx#RailPane`) — it has no
+  `open` flag to gate on the way `Drawer`/`Dialog` do, because it only exists in the tree while
+  `rail` is non-null in the first place — and `channels-view.tsx`'s own hand-rolled drawer wires
+  the same seam behind a `compact && drawerOpen` guard. One companion fix this exposed: the
+  composer's OWN Escape handler (closing the `@` picker) did not stop the keydown from bubbling,
+  so dismissing the picker while replying in an open thread would also have thrown the whole rail
+  closed — one keystroke, two unrelated reactions. Fixed with `e.stopPropagation()` in that one
+  branch (`sdk/org/libs/ui/src/team/composer.tsx`).
+- **A message had no way to be copied.** `MessageActions` offered only "Reply in thread"
+  (`sdk/org/libs/ui/src/team/messages.tsx#MessageActions`). Copy is now offered beside it, through
+  `platform/clipboard`. Edit/delete are deliberately NOT here — the pod has no endpoint for
+  either. On native the reveal gesture is still long-press, but it now REVEALS the toolbar (Copy
+  and, where offered, Reply) rather than firing reply directly — a second tap replaces what used
+  to be a single gesture, the cost of getting Copy onto the one gesture a phone has. Copy is
+  reachable there only on a message that can also be replied to: the touch-responder system is how
+  a device tells "interactive" from "not", and a message with no `onReply` is pinned to carry NO
+  responder at all by this package's own native suite
+  (`libs/ui/metro/suites/team.tsx#"a long press is what offers the thread on a touch device"`) — so
+  a thread's own messages get Copy on web (hover costs nothing extra there) but not on a phone.
+
+Not built: real-time recency for the DM list (above) and pull-to-refresh on the channel list
+(previous paragraph) — both need data or a prop this pass did not add.
+
+## Connectivity and haptics
+
+**Nothing told the user they were offline.** A dropped chat/team socket and a quiet channel read as
+the same thing — silence — so a member had no way to tell "nobody is talking" from "my phone lost
+the network". `useConnectivity` (`sdk/org/apps/mobile/src/connectivity.ts#useConnectivity`) reads
+`expo-network`'s own connectivity state — device-level, independent of any one request's latency, which
+is what keeps `OfflineBanner` (`sdk/org/apps/mobile/src/OfflineBanner.tsx#OfflineBanner`) from
+becoming the "scary banner on a slow request" this was explicitly asked not to build: a slow pod
+response reports nothing here, only an actual connectivity loss does. Offline is `isConnected ===
+false` OR `isInternetReachable === false` — the second catches Wi-Fi with no usable upstream (a
+captive portal, Android's `NET_CAPABILITY_VALIDATED` failing), which `isConnected` alone would miss
+(`sdk/org/apps/mobile/src/connectivity.ts#isOffline`). The banner is mounted once at the root of the
+tree, above `AuthGate` (`sdk/org/apps/mobile/App.tsx`), because connectivity is a property of the
+device, not of whichever of Home/Chat/Teams happens to be open — it is exactly as relevant on the
+login screen (signing in needs a network too) as once a conversation is open.
+
+**`expo-network` is a new native dependency** (`~57.0.1`,
+`sdk/org/apps/mobile/package.json`) — like `expo-notifications`, it changes the native fingerprint
+and needs a fresh dev-client / store build before the banner can appear on a device; nothing in this
+pass has run it on one.
+
+**No haptics anywhere** — sending a message, opening a thread, a long-press reply, and a failed
+action all felt identical. `sdk/org/apps/mobile/src/haptics.ts` adds three restrained primitives
+(`hapticSuccess`, `hapticWarning`, `hapticLight`), each lazily importing `expo-haptics` the same way
+`./push.ts` lazily imports `expo-notifications` — a native module that is not yet linked in some
+environment must not stop the app from booting. **This is also a new native dependency**
+(`expo-haptics` `~57.0.1`), same fingerprint/store-build caveat as `expo-network` above.
+
+Wired at every point that is actually inside `apps/mobile`: a warning when the pod fails to start
+and a success confirmation on RECOVERY only — not on an ordinary cold boot, which would otherwise
+buzz on every app open (`sdk/org/apps/mobile/App.tsx#AuthGate`); a once-per-failure warning when
+`TeamScreen`'s team list fetch fails, guarded so a phone with no signal does not buzz on every
+silent `AppState` background retry (`sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`); and a
+light tap acknowledgement on `onOpenApp`, because that press starts a network round trip with no
+other visible change until it resolves and nothing today gives it a spinner
+(`sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`).
+
+**Not wired — the three interactions actually named in the brief: sending a message, opening a
+thread, a long-press reply.** All three live in `libs/ui`, outside this app's partition, and
+wiring them needs a new platform seam there (mirroring `sdk/org/libs/ui/src/platform/keyboard.native.ts`'s
+`onDismiss` pattern) rather than anything `apps/mobile` can reach:
+
+| interaction | call site |
+|---|---|
+| team message send | `sdk/org/libs/ui/src/team/composer.tsx:192` (`await onSend(text)`) |
+| chat message send | `sdk/org/libs/ui/src/chat/app/Composer.tsx:209-225,390,526` (`handleSend`) |
+| opening a thread | `sdk/org/libs/ui/src/team/channels-view.tsx:481,486` (`onOpenThread(root.id)`) |
+| long-press reply | `sdk/org/libs/ui/src/team/messages.tsx:443-474` (`MessageActions`, `onLongPress`) |
+
+The primitives in `apps/mobile/src/haptics.ts` cannot be imported from `libs/ui` (the dependency
+points the other way — the app depends on the shared package, never the reverse), so closing this
+gap means a `libs/ui/src/platform/haptics.ts` + `.native.ts` fork (inert on web, matching every
+other seam in [the governing invariant](#the-governing-invariant--one-source-two-outputs) above),
+called from the four sites in the table.
 
 ## Shipping it — Google Play
 

@@ -233,8 +233,17 @@ modes (`tokens.json` `$meta`, `spectrum.description`).
   through `applyThemeTokens` (`sdk/org/libs/ui/src/theme/theme.ts#applyThemeTokens`), which the
   CLI's own `--web` DevTools preview uses. That mechanism is web-only and unrelated to the shipped
   SPA. The desktop-only panels (`app/tree.tsx`, `app/inspector.tsx`, `app/DevPanel.tsx`,
-  `app/replay.tsx`) still use the aliases and are fine where they are, because they are not
-  reachable on a phone.
+  `app/replay.tsx`) were left on the aliases in a first pass on the reasoning that `Alt+I`-gated
+  panels are unreachable on a phone — true, but beside the point: the rule is "every component that
+  ALSO runs on native", and these are compiled into the same bundle Metro walks whether or not a
+  phone can ever open them, so a stray `var(--lm-*)` there is exactly as silent as anywhere else.
+  All four now use shared tokens directly, same as `common.tsx`.
+
+  One file is a deliberate, permanent exception: `sdk/org/libs/ui/src/chat/compat/inputs.tsx`
+  mirrors Ink's terminal input widgets (`ink-text-input`/`ink-select-input`) for the CLI's `--web`
+  DevTools preview, and its colours are a TERMINAL palette (ANSI names via `inkColor`, hex
+  fallbacks alongside the `--lm-*` vars), not this app's brand tokens — migrating them would change
+  what they mean. Marked `ds-lint-file-ok` at the top of the file for exactly this reason.
 - **Component styling pattern** — a component carries its own styling as `$`-token style PROPS on
   a Tamagui primitive; there is no per-component stylesheet
   (`sdk/org/libs/ui/src/elements/forms/button/index.tsx#Button`). `libs/css` no longer ships

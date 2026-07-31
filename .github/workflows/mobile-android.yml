@@ -67,8 +67,13 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     # A cold native build with no Gradle cache is the slow case; the default 360 would let a
-    # deadlocked daemon burn an hour.
+    # deadlocked daemon burn an hour. Measured on a 2-core runner: the first (uncached) run spent
+    # ~35 min in Gradle alone, against 4m11s locally with a warm cache — hence 60, not 30.
     timeout-minutes: 60
+    # To create/update the rolling `nightly` release at the end. The default token is read-only for
+    # contents, and the failure is a 403 from `gh release create` after a 40-minute build.
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -156,9 +161,59 @@ jobs:
             echo "| size | $(du -h "$apk" | cut -f1) |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Kept alongside the release. The artifact is the per-commit archive — its name carries the
+      # SHA, so it is the provenance trail; the release below always holds only the newest build.
       - uses: actions/upload-artifact@v4
         with:
           name: lmthing-android-${{ github.sha }}
           path: sdk/org/apps/mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 14
+
+      # Publish to the rolling `nightly` prerelease, shared with the desktop job. A workflow
+      # artifact is a poor download: it 404s for anyone not signed in to GitHub, it expires in 14
+      # days, and it arrives as a zip — which a phone cannot install.
+      - name: Publish to the rolling release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: sdk/org/apps/mobile
+        run: |
+          set -euo pipefail
+
+          mkdir -p publish
+          cp android/app/build/outputs/apk/release/app-release.apk publish/lmthing-android-arm64.apk
+
+          # Provenance travels WITH the asset rather than in the release body: the desktop job
+          # publishes to this same release, and two jobs rewriting one body is a race that silently
+          # loses whichever write lands first. Distinct filenames cannot collide.
+          #
+          # The runtimeVersion is read out of the built APK, never re-resolved from the tree — that
+          # is the value an entry in shipped-runtime-versions.json needs, and re-resolving it later
+          # yields a plausible number for a binary that does not exist.
+          fingerprint=$(unzip -p publish/lmthing-android-arm64.apk assets/fingerprint 2>/dev/null || echo '(none embedded)')
+          {
+            echo "commit:         $GITHUB_SHA"
+            echo "built:          $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "run:            $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "abi:            arm64-v8a only"
+            echo "signing:        Android DEBUG key — not uploadable to Play"
+            echo "runtimeVersion: $fingerprint"
+            echo "OTA:            disabled (no app id compiled in)"
+          } > publish/BUILD-INFO-android.txt
+
+          notes="$GITHUB_WORKSPACE/.github/workflows/nightly-release-notes.md"
+
+          # `gh release create` is idempotent here by construction: the view short-circuits the
+          # common case, and `|| true` covers the race where the desktop job created it in between.
+          gh release view nightly >/dev/null 2>&1 || gh release create nightly \
+            --prerelease \
+            --title 'Latest main build' \
+            --target "$GITHUB_SHA" \
+            --notes-file "$notes" || true
+
+          # --notes-file is only read at CREATION, so without this an edit to the template would
+          # never reach the live release. Safe to run unconditionally: both jobs render the same
+          # committed file, so concurrent writes agree rather than clobber.
+          gh release edit nightly --notes-file "$notes" >/dev/null
+
+          gh release upload nightly publish/* --clobber

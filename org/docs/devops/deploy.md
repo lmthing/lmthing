@@ -27,8 +27,8 @@ which are not deployed at all but downloaded — and repo hygiene (2):
 | Design tokens | `design-tokens.yml` | PR + push to `main` (frontend paths) | Hard gate: fail on raw colors / non-token styling |
 | Docs citations | `docs-sync.yml` | PR + push to `main` `.github/workflows/docs-sync.yml:8-39` | Hard gate: every `org/docs/` citation must resolve |
 | Native target | `native-target.yml` | PR + push to `main` (`sdk/org` pointer) `.github/workflows/native-target.yml:18-51` | Hard gate: the React Native module graph resolves, transforms and mounts (Metro, no simulator) |
-| Android APK | `mobile-android.yml` | push to `main` (`sdk/org` pointer) + `workflow_dispatch` `.github/workflows/mobile-android.yml:52-60` | **Per-commit installable APK** — prebuild + Gradle, uploaded as an artifact |
-| Desktop target | `desktop.yml` | PR + push to `main` (`sdk/org` pointer) `.github/workflows/desktop.yml:18-27` | Gate (typecheck / lint / clippy / E2E) **plus**, on pushes only, a per-commit Linux bundle |
+| Android APK | `mobile-android.yml` | push to `main` (`sdk/org` pointer) + `workflow_dispatch` `.github/workflows/mobile-android.yml:52-60` | **Per-commit installable APK** — prebuild + Gradle, published to the rolling `nightly` release |
+| Desktop target | `desktop.yml` | PR + push to `main` (`sdk/org` pointer) `.github/workflows/desktop.yml:18-27` | Gate (typecheck / lint / clippy / E2E) **plus**, on pushes only, a Linux bundle published to `nightly` |
 | Desktop release | `desktop-release.yml` | tag `desktop-v*` + `workflow_dispatch` `.github/workflows/desktop-release.yml:32-40` | All four platforms, drafts a GitHub release |
 | Publish OTA update | `ota-publish.yml` | push to `main`/`staging` (`sdk/org` pointer) + `workflow_dispatch` `.github/workflows/ota-publish.yml:56-92` | Ships a JavaScript-only update to installed mobile binaries |
 | PR manual decline | `pr-decline.yml` | PR labeled + `workflow_dispatch` | Canned-message close of PRs by maintainer label |
@@ -135,6 +135,46 @@ linked against a newer glibc fails at exec time with a bare `version 'GLIBC_2.39
 Linux-only on purpose — macOS runners bill at 10x minutes and Windows at 2x, so a full per-commit
 matrix would cost roughly 25x this job to catch, on the platforms that break least often, what the
 tag build catches anyway. All four targets remain on `desktop-release.yml`.
+
+#### Where the binaries land — the rolling `nightly` release
+
+Both jobs publish to **one shared prerelease tagged `nightly`**, in addition to uploading a
+per-commit workflow artifact `.github/workflows/desktop.yml:222-229`
+`.github/workflows/mobile-android.yml:166-171`. The two serve different purposes and both are
+wanted: the artifact's name carries the SHA and is the provenance trail, while the release always
+holds only the newest build, at a fixed public URL:
+
+```
+https://github.com/lmthing/lmthing/releases/download/nightly/lmthing-linux-x86_64.AppImage
+https://github.com/lmthing/lmthing/releases/download/nightly/lmthing-linux-amd64.deb
+https://github.com/lmthing/lmthing/releases/download/nightly/lmthing-android-arm64.apk
+```
+
+A workflow artifact cannot serve that purpose: it 404s for anyone not signed in to GitHub, expires
+after 14 days, and downloads only as a zip — which a phone cannot install. Asset names are
+deliberately **version-free**, because Tauri encodes the version into its own filenames
+(`lmthing_0.1.0_amd64.AppImage`) and publishing those as-is would break every link already handed
+out the moment `version` in `tauri.conf.json` changes `.github/workflows/desktop.yml:242-247`.
+
+**Two jobs writing one release is a race, and the design avoids it rather than sequencing it.**
+Creation is idempotent — `gh release view` short-circuits the common case and `|| true` covers the
+window where the other job created it in between `.github/workflows/desktop.yml:262-268`. Provenance
+then travels *with* each asset as a sibling `BUILD-INFO-linux.txt` / `BUILD-INFO-android.txt`
+rather than in the release body `.github/workflows/desktop.yml:249-258`: distinct filenames cannot
+collide, whereas two jobs rewriting one body would silently lose whichever write landed first. The
+Android file records the APK's embedded `runtimeVersion`
+`.github/workflows/mobile-android.yml:193-202`.
+
+The notes are re-rendered from a committed template on every run
+`.github/workflows/nightly-release-notes.md:1-27`, because `--notes-file` is read only at
+*creation* — without that an edit to the template would never reach the live release. Running it
+unconditionally is safe precisely because both jobs render the same committed file, so concurrent
+writes agree instead of clobbering `.github/workflows/desktop.yml:270-273`.
+
+Consequences worth knowing: the assets are replaced **independently**, so the desktop and Android
+downloads are not guaranteed to come from the same commit (check the `BUILD-INFO` beside each). And
+the `nightly` git tag stays at whichever commit first created the release — it is a container, not
+a version marker; the assets are what move.
 
 ### Repo-hygiene workflows
 

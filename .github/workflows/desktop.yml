@@ -151,6 +151,10 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-22.04
     timeout-minutes: 45
+    # To create/update the rolling `nightly` release at the end. The default token is read-only for
+    # contents, and the failure is a 403 from `gh release create` after a 20-minute build.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -213,6 +217,8 @@ jobs:
             find . -type f \( -name '*.AppImage' -o -name '*.deb' \) -printf '- `%f` (%s bytes)\n'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Kept alongside the release. The artifact is the per-commit archive — its name carries the
+      # SHA, so it is the provenance trail; the release below always holds only the newest build.
       - uses: actions/upload-artifact@v4
         with:
           name: lmthing-desktop-linux-${{ github.sha }}
@@ -221,3 +227,49 @@ jobs:
             sdk/org/apps/desktop/src-tauri/target/release/bundle/deb/*.deb
           if-no-files-found: error
           retention-days: 14
+
+      # Publish to the rolling `nightly` prerelease. A workflow artifact is a poor download: it
+      # 404s for anyone not signed in to GitHub, it expires in 14 days, and it can only be fetched
+      # as a zip. A release asset is a plain public URL that never changes — the URL shape and the
+      # shared-release race are documented in org/docs/devops/deploy.md.
+      - name: Publish to the rolling release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: sdk/org/apps/desktop/src-tauri/target/release/bundle
+        run: |
+          set -euo pipefail
+
+          # STABLE names, deliberately. Tauri encodes the version into its filenames
+          # (`lmthing_0.1.0_amd64.AppImage`), so publishing them as-is would break every link
+          # already handed out the moment `version` in tauri.conf.json changes.
+          mkdir -p publish
+          cp appimage/*.AppImage publish/lmthing-linux-x86_64.AppImage
+          cp deb/*.deb           publish/lmthing-linux-amd64.deb
+
+          # Provenance travels WITH the asset rather than in the release body: the Android job
+          # publishes to this same release, and two jobs rewriting one body is a race that
+          # silently loses whichever write lands first. Distinct filenames cannot collide.
+          {
+            echo "commit:   $GITHUB_SHA"
+            echo "built:    $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "run:      $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "platform: linux x86_64 (built on ubuntu-22.04)"
+            echo "signing:  UNSIGNED"
+          } > publish/BUILD-INFO-linux.txt
+
+          notes="$GITHUB_WORKSPACE/.github/workflows/nightly-release-notes.md"
+
+          # `gh release create` is idempotent here by construction: the view short-circuits the
+          # common case, and `|| true` covers the race where the Android job created it in between.
+          gh release view nightly >/dev/null 2>&1 || gh release create nightly \
+            --prerelease \
+            --title 'Latest main build' \
+            --target "$GITHUB_SHA" \
+            --notes-file "$notes" || true
+
+          # --notes-file is only read at CREATION, so without this an edit to the template would
+          # never reach the live release. Safe to run unconditionally: both jobs render the same
+          # committed file, so concurrent writes agree rather than clobber.
+          gh release edit nightly --notes-file "$notes" >/dev/null
+
+          gh release upload nightly publish/* --clobber

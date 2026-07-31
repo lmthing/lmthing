@@ -11,11 +11,44 @@ name: Publish OTA update
 # fingerprint rather than appVersion: nothing here can push a bundle at a binary that
 # cannot run it.
 #
-# It is deliberately NOT automatic on push. A bad bundle reaches every phone in minutes,
-# and unlike a store release there is no review standing between the two. Someone runs
-# this on purpose, at a percentage they chose.
+# It runs AUTOMATICALLY on a push to main that moves the app's JavaScript, and manually
+# for anything else (a percentage rollout, a staging publish, a re-run).
+#
+# It did not always. The guard used to be a person: someone decided to publish, at a
+# rollout they chose, behind a required reviewer on the `production` environment. Making
+# it automatic removes that person, so it has to put something in their place rather than
+# simply delete them — a bad bundle still reaches every phone in minutes, and nothing
+# reviews it on the way. What stands there now:
+#
+#   · the real gates run FIRST, and a red one stops the publish — typecheck, a production
+#     bundle, the @lmthing/ui suite, and the Metro native harness, which is the only thing
+#     that can see a broken React Native graph
+#   · it refuses to publish for a runtimeVersion no shipped binary has
+#     (apps/mobile/shipped-runtime-versions.json), so a native change on main is a no-op
+#     with an explanation instead of an update nobody can receive
+#   · afterwards it asks the server what a phone would get and FAILS if that is not a
+#     real, signed, downloadable update
+#   · rollback stays instant and manual, which is the actual answer to a bad bundle
+#
+# The automatic path does NOT use the `production` environment: a required reviewer there
+# would just park every push waiting for a click, which is not automation. Manual
+# dispatch keeps it.
 
 on:
+  push:
+    branches: [main]
+    paths:
+      # `sdk/org` is the bare SUBMODULE POINTER, and it is the only entry here that can
+      # fire: the app and every lib it bundles live INSIDE the submodule, which no commit
+      # in this repository ever touches — a submodule update changes exactly one gitlink
+      # entry, at `sdk/org`. Naming paths inside it would match nothing, which is the bug
+      # native-target.yml documents having shipped with.
+      #
+      # It also means the POINTER is the release signal, and that is the right one: JS
+      # that main does not point at is not what the rest of the product is running, so it
+      # has no business reaching phones ahead of it.
+      - 'sdk/org'
+      - '.github/workflows/ota-publish.yml'
   workflow_dispatch:
     inputs:
       branch:
@@ -40,16 +73,21 @@ on:
 
 concurrency:
   # Two publishes racing to the same branch leave the newest manifest ambiguous.
-  group: ota-${{ github.event.inputs.branch }}
-  cancel-in-progress: false
+  group: ota-${{ github.event.inputs.branch || 'production' }}
+  # On a push, only the newest commit is worth shipping — a queued run for a commit that
+  # has already been superseded would publish an update that is obsolete on arrival. A
+  # manual run is never cancelled: someone chose its rollout and its message.
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    # `production` and `staging` are GitHub Environments. Put a required reviewer on
-    # `production` — that approval gate is the only thing between a merge and every
-    # installed phone running this code.
-    environment: ${{ github.event.inputs.branch }}
+    # `staging` and `production` are GitHub Environments, and `production` carries a
+    # required reviewer. That gate is right for a manual publish and fatal to an automatic
+    # one — it would park every push until someone clicked. `ota-auto` is a separate,
+    # unprotected environment so the automatic path still shows up in the deployment
+    # history without waiting on an approval it is designed not to need.
+    environment: ${{ github.event_name == 'push' && 'ota-auto' || github.event.inputs.branch }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,6 +95,38 @@ jobs:
           # The fingerprint is computed from the native project, which is derived from
           # the whole workspace. A shallow checkout hashes a different tree.
           fetch-depth: 0
+
+      # One place the two triggers become the same thing, so the publish steps below never
+      # branch on the event again. A push ships the whole update at once: a partial
+      # rollout has to be promoted by hand, so scheduling one automatically would leave
+      # most devices on the old bundle until somebody remembered.
+      # The inputs arrive as env vars, never interpolated into the script body: on the
+      # manual path the message is free text a human typed, and a single quote in it would
+      # otherwise end the shell string it was pasted into.
+      - name: Resolve what this run is publishing
+        id: params
+        env:
+          IN_BRANCH: ${{ github.event.inputs.branch }}
+          IN_ROLLOUT: ${{ github.event.inputs.rollout }}
+          IN_MESSAGE: ${{ github.event.inputs.message }}
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            BRANCH=production
+            ROLLOUT=
+            # %s is a single line by construction, so it cannot break the key=value form
+            # $GITHUB_OUTPUT expects.
+            MESSAGE="$(git log -1 --pretty=%s) (auto, ${GITHUB_SHA::8})"
+          else
+            BRANCH="$IN_BRANCH"
+            ROLLOUT="$IN_ROLLOUT"
+            MESSAGE="$(printf '%s' "$IN_MESSAGE" | tr '\n' ' ')"
+          fi
+          {
+            echo "branch=$BRANCH"
+            echo "rollout=$ROLLOUT"
+            echo "message=$MESSAGE"
+          } >> "$GITHUB_OUTPUT"
+          echo "publishing to '$BRANCH' as: $MESSAGE"
 
       - uses: actions/setup-node@v4
         with:
@@ -73,15 +143,39 @@ jobs:
         working-directory: sdk/org/apps/mobile
         run: pnpm run eas-build-post-install
 
-      # Cheap insurance: the bundle about to be published to real devices is the one
-      # thing worth proving before it leaves CI.
-      - name: Typecheck and bundle
+      # Would this update reach anybody? An OTA replaces JavaScript only, so a commit that
+      # moved the native project produces a runtimeVersion no installed binary asks for —
+      # and publishing under it succeeds, silently, forever. Decided before the gates so a
+      # native-only change does not spend five minutes proving a bundle nobody will get.
+      - name: Decide whether an OTA can carry this commit
+        id: target
         working-directory: sdk/org/apps/mobile
+        env:
+          RELEASE_CHANNEL: ${{ steps.params.outputs.branch }}
+          EXPO_OTA_APP_ID: 9a2ba224-69e6-4629-a894-4f42eb305a45
+        run: node scripts/resolve-publish-target.mjs
+
+      # THE gates. On a manual run someone chose to publish and can read a red check for
+      # themselves; on a push nothing else stands between a bad bundle and every phone, so
+      # these are the replacement for the reviewer this workflow used to require.
+      #
+      # The native harness earns its place here specifically: a broken React Native graph
+      # is invisible to tsc and to the jsdom suite (`isWeb` is always true there), and
+      # `bundle:android` proves the app bundles, not that its screens still mount.
+      - name: Gates
+        if: steps.target.outputs.publish == 'true'
+        working-directory: sdk/org/apps/mobile
+        run: pnpm typecheck && pnpm bundle:android
+
+      - name: Gates — shared UI, web and native
+        if: steps.target.outputs.publish == 'true'
+        working-directory: sdk/org
         run: |
-          pnpm typecheck
-          pnpm bundle:android
+          pnpm --filter @lmthing/ui test
+          pnpm --filter @lmthing/ui test:native
 
       - name: Publish
+        if: steps.target.outputs.publish == 'true'
         working-directory: sdk/org/apps/mobile
         env:
           # An APP-SCOPED API key from the eoas dashboard (`eoo_…`), not the server's
@@ -91,20 +185,25 @@ jobs:
           # eoas reads RELEASE_CHANNEL to decide which channel's config builds INTO the
           # bundle. It does not select where the update lands — only --branch does. Kept
           # equal to the branch so the two cannot drift.
-          RELEASE_CHANNEL: ${{ github.event.inputs.branch }}
+          RELEASE_CHANNEL: ${{ steps.params.outputs.branch }}
           # And app.config.js reads the same variable for the `expo-channel-name` header
           # it compiles into a build, so a bundle and the binary that asks for it agree.
           EXPO_OTA_APP_ID: 9a2ba224-69e6-4629-a894-4f42eb305a45
+          BRANCH: ${{ steps.params.outputs.branch }}
+          ROLLOUT: ${{ steps.params.outputs.rollout }}
+          MESSAGE: ${{ steps.params.outputs.message }}
         # `--rollout-percentage` takes 1-99; the CLI REJECTS 100 ("Expected an integer
         # less than or equal to 99"), because a full rollout is the absence of a
         # rollout, not a rollout of everyone. So an empty input drops the flag rather
         # than passing a number eoas will refuse.
+        #
+        # The values arrive as env vars rather than `${{ }}` interpolated into the script:
+        # a commit subject becomes the message on the automatic path, and a subject
+        # containing a quote or a backtick would otherwise be pasted straight into a shell.
         run: |
-          args=(--branch "${{ github.event.inputs.branch }}"
-                --message "${{ github.event.inputs.message }}"
-                --nonInteractive)
-          if [ -n "${{ github.event.inputs.rollout }}" ]; then
-            args+=(--rollout-percentage "${{ github.event.inputs.rollout }}")
+          args=(--branch "$BRANCH" --message "$MESSAGE" --nonInteractive)
+          if [ -n "$ROLLOUT" ]; then
+            args+=(--rollout-percentage "$ROLLOUT")
           fi
           npx eoas publish "${args[@]}"
 
@@ -122,13 +221,15 @@ jobs:
       # self-consistency one. Left empty, the script resolves the runtimeVersion from
       # THIS checkout — the same tree the publish used — so it can only confirm CI can
       # reach its own bundle, and stays green while every shipped phone gets nothing.
-      # Given the installed build's runtimeVersion it asks the question that matters.
+      # On the automatic path it is never empty: the previous step already resolved the
+      # runtimeVersion and proved a shipped binary has it.
       - name: Verify a device would actually receive it
+        if: steps.target.outputs.publish == 'true'
         working-directory: sdk/org/apps/mobile
         env:
-          RELEASE_CHANNEL: ${{ github.event.inputs.branch }}
+          RELEASE_CHANNEL: ${{ steps.params.outputs.branch }}
           EXPO_OTA_APP_ID: 9a2ba224-69e6-4629-a894-4f42eb305a45
-          RUNTIME_VERSION: ${{ github.event.inputs.verify_runtime_version }}
+          RUNTIME_VERSION: ${{ github.event.inputs.verify_runtime_version || steps.target.outputs.runtimeVersion }}
         run: |
           if [ -z "$RUNTIME_VERSION" ]; then
             echo "::warning title=Weak OTA verification::No verify_runtime_version given," \
@@ -137,13 +238,33 @@ jobs:
           fi
           node scripts/verify-update-served.mjs
 
+      # Runs even when nothing was published, because "no update went out and here is why"
+      # is the answer someone will be looking for after a push that changed native code.
       - name: Summary
+        if: always()
+        env:
+          PUBLISHED: ${{ steps.target.outputs.publish }}
+          REASON: ${{ steps.target.outputs.reason }}
+          RTV: ${{ steps.target.outputs.runtimeVersion }}
+          BRANCH: ${{ steps.params.outputs.branch }}
+          ROLLOUT: ${{ steps.params.outputs.rollout }}
         run: |
           {
+          if [ "$PUBLISHED" != "true" ]; then
+            echo "### OTA skipped — no update was published"
+            echo ""
+            echo "- **runtimeVersion** \`$RTV\`"
+            echo "- **why** $REASON"
+            echo ""
+            echo "This is the safe outcome, not a failure: an update published under a"
+            echo "runtimeVersion no binary has would succeed and reach nobody."
+            exit 0
+          fi
             echo "### OTA published"
             echo ""
-            echo "- **branch** \`${{ github.event.inputs.branch }}\`"
-            echo "- **rollout** ${{ github.event.inputs.rollout }}%"
+            echo "- **branch** \`$BRANCH\`"
+            echo "- **rollout** ${ROLLOUT:-100}%"
+            echo "- **runtimeVersion** \`$RTV\`"
             echo "- **commit** \`${{ github.sha }}\`"
             echo ""
             echo "Raise the rollout by re-running with a higher percentage."

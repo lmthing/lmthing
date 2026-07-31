@@ -1053,6 +1053,40 @@ whose OTA is quietly dead (`sdk/org/apps/mobile/app.config.js:23-40`). Set
 
 ### Publishing
 
+**A push to `main` that moves the submodule pointer publishes automatically.** The trigger
+is the bare path `sdk/org` (`.github/workflows/ota-publish.yml:29-45`) — the app and every
+lib it bundles live *inside* the submodule, which no commit in the parent repo ever
+touches, so a gitlink entry is the only thing a path filter can match. That also makes the
+pointer the right signal: JavaScript `main` does not point at is not what the rest of the
+product is running, and has no business reaching phones ahead of it.
+
+Automation removed the reviewer that used to stand between a merge and every installed
+phone, so three things replace them:
+
+- **The gates run first and a red one stops the publish** — typecheck, a production
+  bundle, the `@lmthing/ui` suite, and the Metro native harness. The harness is there
+  specifically because a broken React Native graph is invisible to `tsc` and to the jsdom
+  suite, and `bundle:android` proves the app bundles, not that its screens mount.
+- **It refuses to publish for a runtimeVersion no shipped binary has.**
+  `apps/mobile/scripts/resolve-publish-target.mjs` resolves the fingerprint and looks it up
+  in `apps/mobile/shipped-runtime-versions.json`; a miss means the commit changed the
+  native project, and the run ends with an explanation instead of an update nobody can
+  receive. **Add an entry to that file whenever you upload a build** — a forgotten entry
+  stops publishing, which is the safe direction, but it stops it silently until someone
+  reads the summary.
+- **Afterwards it asks the server what a phone would get** and fails if that is not a real,
+  signed, downloadable update.
+
+The automatic path does **not** use the `production` GitHub Environment: its required
+reviewer would park every push waiting for a click. Manual dispatch keeps it, and stays
+the way to publish at a percentage, to `staging`, or to re-run. Rollback is still manual
+and instant, and remains the actual answer to a bad bundle.
+
+A partial rollout is never scheduled automatically — promoting one is a manual act, so an
+automatic 10% would leave most devices on the old bundle until somebody remembered.
+
+### Publishing by hand
+
 `.github/workflows/ota-publish.yml`, manually dispatched. It is not automatic on push on
 purpose: a bad bundle reaches every phone within minutes, and unlike a store release
 nothing reviews it on the way. The workflow takes a branch, a rollout percentage and a

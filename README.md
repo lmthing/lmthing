@@ -10,9 +10,9 @@ integrations, or as a runtime you build on. Same system underneath.
 
 ---
 
-## The one idea everything follows from
+## Two ideas everything follows from
 
-**The model does not call tools. The model writes TypeScript.**
+### 1. The model does not call tools. The model writes TypeScript.
 
 One statement at a time, streamed. The host evaluates each statement as it arrives — inside a
 **QuickJS WASM sandbox**, against a set of globals that a **capability grant** decides an agent may
@@ -30,18 +30,57 @@ What that buys you:
 
 → [`org/docs/runtime/`](./org/docs/runtime/README.md) · [`org/docs/runtime-globals/`](./org/docs/runtime-globals/README.md)
 
+### 2. An agent is not a prompt. An agent is a folder.
+
+The other half of the system is the **space format** — the on-disk shape everything is authored in.
+A space is a directory of AI specialists plus the tooling they reference, and it is the unit you
+read, diff, edit by hand, commit to git, publish to the store and install into someone else's pod.
+
+```
+<space>/
+├── agents/<slug>/
+│   ├── charter.md      # who this agent is — fork-safe identity and guardrails
+│   └── instruct.md     # YAML frontmatter (its wiring) + operating instructions
+├── functions/          # deterministic TypeScript helpers — no LLM, no tokens
+├── knowledge/          # structured domain docs, loaded ON DEMAND, not glued to every turn
+├── tasklists/          # DAG workflows: index.md + numbered steps (a .ts step is a code node)
+├── components/         # UI the agent renders — view/ for display(), form/ for ask()
+├── events/             # typed emitter defs (webhook / cron / db / internal) — a space can be an EVENT SOURCE
+└── hooks/              # event consumers
+```
+
+An agent's frontmatter *is* its wiring — which `functions` it may call, which `knowledge` fields it
+may load, which `components` it may render, which `actions` map to which tasklist, which
+`capabilities` it holds, and `canDelegateTo` (who it may hand work to). Every one of those
+references is resolved against the sibling directory **at load time**: name a function that isn't
+there, or misspell a frontmatter key, and the space refuses to load rather than quietly granting
+nothing.
+
+Why this matters in practice:
+
+- **Prompts stop being monoliths.** Knowledge is a tree of small aspects a turn pulls in when it
+  needs them, so an agent can know a great deal without paying for all of it every message.
+- **Determinism where you want it.** Anything that doesn't need a model is a `function`. Anything
+  with a fixed shape is a `tasklist` DAG.
+- **Agents that build agents stay honest.** A model can't write these files directly — it goes
+  through typed builder functions that are rooted to the space and typecheck the source before it
+  lands on disk. That is idea #1 doing the work for idea #2.
+- **It is portable.** A folder is a store listing, a git repo, a pull request, a copy-paste.
+
+→ [`org/docs/format/space/`](./org/docs/format/space/README.md) · [the project format](./org/docs/format/project/README.md)
+
 ---
 
 ## Features
 
 ### 🧠 THING — one agent that assembles the others
 
-You talk to one agent. Behind it, THING creates **spaces** (an agent's knowledge, functions,
-components, tasklists and charter as plain files on disk), **forks** itself for parallel work,
-and **delegates** to specialists with narrower powers than its own. Every agent it builds is
-authored in a format you can read, edit and version — not a prompt buried in a database.
+You talk to one agent. Behind it, THING writes new spaces, **forks** itself for parallel work, and
+**delegates** to specialists whose powers are narrower than its own — a data modeler that can touch
+schemas and nothing else, an API author that can write one endpoint, an engineer with a throwaway
+sandbox. It grows the team the job needs, and you can open every member in a text editor.
 
-→ [`org/docs/format/space/`](./org/docs/format/space/README.md) · [`org/docs/runtime/`](./org/docs/runtime/README.md)
+→ [`org/docs/runtime/`](./org/docs/runtime/README.md) · [delegation](./org/docs/runtime-globals/delegation.md)
 
 ### 🏗️ Describe an app, get an app — with a database, an API and a UI
 

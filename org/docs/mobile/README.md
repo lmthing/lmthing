@@ -186,7 +186,7 @@ which team was tapped. `TeamScreen` used to always open `teams[0]` regardless of
 pressed; it now takes an `openTeamId` (and an `openChannelId`, for the push deep link below) and
 resolves the request against the member's own list rather than trusting it blindly — a stale
 invite id or a team since left is ignored, not honoured, so the screen never silently swaps onto
-some OTHER team (`sdk/org/apps/mobile/src/team-focus.ts#resolveFocusTeamId`,
+some OTHER team (`sdk/org/libs/ui/src/team/focus.ts#resolveFocusTeamId`,
 `sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`).
 
 **The Android back button did nothing for a full-screen project app** — `Drawer`/`Dialog`
@@ -350,7 +350,7 @@ values, React bails out of an identical state update, and `TeamScreen`'s own eff
 `openTeamId`/`openChannelId` changing, not on the deep link firing
 (`sdk/org/apps/mobile/App.tsx#HomeShell`, `sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`). A
 deep link naming a team the member has since left is caught one layer down, by
-`resolveFocusTeamId` (`sdk/org/apps/mobile/src/team-focus.ts#resolveFocusTeamId`) refusing to select
+`resolveFocusTeamId` (`sdk/org/libs/ui/src/team/focus.ts#resolveFocusTeamId`) refusing to select
 a team not in the member's own list — already covered by
 `sdk/org/apps/mobile/src/team-focus.test.ts`. None of this — the double-tap dedup, the
 already-there case, or the stale-team case — has run on a device or emulator; all three are proven
@@ -369,10 +369,10 @@ web `PodEnsureGate` (`sdk/org/apps/web/src/lib/gates.tsx`) with the web-only
 parts removed:
 
 1. `ensureComputePod` — `POST https://lmthing.cloud/api/compute/ensure`
-   (`sdk/org/apps/mobile/src/ensure-pod.ts#ensureComputePod`).
+   (`sdk/org/libs/ui/src/lib/pod-boot.ts#ensureComputePod`).
 2. `waitForPodEdge` — poll the pod's **own** edge until it stops returning
    Envoy's no-endpoint 503/504
-   (`sdk/org/apps/mobile/src/ensure-pod.ts#waitForPodEdge`).
+   (`sdk/org/libs/ui/src/lib/pod-boot.ts#waitForPodEdge`).
 
 Both calls are absolute, because native has no origin. The edge budget covers a
 **cold** wake, not just endpoint propagation: `/api/compute/ensure` returns once
@@ -566,7 +566,7 @@ The client is built with the app base, not the pod root
 (`` `${baseUrl}/app/${projectId}` ``): the request builder appends `/api<routePath>`, and a
 project's handlers are served under `/app/<project>/api/*`. Absolute, and authenticated with the
 pod token — the `teamTokenGetter` pattern, no cookie and no same-origin assumption
-(`sdk/org/apps/mobile/src/team.ts#teamTokenGetter`).
+(`sdk/org/libs/ui/src/team/teams.ts#teamTokenGetter`).
 
 The **team rail gets the same branch**. `onOpenApp` no longer sets the rail directly: it starts the
 probe, and the answer picks the destination — the native screen full-width, or the rail exactly as
@@ -1102,6 +1102,20 @@ whose OTA is quietly dead (`sdk/org/apps/mobile/app.config.js:23-40`). Set
 So the path for a change is **staging first, then a merge into main**. The merge *is* the
 promotion — there is no separate "promote" action, because the same JavaScript republished
 under the production channel is exactly what promotion means here.
+
+> **Check the submodule pointer after any merge that touches it.** When both branches have
+> moved `sdk/org`, git resolves the gitlink conflict to **ours** — silently, with no
+> conflict marker and no warning, even when theirs is a strict descendant. The merge then
+> *reverts* a commit's worth of JavaScript, and since an OTA carries JavaScript, publishing
+> it ships that revert to phones as an ordinary-looking update. Nothing in the merge diff
+> shows it: a gitlink is one line and "ours" looks like a legitimate resolution. The only
+> way to see it is to ask directly:
+>
+> ```bash
+> git -C sdk/org merge-base --is-ancestor \
+>   "$(git rev-parse HEAD:sdk/org)" "$(git rev-parse origin/main:sdk/org)" \
+>   && echo "POINTER WENT BACKWARDS — the merge dropped commits"
+> ```
 
 The trigger for both is the bare path `sdk/org` (`.github/workflows/ota-publish.yml:69-70`)
 — the app and every lib it bundles live *inside* the submodule, which no commit in the

@@ -177,6 +177,33 @@ jobs:
             exit 1
           fi
 
+          # Did the pointer go BACKWARDS? The check above cannot see this — an older pointer
+          # is an ancestor of staging's, so a revert sails through it.
+          #
+          # This is not hypothetical. Merging two branches that have both moved `sdk/org`
+          # resolves the gitlink to OURS, silently, with no conflict marker and no warning,
+          # even when theirs is a strict descendant. The merge drops a commit's worth of
+          # JavaScript, and an OTA carries JavaScript, so the publish ships that revert to
+          # every phone looking like an ordinary update. A gitlink is one line in a diff and
+          # "ours" looks like a legitimate resolution, so nobody reads it and catches this.
+          #
+          # A warning rather than a failure, because a deliberate rollback is a real thing to
+          # want and blocking it would be worse than surfacing it. `github.event.before` is
+          # all-zeros when a branch is created, which has no previous pointer to compare.
+          BEFORE="${{ github.event.before }}"
+          if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            PREV="$(git rev-parse -q --verify "$BEFORE:sdk/org" 2>/dev/null || true)"
+            if [ -n "$PREV" ] && [ "$PREV" != "$TARGET" ] \
+               && git -C sdk/org merge-base --is-ancestor "$TARGET" "$PREV"; then
+              DROPPED="$(git -C sdk/org rev-list --count "$TARGET..$PREV")"
+              echo "::warning title=Submodule pointer moved backwards::main was publishing" \
+                   "sdk/org $PREV and is now publishing $TARGET, which is $DROPPED commit(s)" \
+                   "BEHIND it. This update will revert that JavaScript on every phone. If that" \
+                   "is a deliberate rollback, carry on; if it came out of a merge, git resolved" \
+                   "the gitlink to 'ours' and silently dropped work."
+            fi
+          fi
+
       # One place the two triggers become the same thing, so the publish steps below never
       # branch on the event again. A push ships the whole update at once: a partial
       # rollout has to be promoted by hand, so scheduling one automatically would leave

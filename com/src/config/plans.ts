@@ -29,7 +29,7 @@ export const plans: Plan[] = [
     price: '$0',
     period: 'forever',
     features: [
-      'Budget: $10 / 1d · $50 / 7d · $150 / 30d',
+      'Budget: $1 / 1d · $5 / 7d · $15 / 30d',
       'All 5 models',
       '1M tokens/min, 5K req/min',
       'OpenAI-compatible API',

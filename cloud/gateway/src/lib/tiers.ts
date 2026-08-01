@@ -92,9 +92,9 @@ export const TIERS: Record<string, Tier> = {
     name: "Free",
     stripePriceId: null,
     budgetLimits: [
-      { duration: "1d", maxBudget: 10 },
-      { duration: "7d", maxBudget: 50 },
-      { duration: "30d", maxBudget: 150 },
+      { duration: "1d", maxBudget: 1 },
+      { duration: "7d", maxBudget: 5 },
+      { duration: "30d", maxBudget: 15 },
     ],
     models: [...TIER_MODELS],
     tpmLimit: 1_000_000,

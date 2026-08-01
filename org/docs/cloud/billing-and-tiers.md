@@ -46,7 +46,7 @@ Script names: `cloud/package.json:6-10`.
 
 | Tier | Stripe price | Budget windows (1d / 7d / 30d, USD) | tpm | rpm | Pod (cpu/mem limit) | Pod requests | Idle TTL | Max sessions | Cron floor / max jobs |
 |---|---|---|---|---|---|---|---|---|---|
-| `free` | none (`stripePriceId: null`) | **10 / 50 / 150** | 1,000,000 | 5,000 | `1500m` / `512Mi` | `50m` / `256Mi` (**Burstable**) | 15 min | 3 | 60 min / 20 |
+| `free` | none (`stripePriceId: null`) | **1 / 5 / 15** | 1,000,000 | 5,000 | `1500m` / `512Mi` | `50m` / `256Mi` (**Burstable**) | 15 min | 3 | 60 min / 20 |
 | `basic` | `$10/mo` — `STRIPE_PRICE_BASIC` | **1 / 4 / 10** | 1,000,000 | 5,000 | `500m` / `768Mi` | = limits (Guaranteed) | 30 min | 3 | 15 min / 50 |
 | `pro` | `$20/mo` — `STRIPE_PRICE_PRO` | **3 / 10 / 20** | 1,000,000 | 5,000 | `500m` / `1Gi` | = limits (Guaranteed) | 60 min | 5 | 5 min / 100 |
 | `max` | `$100/mo` — `STRIPE_PRICE_MAX` | **10 / 30 / 100** | 1,000,000 | 5,000 | `1000m` / `2Gi` | = limits (Guaranteed) | 120 min | 10 | 5 min / 200 |
@@ -57,10 +57,11 @@ Two properties of that table surprise most readers, and the code is unambiguous 
   four (`cloud/gateway/src/lib/tiers.ts:L100-L101,L129-L130,L143-L144,L157-L158`). There is no
   per-tier tpm/rpm ladder; the gateway stamps the same limits on every key. Tiers differ by budget
   windows, pod sizing, session count, idle TTL and cron floor — never by rate limit.
-- **Free currently has the *largest* budget windows** (10/50/150) — larger than Basic, Pro and
-  even Max's 30-day cap. That is what `TIERS.free.budgetLimits` says
-  (`cloud/gateway/src/lib/tiers.ts:L94-L98`); tiers differ meaningfully today by **pod sizing,
-  session count, idle TTL and cron floor**, not by spend headroom.
+- **Free is not strictly below Basic** — at 1/5/15 it ties Basic's 1-day cap ($1) and exceeds
+  Basic on the 7-day ($5 vs $4) and 30-day ($15 vs $10) windows, while sitting below Pro and Max
+  on every window. That is what `TIERS.free.budgetLimits` says
+  (`cloud/gateway/src/lib/tiers.ts:L94-L98`); tiers still differ mainly by **pod sizing,
+  session count, idle TTL and cron floor**, not by spend headroom alone.
 
 ### Models
 

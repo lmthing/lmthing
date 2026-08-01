@@ -16,10 +16,10 @@ name: Publish OTA update
 #   push to `staging`  →  channel `staging`   →  testers running the staging APK
 #   push to `main`     →  channel `production` →  everyone on the store build
 #
-# The intended path for a change is therefore staging first, then a merge into main.
-# That is enforced, not merely documented: a push to main whose JavaScript never sat on
-# staging FAILS (see "Require that this JavaScript was staged first"). Without the check
-# the process is a sentence in a README that the first hurried fix walks straight past.
+# Staging-first is the recommended path but is NOT enforced — a push to main publishes
+# straight to production whether or not that JavaScript ever sat on staging. (It used to
+# be a hard gate; removed while the mobile app is still under Google Play review, since
+# there is no production install base yet for a bad bundle to reach.)
 #
 # The two channels are separated TWICE over, which is worth knowing before you try to
 # make one binary serve both. `RELEASE_CHANNEL` is read by app.config.js — it becomes the
@@ -38,7 +38,6 @@ name: Publish OTA update
 # simply delete them — a bad bundle still reaches every phone in minutes, and nothing
 # reviews it on the way. What stands there now:
 #
-#   · a rehearsal on real devices, because production is reachable only through staging
 #   · the real gates run FIRST, and a red one stops the publish — typecheck, a production
 #     bundle, the @lmthing/ui suite, and the Metro native harness, which is the only thing
 #     that can see a broken React Native graph
@@ -115,81 +114,32 @@ jobs:
           submodules: recursive
           # The fingerprint is computed from the native project, which is derived from
           # the whole workspace. A shallow checkout hashes a different tree. The
-          # staged-first check below also needs main's and staging's full histories.
+          # backward-pointer check below also needs history back to `github.event.before`.
           fetch-depth: 0
 
-      # The process, made real. A push to main publishes to every phone in the field with
-      # no human in the loop, and the only rehearsal that exists is the staging channel —
-      # so production is reachable only through it.
+      # No staging-rehearsal requirement here (removed — see the header note): a push to
+      # main publishes straight to production regardless of whether this JavaScript ever
+      # sat on staging.
       #
-      # The test is on the SUBMODULE POINTER, not on the parent repo's branch topology.
-      # The app and every library it bundles live in sdk/org, so that gitlink IS the
-      # JavaScript this run would publish — and comparing pointers survives merge commits,
-      # rebases and squashes, all of which change main's own SHA while carrying identical
-      # JS.
+      # What remains is a warning-only check for the pointer moving BACKWARDS. This is not
+      # hypothetical: merging two branches that have both moved `sdk/org` resolves the
+      # gitlink to OURS, silently, with no conflict marker and no warning, even when theirs
+      # is a strict descendant. The merge drops a commit's worth of JavaScript, and an OTA
+      # carries JavaScript, so the publish ships that revert to every phone looking like an
+      # ordinary update. A gitlink is one line in a diff and "ours" looks like a legitimate
+      # resolution, so nobody reads it and catches this.
       #
-      # It must NOT be an ancestry question about the PARENT repo. `staging` is branched
-      # from `main` and therefore contains all of main's history, so "was this pointer ever
-      # seen on staging" is true of every pointer main has ever had — a check that passes
-      # for everything and proves nothing.
-      #
-      # The honest question is about the SUBMODULE's own history: is staging at, or ahead
-      # of, the JavaScript main is publishing? Shared parent history cannot fake that. The
-      # accident being guarded against is new JS pushed straight to main, and new JS is by
-      # definition a pointer staging does not have yet — so it is neither equal to nor an
-      # ancestor of staging's tip, and it fails. Allowing "staging is ahead" is what keeps
-      # the check race-free: staging legitimately moves on while a main run sits queued,
-      # and that must not turn into a spurious red on main.
-      #
-      # This FAILS rather than skipping, unlike the runtimeVersion check below. A native
-      # change landing on main is a normal state of the branch; JavaScript reaching
-      # production without a rehearsal is a process being bypassed, and a green check
-      # would say the opposite. The escape hatch for a genuine hotfix is a manual
-      # workflow_dispatch, which does not run this step.
-      - name: Require that this JavaScript was staged first
+      # A warning rather than a failure, because a deliberate rollback is a real thing to
+      # want and blocking it would be worse than surfacing it. `github.event.before` is
+      # all-zeros when a branch is created, which has no previous pointer to compare.
+      - name: Warn if this update reverts the JavaScript pointer
         if: github.event_name == 'push' && github.ref_name == 'main'
         run: |
-          git fetch --no-tags origin '+refs/heads/staging:refs/remotes/origin/staging' 2>/dev/null || true
-          if ! git rev-parse -q --verify refs/remotes/origin/staging >/dev/null; then
-            echo "::error title=No staging branch::Branch 'staging' does not exist, so nothing" \
-                 "can have been rehearsed on it. Create it from main and push changes there first."
-            exit 1
-          fi
-
           TARGET="$(git rev-parse 'HEAD:sdk/org')"
-          STAGED="$(git rev-parse 'origin/staging:sdk/org')"
           echo "publishing sdk/org $TARGET"
-          echo "staging is at sdk/org $STAGED"
 
-          # The pinned submodule checkout holds this run's commit; staging's may be a
-          # different one, and --is-ancestor cannot answer about an object it does not have.
           git -C sdk/org fetch --no-tags --quiet origin || true
 
-          if [ "$TARGET" = "$STAGED" ]; then
-            echo "staging is at exactly this JavaScript — ok"
-          elif git -C sdk/org merge-base --is-ancestor "$TARGET" "$STAGED"; then
-            echo "staging is ahead of this JavaScript, so it has been through it — ok"
-          else
-            echo "::error title=Not staged first::sdk/org $TARGET is not in staging, which is at" \
-                 "$STAGED. This JavaScript would reach production without a rehearsal. Merge it" \
-                 "through 'staging' first. For a genuine hotfix, publish by hand with the" \
-                 "workflow_dispatch trigger, which skips this check deliberately."
-            exit 1
-          fi
-
-          # Did the pointer go BACKWARDS? The check above cannot see this — an older pointer
-          # is an ancestor of staging's, so a revert sails through it.
-          #
-          # This is not hypothetical. Merging two branches that have both moved `sdk/org`
-          # resolves the gitlink to OURS, silently, with no conflict marker and no warning,
-          # even when theirs is a strict descendant. The merge drops a commit's worth of
-          # JavaScript, and an OTA carries JavaScript, so the publish ships that revert to
-          # every phone looking like an ordinary update. A gitlink is one line in a diff and
-          # "ours" looks like a legitimate resolution, so nobody reads it and catches this.
-          #
-          # A warning rather than a failure, because a deliberate rollback is a real thing to
-          # want and blocking it would be worse than surfacing it. `github.event.before` is
-          # all-zeros when a branch is created, which has no previous pointer to compare.
           BEFORE="${{ github.event.before }}"
           if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
             PREV="$(git rev-parse -q --verify "$BEFORE:sdk/org" 2>/dev/null || true)"

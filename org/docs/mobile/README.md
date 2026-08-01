@@ -1102,9 +1102,11 @@ whose OTA is quietly dead (`sdk/org/apps/mobile/app.config.js:23-40`). Set
 | `staging` | `staging` | testers running the staging APK |
 | `main` | `production` | everyone on the store build |
 
-So the path for a change is **staging first, then a merge into main**. The merge *is* the
-promotion — there is no separate "promote" action, because the same JavaScript republished
-under the production channel is exactly what promotion means here.
+So the recommended path for a change is **staging first, then a merge into main**. The
+merge *is* the promotion — there is no separate "promote" action, because the same
+JavaScript republished under the production channel is exactly what promotion means here.
+This is not enforced, though (see below) — a push straight to `main` publishes to
+production regardless of whether it was rehearsed on staging.
 
 > **Check the submodule pointer after any merge that touches it.** When both branches have
 > moved `sdk/org`, git resolves the gitlink conflict to **ours** — silently, with no
@@ -1126,33 +1128,31 @@ parent repo ever touches, so a gitlink entry is the only thing a path filter can
 That also makes the pointer the right signal: JavaScript `main` does not point at is not
 what the rest of the product is running, and has no business reaching phones ahead of it.
 
-**Staging-first is enforced, not merely documented.** A push to `main` whose `sdk/org`
-pointer is not one the `staging` branch already has fails
-(`.github/workflows/ota-publish.yml:149-179`). The test is on the pointer rather than on
-the parent repo's branch topology, because the pointer *is* the JavaScript: comparing
-pointers survives merge commits, rebases and squashes, all of which change main's own SHA
-while carrying identical JS.
+**Staging-first is not enforced.** A push to `main` publishes to production whether or not
+its `sdk/org` pointer was ever seen on the `staging` branch. It used to be a hard gate
+(`.github/workflows/ota-publish.yml`, step "Require that this JavaScript was staged
+first") — comparing the **submodule's** own history rather than the parent repo's, since
+`staging` is branched from `main` and so "was this pointer ever seen on staging" is
+trivially true of every pointer if asked of the parent repo. That gate was removed while
+the mobile app is still under Google Play review: there is no production install base yet
+for an unrehearsed bundle to reach, so the friction bought nothing. Re-add it before the
+app goes live if a rehearsal step is wanted again — the comment in
+`ota-publish.yml` before the "Warn if this update reverts the JavaScript pointer" step
+explains what the check looked like and why it compared pointers rather than branch
+ancestry.
 
-It specifically must **not** be an ancestry question about the parent repo. `staging` is
-branched from `main` and so contains all of main's history, which makes "was this pointer
-ever seen on staging" true of every pointer main has ever had — a check that passes for
-everything and proves nothing. The question is asked of the **submodule's** history
-instead: is staging at, or ahead of, the JavaScript main is publishing? Shared parent
-history cannot fake that. New JS pushed straight to main is by definition a pointer staging
-does not have yet, so it is neither equal to nor an ancestor of staging's tip and it fails;
-allowing "staging is ahead" is what stops a staging branch that legitimately moved on while
-a main run sat queued from turning into a spurious red.
-
-This one **fails** rather than skipping, unlike the runtimeVersion check below, and the
-difference is deliberate: a native change landing on main is a normal state of the branch,
-whereas JavaScript reaching production without a rehearsal is a process being bypassed, and
-a green check would say the opposite. The escape hatch for a genuine hotfix is a manual
-dispatch, which does not run the step at all.
+What the enforced gate leaves behind is a **warning-only** check for the pointer moving
+BACKWARDS, still in the same workflow
+(`.github/workflows/ota-publish.yml`, "Warn if this update reverts the JavaScript
+pointer"). This is not hypothetical: merging two branches that have both moved `sdk/org`
+resolves the gitlink conflict to **ours**, silently — see the callout above — and an OTA
+built from that merge would ship the revert to every phone looking like an ordinary
+update. A warning rather than a failure, because a deliberate rollback is a real thing to
+want and blocking it would be worse than surfacing it.
 
 Automation removed the reviewer that used to stand between a merge and every installed
-phone, so four things replace them:
+phone. What replaces them now:
 
-- **The staging rehearsal itself**, above — production is reachable only through it.
 - **The gates run first and a red one stops the publish** — typecheck, a production
   bundle, the `@lmthing/ui` suite, and the Metro native harness. The harness is there
   specifically because a broken React Native graph is invisible to `tsc` and to the jsdom
@@ -1179,11 +1179,11 @@ automatic 10% would leave most devices on the old bundle until somebody remember
 
 ### Publishing by hand
 
-The same workflow, manually dispatched — the path for a rollout percentage, a re-run, or a
-hotfix that genuinely cannot wait for a staging rehearsal. It takes a branch, a rollout
-percentage and a message, runs the same gates first, and publishes with `eoas`. Dispatching
-to `production` uses the `production` GitHub Environment, so a required reviewer there is
-the gate that the automatic path replaces with staging.
+The same workflow, manually dispatched — the path for a rollout percentage, a re-run, or
+publishing straight to a channel. It takes a branch, a rollout percentage and a message,
+runs the same gates first, and publishes with `eoas`. Dispatching to `production` uses the
+`production` GitHub Environment, so a required reviewer there is a gate the automatic push
+path (`ota-auto` environment, no required reviewer) does not have.
 
 Two names matter and are easy to get wrong. `EOO_TOKEN` holds an **app-scoped API key**
 (`eoo_…`) minted per app in the dashboard — not the server's `JWT_SECRET`, so the CI

@@ -130,6 +130,28 @@ targets honour it.
   a width, a height, a radius and `justifyContent: center` — centres on web and puts the glyph in
   the top-left corner on a device. The `View` does the layout, the `Text` holds the glyph
   (`sdk/org/libs/ui/src/team/messages.tsx#SenderAvatar`).
+- **`fontFamily` does not INHERIT into a nested `Prim.Text`.**
+  `sdk/org/libs/ui/src/elements/primitives/_native.tsx#NativeText` sets `fontFamily: '$body'` as a
+  styled default, and it has to: a `$`-token `fontSize` is looked up in the scale of the component's
+  own font face, so with no family Tamagui has no scale and **drops the size silently**. A styled
+  default is unconditional, so it lands on every nested text node as an EXPLICIT family and beats
+  the family its parent set. On web the same markup inherits, because `theme.css` puts the family on
+  a root class and the child `<span>`s name none.
+  The wordmark is exactly this shape — one wrapper naming `$brand`, one `Prim.Text` per letter naming
+  only its `$logo-N` colour — so on a phone every letter rendered in Manrope Regular while the
+  wrapper truthfully carried `font_brand`. Right colours, wrong typeface *and* wrong weight, which
+  reads as a rendering glitch rather than as a bug. `CozyThingText` passes the wrapper's EFFECTIVE
+  face down a context instead of relying on inheritance
+  (`sdk/org/libs/ui/src/elements/branding/cozy-text/index.tsx#FaceContext`), guarded by
+  `sdk/org/libs/ui/metro/suites/branding.tsx`. The same trap applies to any `Prim.Box` that sets
+  `fontFamily="$mono"` around a nested `Prim.Text`.
+- **`color` does not fall back to the theme.** Tamagui's `Text` defaults to `$color`, and this design
+  system has no `color` token — its body ink is `foreground`. So an uncoloured `Prim.Text` resolved
+  nothing from the theme and fell through to the colour TOKEN map, which on native is built from
+  `themes.light` whichever theme is mounted
+  (`sdk/org/libs/ui/src/theme/tamagui.config.ts#buildColorTokens`). In light mode that is accidentally
+  right; in dark mode it painted light-mode ink on a near-black ground. `NativeText` now defaults
+  `color: '$foreground'`.
 - **Icons** — `lucide-react` emits raw DOM `<svg>`/`<path>`, which React Native
   has no host component for; `@tamagui/lucide-icons-2` draws the same glyphs
   through `react-native-svg`, which in turn drags React Native into a web bundle.
@@ -356,6 +378,42 @@ a team not in the member's own list — already covered by
 already-there case, or the stale-team case — has run on a device or emulator; all three are proven
 by unit tests against the pure decision functions only.
 
+## Light and dark — the app follows the phone
+
+`App.tsx` reads `useColorScheme()` and mounts that as the Tamagui theme; `userInterfaceStyle:
+'automatic'` in `app.config.js` lets the NATIVE chrome — system dialogs, the text-selection menu, the
+autofill sheet — go dark with it (`sdk/org/apps/mobile/App.tsx`,
+`sdk/org/apps/mobile/app.config.js`). `useColorScheme()` answers `null` before the first read, which
+means "not known yet" and not "dark", so it falls to light — otherwise a cold start flashes a dark
+frame.
+
+**It was hard-locked to light for a release, and the lock outlived its reason.** Both files pinned
+light on the grounds that the shared dark theme's contrast broke down on-device. That was true of the
+palette at the time; the Slate Teal palette replaced every one of those colours and nothing said so,
+because there was no way to tell when the claim stopped holding. Every semantic foreground/ground
+pair is now measured against WCAG 2.1 in both themes, so "is dark readable?" is a test result rather
+than an argument: `sdk/org/libs/ui/src/theme/theme-contrast.test.ts`. Deliberately excluded there are
+`border` and `input` against their grounds — a separator is meant to be a low-contrast hairline, and
+both themes sit near 1.3:1 by design.
+
+Three surfaces are NOT Tamagui's to theme, and each one paints white by default:
+
+- **`SafeAreaView`** — a plain React Native view. Unset, the inset strips behind the status bar and
+  the gesture pill stayed white around a near-black app.
+- **The window itself**, below the React root. RN never paints it, so it shows through before the
+  first frame, in the overscroll rubber-band, and in the strip the keyboard leaves as it animates
+  out. `expo-system-ui`'s `setBackgroundColorAsync` sets it, re-running on a scheme flip.
+- **The status bar's own glyphs** — named from the app's scheme rather than `style="auto"`, which
+  reads the SYSTEM scheme and is only equal to the app's while nothing overrides it.
+
+All three read `themes[scheme].background` from the generated palette, which is the same source the
+theme itself is built from.
+
+The splash screen is the one thing that does not follow: it is drawn on the dark ground in both
+themes, because the launcher icon is (see "The brand assets are generated, not drawn") and a
+light-mode splash would either flash a different colour than the icon that launched it or put the
+mark's yellow on a near-white field at 1.7:1.
+
 ## Boot order
 
 `App.tsx` holds the tree back until `hydrateAuth()` resolves. `getSession()` is
@@ -430,6 +488,18 @@ The limits are as important as the coverage:
   `nativeSafeProps` closes it now
   (`sdk/org/libs/ui/src/elements/primitives/_native.tsx#nativeSafeProps`), and the
   suite fails without that guard.
+- **A TYPEFACE the suites never checked.** Every gate was green while the wordmark rendered in the
+  wrong font on every mobile surface, because nothing asserted a `fontFamily` on a NESTED text node —
+  and the wrapper, which is what the web test looks at, was correct.
+  `sdk/org/libs/ui/metro/suites/branding.tsx` now asserts the resolved face on every text node the
+  mark produces, and names Manrope as the exact wrong answer so the regression is legible when it
+  fires. The registry the resolution depends on is checked separately and cheaply:
+  `sdk/org/apps/mobile/src/fonts.test.ts` asserts that every family `NATIVE_FACE` maps a weight onto
+  is one `expo-font` actually registers. A one-character disagreement there is not an error — React
+  Native looks up a family that does not exist and silently renders the platform default, which is
+  what a `console.log` font probe left behind in `App.tsx` was chasing.
+- **The dark theme's legibility** is measured, not reviewed:
+  `sdk/org/libs/ui/src/theme/theme-contrast.test.ts` (see "Light and dark" above).
 
 ## Device verification
 

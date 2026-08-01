@@ -266,9 +266,24 @@ jobs:
     needs: changes
     if: needs.changes.outputs.changed == 'true'
     runs-on: ubuntu-latest
-    # Measured on a 2-core runner: the first (uncached) run spent ~35 min in Gradle alone, against
-    # 4m11s locally with a warm cache — hence 60, not 30.
-    timeout-minutes: 60
+    # ## 60 was too tight, and the symptom did not say so
+    #
+    # Two runs died at exactly 60m00s — 30691918699 (08:31:21 → 09:31:36) and 30659169057
+    # (19:33:00 → 20:33:18). **GitHub reports a `timeout-minutes` kill as `cancelled`, not as a
+    # failure or a timeout**, so from the run list they were indistinguishable from someone pressing
+    # cancel, and the job looked flaky rather than over budget.
+    #
+    # The estimate this replaces was honest but optimistic: ~35 min of Gradle measured once, against
+    # 4m11s locally with a warm cache. What it did not allow for is that the CI build never HAD a
+    # warm cache (see the cache step) and that a 2-core runner varies. 30691918699 got as far as
+    # uploading the APK to the release at 09:26 and was then killed six minutes later in the
+    # `upload-artifact` step below — so the budget was being spent, in full, on work that had already
+    # succeeded.
+    #
+    # 120 is a ceiling, not a target. With `--build-cache` actually enabled a warm run should land
+    # far under it; the headroom is for the cold ones (a dependency bump starts a new cache lineage)
+    # so those finish and SAVE a cache instead of dying at the wall and leaving the next run cold too.
+    timeout-minutes: 120
     permissions:
       contents: write
     steps:
@@ -294,14 +309,43 @@ jobs:
       # in that first error is frequently not the one actually wanted.
       - uses: android-actions/setup-android@v3
 
+      # ## This cache is the whole reason the job fits in its budget, and it was doing nothing
+      #
+      # `newArchEnabled=true` means React Native compiles its own C++ from source with CMake, which
+      # is where nearly all of the ~50 minutes went. None of that output could survive a run:
+      # `android/` is gitignored and `expo prebuild` REGENERATES it (clearing what was there), so
+      # `android/app/.cxx` and `android/app/build` — 111 MB and 1.4 GB locally — start empty every
+      # time. The only place a native compile can persist is Gradle's own build cache, under
+      # `~/.gradle/caches/build-cache-1`, which is keyed on task inputs rather than on paths.
+      #
+      # **That cache was switched off.** `org.gradle.caching` is unset in `android/gradle.properties`,
+      # so `~/.gradle/caches` was being saved and restored faithfully with the expensive part of it
+      # never written. `--build-cache` on the invocation below turns it on without changing the
+      # local default.
+      #
+      # Measured, by reproducing what CI actually does — `rm -rf android`, `expo prebuild`, then a
+      # timed build against a warm `~/.gradle/caches`: **122 of 390 tasks came from the cache**
+      # (236 executed, 32 up-to-date). Worth stating because the obvious cheaper experiment is
+      # WRONG: deleting only `app/build` leaves every other module up-to-date and reports 3 tasks
+      # from cache, which reads as "the cache does nothing". It has to be the whole directory,
+      # because prebuild regenerates the whole directory.
+      #
+      # **And the key could never be updated.** `actions/cache` only SAVES when the exact key missed.
+      # Keyed on `pnpm-lock.yaml`, an unchanged lockfile meant an exact hit on every run — so
+      # whatever the cache held the day it was first written is what it held forever, and a cold
+      # build-cache stayed cold. `run_id` makes every run save a fresh entry; `restore-keys` is what
+      # actually loads it, most-recent-prefix-match first. The lockfile hash stays in the prefix so a
+      # dependency bump starts a new lineage instead of inheriting a stale one.
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-android-${{ hashFiles('sdk/org/pnpm-lock.yaml') }}
-          restore-keys: gradle-android-
+          key: gradle-android-${{ hashFiles('sdk/org/pnpm-lock.yaml') }}-${{ github.run_id }}
+          restore-keys: |
+            gradle-android-${{ hashFiles('sdk/org/pnpm-lock.yaml') }}-
+            gradle-android-
 
       - name: Install
         working-directory: sdk/org
@@ -329,9 +373,25 @@ jobs:
       # gradle.properties asks for four ABIs (armeabi-v7a, arm64-v8a, x86, x86_64) — so the default
       # is that same compile done four times. arm64-v8a is every Android phone made in roughly the
       # last decade. The cost: the APK will NOT install on the standard x86_64 emulator.
+      # `--build-cache` is what makes the cache step above mean anything — see the long note there.
+      # It is passed here rather than set in `android/gradle.properties` so a local `./gradlew` keeps
+      # its current behaviour and this stays a CI decision.
+      #
+      # `lintVital*` is excluded because it runs ONLY on release builds and is pure cost for a
+      # nightly: the logs show `:expo-eas-client:lintVitalAnalyzeRelease` and
+      # `:react-native-webview:lintVitalAnalyzeRelease` analysing THIRD-PARTY modules we do not
+      # author. Unqualified `-x` excludes the task in every subproject that has one. Our own lint
+      # runs per commit in `native-target.yml` and the package's `lint` script, so nothing is lost.
       - name: Assemble the release APK
         working-directory: sdk/org/apps/mobile/android
-        run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+        run: |
+          ./gradlew :app:assembleRelease \
+            -PreactNativeArchitectures=arm64-v8a \
+            --no-daemon \
+            --build-cache \
+            -x lintVitalAnalyzeRelease \
+            -x lintVitalReportRelease \
+            -x lintVitalRelease
 
       - name: Publish to the rolling release
         env:
@@ -376,9 +436,19 @@ jobs:
 
           gh release upload nightly publish/* --clobber
 
+      # ## Why the APK is no longer also uploaded as a workflow artifact
+      #
+      # It was a second full copy of the same 36 MB, to a place that expires in 14 days, immediately
+      # after the copy that does not. Run 30691918699 shows the cost: the release upload completed at
+      # 09:26 and the job was killed at the 60-minute wall at 09:31, still in this step — so the
+      # duplicate is what turned a SUCCESSFUL build into a `cancelled` run, and the APK it had
+      # already published looked like it came from a failed build.
+      #
+      # `BUILD-INFO-android.txt` is kept, and only that: it is a few hundred bytes, and having it in
+      # the run itself is what lets you see what a run produced without downloading an APK.
       - uses: actions/upload-artifact@v4
         with:
-          name: lmthing-android-${{ github.sha }}
-          path: sdk/org/apps/mobile/publish/*
+          name: lmthing-android-buildinfo-${{ github.sha }}
+          path: sdk/org/apps/mobile/publish/BUILD-INFO-android.txt
           if-no-files-found: error
           retention-days: 14

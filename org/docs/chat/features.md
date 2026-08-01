@@ -32,25 +32,26 @@ Because the gate has already confirmed the edge is serving, `ChatShell`'s boot f
 
 ### Boot and project selection
 
-`ChatShell` fetches `GET /api/projects`, stores them, and auto-selects the project with id `user` (else `projects[0]`), then applies/syncs the URL state (`ChatShell.tsx:21-36`). The sidebar repeats the same fetch + default-selection as a fallback (`sdk/org/libs/ui/src/chat/app/Sidebar.tsx:110-122`).
+`ChatShell` fetches `GET /api/projects`, stores them, and auto-selects the project with id `user` (else `projects[0]`), then applies/syncs the URL state (`ChatShell.tsx:21-36`). The sidebar repeats the same fetch + default-selection as a fallback (`sdk/org/libs/ui/src/chat/app/Sidebar.tsx:107-119`).
 
-### Sidebar — projects, spaces, conversations
+### Sidebar — projects, app pages, spaces, conversations
 
 `Sidebar` drives (all pod, same-origin):
 
 | Action | Endpoint | Code |
 |---|---|---|
-| list projects | `GET /api/projects` | `Sidebar.tsx:108` |
-| create project | `POST /api/projects {name}` | `Sidebar.tsx:133` |
-| delete project | `DELETE /api/projects/:id` | `Sidebar.tsx:141` |
+| list projects | `GET /api/projects` | `Sidebar.tsx:109` |
+| create project | `POST /api/projects {name}` | `Sidebar.tsx:150` |
+| delete project | `DELETE /api/projects/:id` | `Sidebar.tsx:158` |
 | conversation list | `GET /api/projects/:id/sessions` | `Sidebar.tsx:94` |
-| spaces list | `GET /api/projects/:id/spaces` | `Sidebar.tsx:99` |
-| per-token pricing | `GET /api/prices/azure` | `Sidebar.tsx:122` |
-| new chat | `POST /api/sessions {projectId}` | `Sidebar.tsx:148` |
-| resume chat | `POST /api/sessions {projectId, resumeSessionId}` | `Sidebar.tsx:157` |
-| delete chat | `DELETE /api/sessions/:id` | `Sidebar.tsx:163` |
+| spaces list | `GET /api/projects/:id/spaces` | `Sidebar.tsx:101` |
+| app pages (the `APP` section) | `GET /api/projects/:id/app` | `use-app-pages.ts#useAppPages` |
+| per-token pricing | `GET /api/prices/azure` | `Sidebar.tsx:123` |
+| new chat | `POST /api/sessions {projectId}` | `Sidebar.tsx:165` |
+| resume chat | `POST /api/sessions {projectId, resumeSessionId}` | `Sidebar.tsx:174` |
+| delete chat | `DELETE /api/sessions/:id` | `Sidebar.tsx:180` |
 
-Sessions are grouped Today / Yesterday / Last 7 days / Older by `lastActivity` (`Sidebar.tsx:56-72`) and each row shows its cost (`totalCostUsd`, or the live store cost for the active session) (`Sidebar.tsx:210-211`). Clicking a **space** navigates out to Studio (`crossAppOrigin('studio')` + `/studio/<projectId>/<spaceId>`, `Sidebar.tsx:179-182`). The footer is the shared `SidebarFooter` — cross-app links plus an account row that opens the global settings dialog (`Sidebar.tsx:243`; see [The shared settings dialog](#the-shared-settings-dialog-sidebar-footer) below).
+Sessions are grouped Today / Yesterday / Last 7 days / Older by `lastActivity` (`Sidebar.tsx:35-51`) and each row shows its cost (`totalCostUsd`, or the live store cost for the active session) (`Sidebar.tsx:222-223`). Clicking a **space** navigates out to Studio (`crossAppOrigin('studio')` + `/studio/<projectId>/<spaceId>`, `Sidebar.tsx:191-194`). The footer is the shared `SidebarFooter` — cross-app links plus an account row that opens the global settings dialog (`Sidebar.tsx:261`; see [The shared settings dialog](#the-shared-settings-dialog-sidebar-footer) below).
 
 Opening, switching and ending the live session is `sdk/org/libs/ui/src/chat/app/session-control.ts` — one module owns the socket, so the sidebar is not the only surface that can start a chat (the shell's no-session pane calls the same `startSession`, see [Mobile: the chat surface with no conversation open](../mobile/README.md#the-chat-surface-with-no-conversation-open)).
 
@@ -93,7 +94,7 @@ A **consent-marked** call (today `installSpace`, or any space function tagged `@
 
 ### Cost and budget
 
-Per-token pricing comes from `GET /api/prices/azure` (`Sidebar.tsx:122`); in-flight LLM cost is accumulated from `llm_request`/`llm_progress`/`llm_response` trace events in the session slice, and the header shows `sessionCostUsd + sessionCostInflight` (`ChatView.tsx:112`).
+Per-token pricing comes from `GET /api/prices/azure` (`Sidebar.tsx:123`); in-flight LLM cost is accumulated from `llm_request`/`llm_progress`/`llm_response` trace events in the session slice, and the header shows `sessionCostUsd + sessionCostInflight` (`ChatView.tsx:112`).
 
 `BudgetWindows` renders one muted line under the composer from same-origin `GET /api/budget` — Today / Week / Month remaining %, refreshed every 30 s and after every cost change; red under 15 % (`sdk/org/libs/ui/src/chat/app/BudgetWindows.tsx#POLL_MS,36-59,66-79`) → [../cli-api/rest/budget.md](../cli-api/rest/budget.md). A window at exactly **0 %** sets `store.budgetBlocked`, which hard-disables the composer (LiteLLM would 429 the turn anyway) (`BudgetWindows.tsx:29-34`, consumed at `ChatView.tsx:118-119` and `Composer.tsx:66`). The endpoint 404s off lmthing.cloud, and the line then renders nothing (`BudgetWindows.tsx:39-42`).
 
@@ -209,7 +210,7 @@ Pod (same-origin, `Bearer` from `@lmthing/auth`):
 | Endpoint | Feature | Doc |
 |---|---|---|
 | `GET`/`POST /api/projects`, `DELETE /api/projects/:id` | sidebar projects | [../cli-api/rest/projects.md](../cli-api/rest/projects.md) |
-| `GET /api/projects/:id/sessions` · `/spaces` · `/completions` · `/instructions` · `/documents` · `/integrations` | sidebar, settings drawer, composer | [../cli-api/rest/projects.md](../cli-api/rest/projects.md), [../cli-api/rest/store-spaces.md](../cli-api/rest/store-spaces.md) |
+| `GET /api/projects/:id/sessions` · `/spaces` · `/app` · `/completions` · `/instructions` · `/documents` · `/integrations` | sidebar, settings drawer, composer | [../cli-api/rest/projects.md](../cli-api/rest/projects.md), [../cli-api/rest/store-spaces.md](../cli-api/rest/store-spaces.md) |
 | `POST /api/sessions`, `DELETE /api/sessions/:id`, `WS /api/ws?sessionId=` | new/resume/delete chat, live stream | [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md) |
 | `POST /api/uploads`, `GET /api/uploads/:id` | attachments + voice | [../cli-api/rest/uploads.md](../cli-api/rest/uploads.md) |
 | `GET /api/prices/azure`, `GET /api/budget` | session cost, budget line | [../cli-api/rest/budget.md](../cli-api/rest/budget.md) |

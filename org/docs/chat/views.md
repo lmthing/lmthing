@@ -12,12 +12,11 @@ The `/chat` route itself is two files — a layout that mounts `PodEnsureGate` a
 |---|---|---|
 | `ChatShell` | `app/ChatShell.tsx` | Boot: `GET /api/projects`, default-select `user`, URL↔state, then `<AppShell/>` |
 | `AppShell` | `app/AppShell.tsx` | 3-pane layout: Sidebar ∣ ChatView ∣ DevPanel (+ ProjectSettings drawer) |
-| `Sidebar` | `app/Sidebar.tsx` | Projects, spaces, conversation list, new/resume/delete chat, footer |
-| `ChatView` | `app/ChatView.tsx` | Header (title) + grouped transcript + `AppPages` + `StatusLine` + `Composer` + bug dialog |
+| `Sidebar` | `app/Sidebar.tsx` | Projects, the app's pages, spaces, conversation list, new/resume/delete chat, footer |
+| `ChatView` | `app/ChatView.tsx` | Header (title) + grouped transcript + `StatusLine` + `Composer` + bug dialog |
 | `Message` / `AssistantTurn` | `app/Message.tsx` | One `ConvoBlock` (user / display / error / ask); assistant-turn grouping |
 | `Composer` | `app/Composer.tsx` | Textarea, `@` completions, attachments, voice, send, `BudgetWindows` |
 | `StatusLine` | `app/StatusLine.tsx` | The one live "currently doing" sentence, directly above the composer |
-| `AppPages` | `app/AppPages.tsx` | Links to the selected project's app pages, above the composer |
 | `ActivityStrip` | `app/ActivityStrip.tsx` | Sub-agent chips under an assistant turn / ask block |
 | `DevPanel` | `app/DevPanel.tsx` | Resizable aside: `ExecutionTree` + `Inspector` (+ `PlaybackBar` in replay) |
 | `ExecutionTree` / `Inspector` | `app/tree.tsx`, `app/inspector.tsx` | Node tree; per-node `llm`/`statements`/`yields`/`variables`/`raw` tabs |
@@ -47,17 +46,17 @@ The `/chat` route itself is two files — a layout that mounts `PodEnsureGate` a
 
 ## Sidebar
 
-Built on the shared `AppSidebar` element, it lists projects, the project's spaces, and the conversation list `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:246-271`. Conversations come from `GET /api/projects/:id/sessions` and are bucketed Today / Yesterday / Last 7 days / Older `sdk/org/libs/ui/src/chat/app/Sidebar.tsx#groupSessionsByRecency,183`, each row showing a relative time and per-chat cost (live store cost for the active row, persisted `totalCostUsd` otherwise) `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:199-224`. New chat → `POST /api/sessions {projectId}`; clicking a chat resumes it → `POST /api/sessions {projectId, resumeSessionId}` `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:148-161`. Both funnel through `switchSession`, which closes the old socket, `resetSession()`s the store and opens `WS /api/ws?sessionId=…&access_token=…` `sdk/org/libs/ui/src/chat/app/session-control.ts#switchSession`. Clicking a space navigates to Studio via `crossAppOrigin('studio')` `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:174-177`. Pricing for live cost comes from `GET /api/prices/azure` `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:121-123`.
+Built on the shared `AppSidebar` element, it lists projects, the pages of the project's app (when it has one — see [App pages of the selected project](#app-pages-of-the-selected-project)), the project's spaces, and the conversation list `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:264-291`. Conversations come from `GET /api/projects/:id/sessions` and are bucketed Today / Yesterday / Last 7 days / Older `sdk/org/libs/ui/src/chat/app/Sidebar.tsx#groupSessionsByRecency,200`, each row showing a relative time and per-chat cost (live store cost for the active row, persisted `totalCostUsd` otherwise) `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:216-241`. New chat → `POST /api/sessions {projectId}`; clicking a chat resumes it → `POST /api/sessions {projectId, resumeSessionId}` `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:165-178`. Both funnel through `switchSession`, which closes the old socket, `resetSession()`s the store and opens `WS /api/ws?sessionId=…&access_token=…` `sdk/org/libs/ui/src/chat/app/session-control.ts#switchSession`. Clicking a space navigates to Studio via `crossAppOrigin('studio')` `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:191-194`. Pricing for live cost comes from `GET /api/prices/azure` `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:122-124`.
 
 Endpoints: [../cli-api/rest/projects.md](../cli-api/rest/projects.md) · [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md).
 
-Each row's delete (×) control is always rendered — not revealed by a mouse hover — so a session can be deleted on touch and on the native app; it shrinks back to its original size once a mouse is available (`$md`) `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:223-234`.
+Each row's delete (×) control is always rendered — not revealed by a mouse hover — so a session can be deleted on touch and on the native app; it shrinks back to its original size once a mouse is available (`$md`) `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:240-252`.
 
 ## ChatView — the transcript
 
-Header: session title, live session cost (`sessionCostUsd + sessionCostInflight`), follow toggle, `ConnectionDot`, `TraceLoader`, Inspect, Report bug, theme toggle, and a restart button `sdk/org/libs/ui/src/chat/app/ChatView.tsx:218-295`. The title prefers the agent-set session title (from `setSessionMeta`, delivered as a `session_meta` trace event) and falls back to `<project|space> · <Agent>` `sdk/org/libs/ui/src/chat/app/ChatView.tsx:197-213`. So a new chat is never title-less, the store seeds `sessionTitle` from the **first user message** (whitespace-collapsed, capped 80 chars) the moment it is sent, as a client placeholder — set by `noteUserMessage` only while no title exists yet, and overridden by a later agent `session_meta` `sdk/org/libs/ui/src/chat/store/session-slice.ts:156`. The header holds the title and nothing live: the chat's **one** status sentence sits at the other end of the view, against the composer `sdk/org/libs/ui/src/chat/app/ChatView.tsx:360-370` (see [Sub-agent activity](#sub-agent-activity)) ([../runtime-globals/session-and-utils.md](../runtime-globals/session-and-utils.md)).
+Header: session title, live session cost (`sessionCostUsd + sessionCostInflight`), follow toggle, `ConnectionDot`, `TraceLoader`, Inspect, Report bug, theme toggle, and a restart button `sdk/org/libs/ui/src/chat/app/ChatView.tsx:217-294`. The title prefers the agent-set session title (from `setSessionMeta`, delivered as a `session_meta` trace event) and falls back to `<project|space> · <Agent>` `sdk/org/libs/ui/src/chat/app/ChatView.tsx:196-212`. So a new chat is never title-less, the store seeds `sessionTitle` from the **first user message** (whitespace-collapsed, capped 80 chars) the moment it is sent, as a client placeholder — set by `noteUserMessage` only while no title exists yet, and overridden by a later agent `session_meta` `sdk/org/libs/ui/src/chat/store/session-slice.ts:156`. The header holds the title and nothing live: the chat's **one** status sentence sits at the other end of the view, against the composer `sdk/org/libs/ui/src/chat/app/ChatView.tsx:368-371` (see [Sub-agent activity](#sub-agent-activity)) ([../runtime-globals/session-and-utils.md](../runtime-globals/session-and-utils.md)).
 
-Blocks are grouped before rendering: a run of non-user blocks becomes one `AssistantTurn` (with the set of contributing node ids), a user block flushes the run `sdk/org/libs/ui/src/chat/app/ChatView.tsx#groupBlocks,328-334`. An empty transcript renders `EmptyState` with four suggestion chips that send as ordinary messages `sdk/org/libs/ui/src/chat/app/ChatView.tsx:322-326` · `sdk/org/libs/ui/src/chat/app/EmptyState.tsx#SUGGESTIONS,29-41`.
+Blocks are grouped before rendering: a run of non-user blocks becomes one `AssistantTurn` (with the set of contributing node ids), a user block flushes the run `sdk/org/libs/ui/src/chat/app/ChatView.tsx#groupBlocks,339-344`. An empty transcript renders `EmptyState` with four suggestion chips that send as ordinary messages `sdk/org/libs/ui/src/chat/app/ChatView.tsx:333-337` · `sdk/org/libs/ui/src/chat/app/EmptyState.tsx#SUGGESTIONS,29-41`.
 
 `handleSend` refuses to send when `budgetBlocked`, then optimistically pushes a user block and emits `{type:'sendMessage', content, attachments?}` `sdk/org/libs/ui/src/chat/app/ChatView.tsx:161-167`. Restart POSTs `/api/restart`, polls `GET /api/env` every 800 ms until it answers, then reloads `sdk/org/libs/ui/src/chat/app/ChatView.tsx:180-193` ([../cli-api/rest/env.md](../cli-api/rest/env.md), [../cli-api/rest/misc.md](../cli-api/rest/misc.md)).
 
@@ -89,18 +88,24 @@ The indented, expandable box of in-flight work rows that used to sit above the c
 
 ## App pages of the selected project
 
-A project can also BE an application ([../app/](../app/README.md)). When the selected one is, `AppPages` lists its pages as links in a chip row above the composer — the chat already knows which project is selected, so it can say where the thing THING just built actually lives, instead of leaving Studio or a hand-typed URL as the only routes to it `sdk/org/libs/ui/src/chat/app/AppPages.tsx#AppPages`.
+A project can also BE an application ([../app/](../app/README.md)). When the selected one is, the sidebar grows an **`APP` section** listing its pages as links, above `Spaces` — the chat already knows which project is selected, so it can say where the thing THING just built actually lives, and open the *page* the reader wants rather than the index, instead of leaving Studio or a hand-typed URL as the only routes to it `sdk/org/libs/ui/src/elements/nav/app-sidebar/index.tsx#AppSidebarPage`.
 
-It reads the project's app manifest, `GET /api/projects/:projectId/app`, and renders nothing at all when that answers `hasApp:false`, when the app has no `pages/`, or when the pod cannot answer `sdk/org/libs/ui/src/chat/app/AppPages.tsx:57-92` ([../cli-api/rest/apps.md](../cli-api/rest/apps.md)).
+`Sidebar` resolves the list and hands the shared element ready-made rows (`routePath`, `label`, `href`); the element itself is presentational and renders **nothing at all** when the list is empty `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:137-148`. An absent section is the correct empty state: most projects are not applications, and a permanent "no app" row would be noise in the one place the reader scans for their conversations.
+
+The list comes from the project's app manifest, `GET /api/projects/:projectId/app`, and is empty when that answers `hasApp:false`, when the app has no `pages/`, or when the pod cannot answer `sdk/org/libs/ui/src/chat/app/use-app-pages.ts#useAppPages` ([../cli-api/rest/apps.md](../cli-api/rest/apps.md)).
 
 Two rules about what is listed:
 
-- **Only linkable routes.** A page whose route has a dynamic segment (`/trips/:tripId`) has no id to put in the URL, so it is dropped rather than shown dead `sdk/org/libs/ui/src/chat/app/AppPages.tsx#DYNAMIC_SEGMENT`. An app is reached through its index page anyway.
-- **The label is the full path**, title-cased (`/` → `Home`, `/settings/profile` → `Settings / Profile`) `sdk/org/libs/ui/src/chat/app/AppPages.tsx#pageLabel` — two pages can share a last segment, and a chip that cannot be told from its neighbour is a guess, not a link. Four chips, then `+N more`.
+- **Only linkable routes.** A page whose route has a dynamic segment (`/trips/:tripId`) has no id to put in the URL, so it is dropped rather than shown dead `sdk/org/libs/ui/src/chat/app/use-app-pages.ts#DYNAMIC_SEGMENT`. An app is reached through its index page anyway.
+- **The label is the full path**, title-cased (`/` → `Home`, `/settings/profile` → `Settings / Profile`) `sdk/org/libs/ui/src/chat/app/use-app-pages.ts#pageLabel` — two pages can share a last segment, and a row that cannot be told from its neighbour is a guess, not a link.
+
+Each row is a real anchor opening in a new tab (`Linking.openURL` on native — the `Link` primitive's own fork), because the app is served from another mount and opening it must not take the reader's live chat with it `sdk/org/libs/ui/src/elements/nav/app-sidebar/index.tsx:656-671`.
 
 The href is the pod's own app mount, `<origin>/app/<project>/<route>` — `origin` from `apiBase()` (empty on web, the host-supplied base on native and desktop), and the `/app/` prefix dropped only on production `lmthing.app`, which serves apps at the root `sdk/org/libs/ui/src/lib/app-urls.ts#projectAppUrl` ([../app/routes.md](../app/routes.md)).
 
-The list is refetched when a **turn finishes**, so an app the agent has just built appears without a reload — not on every `done` flip, since `done` also goes false on send and the manifest is not a free read `sdk/org/libs/ui/src/chat/app/AppPages.tsx#useAppPages`.
+The list is refetched when a **turn finishes**, so an app the agent has just built appears without a reload — not on every `done` flip, since `done` also goes false on send and the manifest is not a free read `sdk/org/libs/ui/src/chat/app/use-app-pages.ts:59-62`.
+
+> It used to be a chip row above the composer (`chat/app/AppPages.tsx`, deleted). Navigation belongs where the project's other navigable things already are — its spaces and its conversations — and the same links in two places on one screen is noise, not discoverability.
 
 ## DevPanel (Inspect)
 

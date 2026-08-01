@@ -578,6 +578,22 @@ Scenario users are disposable — provisioned state is cached under `scenarios/h
 - **Assert on the trace.** Both the unit harness and the scenario harness read
   `yield` / `yield_resolved` / `llm_request` events rather than rendered prose
   (`sdk/org/libs/core/src/testing/harness-features.test.ts:L217-L220`).
+- **Never sleep for something you can poll for.** A `setTimeout` that waits out an async effect
+  measures the MACHINE, not the code — it holds on an idle laptop and fails in a 252-file run where
+  every core is busy. Three tests in this suite were that, and all three failed as something that
+  looks exactly like a product bug:
+
+  | file | the sleep | what it read instead |
+  |---|---|---|
+  | `sdk/org/libs/cli/src/server/session-manager.spaceref.test.ts#sendAndSettle` | 30 ms for a fire-and-forget `persistSession` | `snapshot.json` absent → `expected false to be true` |
+  | `sdk/org/libs/cli/src/app/hooks/runtime.test.ts:L171-L179` | 400 ms for a real `worker_thread` to boot and emit | `['raw-sub']` instead of both hooks — the SYNCHRONOUS drain always lands, the worker one is a race |
+  | `sdk/org/scenarios/harness/lib/team-thread.test.mjs:L67-L96` | a 40 ms probe against `askGraceMs: 60` | the reply reclassified as a QUESTION, so `text` came back `''` with `status:'done'` |
+
+  The first two now poll a predicate the caller supplies (`sendAndSettle`'s `persisted`) or a
+  condition on the collected results; the third raises the grace window out of the race rather than
+  timing against it. **A flaky test is a dead gate** — nobody reads a suite that fails at random, and
+  its randomness is what hid the real ESLint findings in [§3](#the-eslint-config-and-the-family-of-checks-it-silently-was-not-running)
+  for as long as it did.
 - **`sdk/org/CLAUDE.md` rule:** *"Always test every fix. No fix is done until a test would have
   caught it."*
 

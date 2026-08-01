@@ -152,6 +152,23 @@ targets honour it.
   (`sdk/org/libs/ui/src/theme/tamagui.config.ts#buildColorTokens`). In light mode that is accidentally
   right; in dark mode it painted light-mode ink on a near-black ground. `NativeText` now defaults
   `color: '$foreground'`.
+- **A `View` has no text colour to inherit FROM, so a label must be handed its own.** The general
+  form of the two entries above. A container that styles its text — a `Button` naming
+  `color: '$primary-foreground'`, a menu row naming `$accent-foreground` — is a `Pressable` on
+  native, which is an RN `View`; those declarations are dropped there, and `NativeText`'s
+  unconditional defaults then supply BODY ink to the label. Every primary `Button` in the app
+  rendered `$foreground` on a `$primary` fill: **1.4:1 in light, 2.2:1 in dark**, i.e. an unreadable
+  label on the main call to action, in both themes, since the primitives were forked. `labelled()`
+  takes the values explicitly (`sdk/org/libs/ui/src/elements/primitives/labelled.tsx#labelled`) and
+  `Button` passes them (`sdk/org/libs/ui/src/elements/forms/button/index.tsx#Button`).
+  An absent value must be OMITTED, not forwarded as `undefined` — Tamagui treats a passed `undefined`
+  as an override, so `{ color: undefined }` clobbers the default and reintroduces the bug on exactly
+  the variants that style nothing (`ghost`, `outline`).
+- **A `TextInput` inks what you type with the platform's near-black**, consulting no theme. In dark
+  mode the login field held the address you had just typed and looked empty — and the placeholder
+  stayed visible, because RN greys that one by default, so the field read as refusing input rather
+  than as a colour bug. `NativeTextInput` now names both
+  (`sdk/org/libs/ui/src/elements/primitives/controls.native.tsx`).
 - **Icons** — `lucide-react` emits raw DOM `<svg>`/`<path>`, which React Native
   has no host component for; `@tamagui/lucide-icons-2` draws the same glyphs
   through `react-native-svg`, which in turn drags React Native into a web bundle.

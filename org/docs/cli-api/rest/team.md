@@ -481,6 +481,19 @@ tracer's `activity` events (every `setActivity()` the agent makes)
 for minutes; with nothing on screen a reader cannot tell it apart from a hang.
 The thread shows it beside THING's name and clears it on `done`/`error`.
 
+Where it shows is load-bearing: **pinned above the thread composer, outside the
+scrolling transcript**
+`sdk/org/libs/ui/src/team/channels-view.tsx#ThreadRail` — the same place the
+channel puts its own `TypingStrip`, and for the same reason. As the last child of
+the `Scroll` it was off screen for a reader who had scrolled up to reread the
+question, which on a long thread is exactly when a minutes-long build is the only
+thing happening. A turn in flight is live state, not transcript.
+
+It is also its own sentence rather than a name with a step folded into it
+`sdk/org/libs/ui/src/team/messages.tsx#AgentActivityStrip`: reusing the typing
+strip rendered "THING — Building the pages is typing…", the one place the label
+is not a person and the one verb that is wrong for it.
+
 Every `running`/`waiting` frame also carries **`startedAt`**, so elapsed time is
 renderable at all — without it a client can only time a turn from whichever frame
 it happened to receive.

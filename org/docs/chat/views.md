@@ -13,10 +13,11 @@ The `/chat` route itself is two files — a layout that mounts `PodEnsureGate` a
 | `ChatShell` | `app/ChatShell.tsx` | Boot: `GET /api/projects`, default-select `user`, URL↔state, then `<AppShell/>` |
 | `AppShell` | `app/AppShell.tsx` | 3-pane layout: Sidebar ∣ ChatView ∣ DevPanel (+ ProjectSettings drawer) |
 | `Sidebar` | `app/Sidebar.tsx` | Projects, spaces, conversation list, new/resume/delete chat, footer |
-| `ChatView` | `app/ChatView.tsx` | Header (title + `StatusLine`) + grouped transcript + `Composer` + bug dialog |
+| `ChatView` | `app/ChatView.tsx` | Header (title) + grouped transcript + `AppPages` + `StatusLine` + `Composer` + bug dialog |
 | `Message` / `AssistantTurn` | `app/Message.tsx` | One `ConvoBlock` (user / display / error / ask); assistant-turn grouping |
 | `Composer` | `app/Composer.tsx` | Textarea, `@` completions, attachments, voice, send, `BudgetWindows` |
-| `StatusLine` | `app/StatusLine.tsx` | The one live "currently doing" sentence, under the conversation title |
+| `StatusLine` | `app/StatusLine.tsx` | The one live "currently doing" sentence, directly above the composer |
+| `AppPages` | `app/AppPages.tsx` | Links to the selected project's app pages, above the composer |
 | `ActivityStrip` | `app/ActivityStrip.tsx` | Sub-agent chips under an assistant turn / ask block |
 | `DevPanel` | `app/DevPanel.tsx` | Resizable aside: `ExecutionTree` + `Inspector` (+ `PlaybackBar` in replay) |
 | `ExecutionTree` / `Inspector` | `app/tree.tsx`, `app/inspector.tsx` | Node tree; per-node `llm`/`statements`/`yields`/`variables`/`raw` tabs |
@@ -54,17 +55,17 @@ Each row's delete (×) control is always rendered — not revealed by a mouse ho
 
 ## ChatView — the transcript
 
-Header: session title, live session cost (`sessionCostUsd + sessionCostInflight`), follow toggle, `ConnectionDot`, `TraceLoader`, Inspect, Report bug, theme toggle, and a restart button `sdk/org/libs/ui/src/chat/app/ChatView.tsx:213-294`. The title prefers the agent-set session title (from `setSessionMeta`, delivered as a `session_meta` trace event) and falls back to `<project|space> · <Agent>` `sdk/org/libs/ui/src/chat/app/ChatView.tsx:197-212`. So a new chat is never title-less, the store seeds `sessionTitle` from the **first user message** (whitespace-collapsed, capped 80 chars) the moment it is sent, as a client placeholder — set by `noteUserMessage` only while no title exists yet, and overridden by a later agent `session_meta` `sdk/org/libs/ui/src/chat/store/session-slice.ts:156`. Directly under the title sits the chat's **one** live status sentence, `StatusLine` `sdk/org/libs/ui/src/chat/app/ChatView.tsx:221-225` (see [Sub-agent activity](#sub-agent-activity)) ([../runtime-globals/session-and-utils.md](../runtime-globals/session-and-utils.md)).
+Header: session title, live session cost (`sessionCostUsd + sessionCostInflight`), follow toggle, `ConnectionDot`, `TraceLoader`, Inspect, Report bug, theme toggle, and a restart button `sdk/org/libs/ui/src/chat/app/ChatView.tsx:218-295`. The title prefers the agent-set session title (from `setSessionMeta`, delivered as a `session_meta` trace event) and falls back to `<project|space> · <Agent>` `sdk/org/libs/ui/src/chat/app/ChatView.tsx:197-213`. So a new chat is never title-less, the store seeds `sessionTitle` from the **first user message** (whitespace-collapsed, capped 80 chars) the moment it is sent, as a client placeholder — set by `noteUserMessage` only while no title exists yet, and overridden by a later agent `session_meta` `sdk/org/libs/ui/src/chat/store/session-slice.ts:156`. The header holds the title and nothing live: the chat's **one** status sentence sits at the other end of the view, against the composer `sdk/org/libs/ui/src/chat/app/ChatView.tsx:360-370` (see [Sub-agent activity](#sub-agent-activity)) ([../runtime-globals/session-and-utils.md](../runtime-globals/session-and-utils.md)).
 
-Blocks are grouped before rendering: a run of non-user blocks becomes one `AssistantTurn` (with the set of contributing node ids), a user block flushes the run `sdk/org/libs/ui/src/chat/app/ChatView.tsx#groupBlocks,325-331`. An empty transcript renders `EmptyState` with four suggestion chips that send as ordinary messages `sdk/org/libs/ui/src/chat/app/ChatView.tsx:319-323` · `sdk/org/libs/ui/src/chat/app/EmptyState.tsx#SUGGESTIONS,29-41`.
+Blocks are grouped before rendering: a run of non-user blocks becomes one `AssistantTurn` (with the set of contributing node ids), a user block flushes the run `sdk/org/libs/ui/src/chat/app/ChatView.tsx#groupBlocks,328-334`. An empty transcript renders `EmptyState` with four suggestion chips that send as ordinary messages `sdk/org/libs/ui/src/chat/app/ChatView.tsx:322-326` · `sdk/org/libs/ui/src/chat/app/EmptyState.tsx#SUGGESTIONS,29-41`.
 
-`handleSend` refuses to send when `budgetBlocked`, then optimistically pushes a user block and emits `{type:'sendMessage', content, attachments?}` `sdk/org/libs/ui/src/chat/app/ChatView.tsx:160-166`. Restart POSTs `/api/restart`, polls `GET /api/env` every 800 ms until it answers, then reloads `sdk/org/libs/ui/src/chat/app/ChatView.tsx:179-192` ([../cli-api/rest/env.md](../cli-api/rest/env.md), [../cli-api/rest/misc.md](../cli-api/rest/misc.md)).
+`handleSend` refuses to send when `budgetBlocked`, then optimistically pushes a user block and emits `{type:'sendMessage', content, attachments?}` `sdk/org/libs/ui/src/chat/app/ChatView.tsx:161-167`. Restart POSTs `/api/restart`, polls `GET /api/env` every 800 ms until it answers, then reloads `sdk/org/libs/ui/src/chat/app/ChatView.tsx:180-193` ([../cli-api/rest/env.md](../cli-api/rest/env.md), [../cli-api/rest/misc.md](../cli-api/rest/misc.md)).
 
-`Composer` is keyed on `activeSessionId` `sdk/org/libs/ui/src/chat/app/ChatView.tsx:356`, so switching sessions remounts it fresh — its draft (`text`/attachments/recording/the `@` dropdown) is local state that nothing otherwise resets when `switchSession` swaps the socket, so without the key a draft typed in one chat stayed in the box after switching to another.
+`Composer` is keyed on `activeSessionId` `sdk/org/libs/ui/src/chat/app/ChatView.tsx:380`, so switching sessions remounts it fresh — its draft (`text`/attachments/recording/the `@` dropdown) is local state that nothing otherwise resets when `switchSession` swaps the socket, so without the key a draft typed in one chat stayed in the box after switching to another.
 
-The transcript is a `Prim.Scroll`, a real scrolling region on both targets (not a `Box` with CSS overflow, which Yoga does not support), and follows new output via its `stickToEnd` prop — gated on `follow && atBottom` so it does not yank a reader who has scrolled up back to the bottom — rather than an effect calling the DOM-only `scrollIntoView` `sdk/org/libs/ui/src/chat/app/ChatView.tsx:297-310`. `groupBlocks` is memoized against the block array and its length so a long session does not re-group (and every finished message re-parse its markdown) on every streamed token `sdk/org/libs/ui/src/chat/app/ChatView.tsx#ChatView`.
+The transcript is a `Prim.Scroll`, a real scrolling region on both targets (not a `Box` with CSS overflow, which Yoga does not support), and follows new output via its `stickToEnd` prop — gated on `follow && atBottom` so it does not yank a reader who has scrolled up back to the bottom — rather than an effect calling the DOM-only `scrollIntoView` `sdk/org/libs/ui/src/chat/app/ChatView.tsx:300-313`. `groupBlocks` is memoized against the block array and its length so a long session does not re-group (and every finished message re-parse its markdown) on every streamed token `sdk/org/libs/ui/src/chat/app/ChatView.tsx#ChatView`.
 
-The connection indicator (`ConnectionDot` — a coloured glyph plus `live`/`connecting`/`replay` label) always renders, even on a phone where the rest of the header's workbench controls (follow toggle, trace loader, Inspect, bug report, restart) are hidden below the `md` breakpoint — otherwise a dropped socket on a phone looked identical to the app simply being stuck, with nothing to explain why `sdk/org/libs/ui/src/chat/app/ChatView.tsx#ConnectionDot,232-236`.
+The connection indicator (`ConnectionDot` — a coloured glyph plus `live`/`connecting`/`replay` label) always renders, even on a phone where the rest of the header's workbench controls (follow toggle, trace loader, Inspect, bug report, restart) are hidden below the `md` breakpoint — otherwise a dropped socket on a phone looked identical to the app simply being stuck, with nothing to explain why `sdk/org/libs/ui/src/chat/app/ChatView.tsx#ConnectionDot,230-234`.
 
 ## Composer
 
@@ -76,13 +77,30 @@ The `@` completion dropdown is selectable on tap as well as by keyboard — `onC
 
 ## Sub-agent activity
 
-The chat surfaces delegation as **one sentence, not a tree**. `StatusLine` renders a single line under the conversation title: a pulsing dot plus the current "currently doing" text, truncated to one line, and `null` when there is nothing to say `sdk/org/libs/ui/src/chat/app/StatusLine.tsx#StatusLine`. It is **ephemeral** — it reads `model.nodes` and the store's session `activity` and writes nothing into `model.blocks`, so the transcript is untouched.
+The chat surfaces delegation as **one sentence, not a tree**. `StatusLine` renders a single line **directly above the message input**: a pulsing dot plus the current "currently doing" text, truncated to one line, and `null` when there is nothing to say `sdk/org/libs/ui/src/chat/app/StatusLine.tsx#StatusLine`. It is **ephemeral** — it reads `model.nodes` and the store's session `activity` and writes nothing into `model.blocks`, so the transcript is untouched.
+
+It sits against the composer rather than under the conversation title `sdk/org/libs/ui/src/chat/app/ChatView.tsx:368-370`, because that is where the reader already is: the title is glanced at once when the chat opens, while the eye stays between the newest message and the box it is about to type in. A sentence that changes every few seconds twenty lines above that is a sentence nobody reads, and on a phone the header can be scrolled past entirely. It is deliberately **outside** the transcript's `Prim.Scroll`, so it never scrolls away with the conversation — live state, not transcript.
 
 What the sentence says, in order: a **running sub-agent** wins over THING's own line (while a delegate runs THING is suspended, so its last `setActivity` is stale), otherwise the store's session-scope `activity` `sdk/org/libs/ui/src/chat/app/StatusLine.tsx:31`. Of the in-flight fork/delegate/tasklist/task nodes, the one shown is the most recently started **running** node, preferred over a merely queued one `sdk/org/libs/ui/src/chat/app/node-meta.ts#currentWorkNode`. Its text is that sub-agent's own explicit `setActivity()` (`node.activity`), else the leading `// comment` narration of its newest statement, else its label `sdk/org/libs/ui/src/chat/app/node-meta.ts#currentWorkSentence` · `sdk/org/libs/ui/src/chat/app/node-meta.ts#narrationOf`. Because a delegate's statements are attributed to its inner `run` child, "what is this doing now?" is computed over the whole **subtree**, not the node `sdk/org/libs/ui/src/chat/app/node-meta.ts#latestSubtreeStatement`.
 
 The indented, expandable box of in-flight work rows that used to sit above the composer (`LiveActivity` + `WorkBlock`) is **gone**: on a phone it was a scrolling wall of rows competing with the transcript, and its only affordances opened the DevPanel, which is desktop-only. The full execution tree is unchanged in the model and still rendered by `ExecutionTree` in the DevPanel.
 
 `ActivityStrip` is the persistent counterpart: chips (max 3, then "+N more") under an assistant turn or ask block; clicking a chip selects the node and opens the DevPanel `sdk/org/libs/ui/src/chat/app/ActivityStrip.tsx#ActivityStrip`.
+
+## App pages of the selected project
+
+A project can also BE an application ([../app/](../app/README.md)). When the selected one is, `AppPages` lists its pages as links in a chip row above the composer — the chat already knows which project is selected, so it can say where the thing THING just built actually lives, instead of leaving Studio or a hand-typed URL as the only routes to it `sdk/org/libs/ui/src/chat/app/AppPages.tsx#AppPages`.
+
+It reads the project's app manifest, `GET /api/projects/:projectId/app`, and renders nothing at all when that answers `hasApp:false`, when the app has no `pages/`, or when the pod cannot answer `sdk/org/libs/ui/src/chat/app/AppPages.tsx:57-92` ([../cli-api/rest/apps.md](../cli-api/rest/apps.md)).
+
+Two rules about what is listed:
+
+- **Only linkable routes.** A page whose route has a dynamic segment (`/trips/:tripId`) has no id to put in the URL, so it is dropped rather than shown dead `sdk/org/libs/ui/src/chat/app/AppPages.tsx#DYNAMIC_SEGMENT`. An app is reached through its index page anyway.
+- **The label is the full path**, title-cased (`/` → `Home`, `/settings/profile` → `Settings / Profile`) `sdk/org/libs/ui/src/chat/app/AppPages.tsx#pageLabel` — two pages can share a last segment, and a chip that cannot be told from its neighbour is a guess, not a link. Four chips, then `+N more`.
+
+The href is the pod's own app mount, `<origin>/app/<project>/<route>` — `origin` from `apiBase()` (empty on web, the host-supplied base on native and desktop), and the `/app/` prefix dropped only on production `lmthing.app`, which serves apps at the root `sdk/org/libs/ui/src/lib/app-urls.ts#projectAppUrl` ([../app/routes.md](../app/routes.md)).
+
+The list is refetched when a **turn finishes**, so an app the agent has just built appears without a reload — not on every `done` flip, since `done` also goes false on send and the manifest is not a free read `sdk/org/libs/ui/src/chat/app/AppPages.tsx#useAppPages`.
 
 ## DevPanel (Inspect)
 

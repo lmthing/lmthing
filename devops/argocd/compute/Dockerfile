@@ -118,7 +118,10 @@ RUN apt-get update && apt-get install -y git ca-certificates curl && rm -rf /var
 # the lite binary would fail at the flag with an error about an unknown argument rather than
 # anything that points at the cause.
 #
-# `-gnu` rather than `-musl` because the base image is Debian (node:24-slim).
+# `-musl`, not `-gnu`: v1.7.2's `-gnu` asset is linked against GLIBC_2.38/2.39, which does not
+# exist on this base image (node:24-slim is Debian bookworm, glibc 2.36) — `zerostack --version`
+# below fails with "version `GLIBC_2.38' not found". The `-musl` asset is a static-pie binary with
+# no dynamic glibc dependency at all, so it runs unchanged on bookworm (or anything else).
 #
 # Pinned to an exact version, not `latest`: this binary executes model-authored code against the
 # person's entire data directory, so a silent upstream change in behaviour or permission handling
@@ -131,11 +134,13 @@ RUN set -eux; \
       arm64) zs_arch=aarch64 ;; \
       *) echo "FATAL: no zerostack release for TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
-    asset="zerostack-${zs_arch}-unknown-linux-gnu.tar.gz"; \
+    asset="zerostack-${zs_arch}-unknown-linux-musl.tar.gz"; \
     curl -fsSL -o /tmp/zs.tar.gz \
       "https://github.com/gi-dellav/zerostack/releases/download/${ZEROSTACK_VERSION}/${asset}"; \
     tar -xzf /tmp/zs.tar.gz -C /tmp; \
-    install -m 0755 "$(find /tmp -name zerostack -type f | head -1)" /usr/local/bin/zerostack; \
+    # The musl release's binary inside the tarball is arch-suffixed
+    # (zerostack-x86_64-unknown-linux-musl), unlike the gnu one (plain zerostack) — match either.
+    install -m 0755 "$(find /tmp -maxdepth 1 -name 'zerostack*' -type f | head -1)" /usr/local/bin/zerostack; \
     rm -rf /tmp/zs.tar.gz /tmp/zerostack*; \
     # Fail the BUILD rather than ship an image whose zerostack is broken — otherwise the fault
     # surfaces only when a user asks for the one feature that needs it, deep inside a pod.

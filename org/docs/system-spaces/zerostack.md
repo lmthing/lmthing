@@ -148,7 +148,7 @@ The compute image downloads a pinned release into `/usr/local/bin/zerostack` (`d
 Two constraints on the asset choice:
 
 - **The full build, not `zerostack-lite-*`.** Upstream builds the full asset with `--all-features` and the lite one with `--no-default-features`, which drops `loop`, `mcp`, `subagents` and `git-worktree`. `zerostackLoop` drives `--loop`, so the lite binary would fail at an unknown-argument error that points nowhere near the cause.
-- **`-gnu`, not `-musl`**, because the base image is Debian (`node:24-slim`).
+- **`-musl`, not `-gnu`.** The `-gnu` asset for v1.7.2 links against `GLIBC_2.38`/`2.39`, which does not exist on the base image (`node:24-slim` is Debian bookworm, glibc 2.36) — `zerostack --version` fails at the build step with a "version `GLIBC_2.38' not found" error. `-musl` is a static-pie binary with no dynamic glibc dependency, so it runs unchanged on bookworm. Its binary inside the tarball is also arch-suffixed (`zerostack-x86_64-unknown-linux-musl`) rather than plain `zerostack` like the gnu asset, which the extraction step's `find` pattern has to match too.
 
 The version is pinned exactly rather than tracking `latest`: this binary executes model-authored code against the person's entire data directory, so a silent upstream change in behaviour or permission handling is not something to inherit on the next unrelated image rebuild.
 

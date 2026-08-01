@@ -182,6 +182,55 @@ is the design-token lint (`.github/workflows/design-tokens.yml`, see
 [`README.md`](./README.md#hard-gates-ci-will-fail-you)). **Running the suite before you push is on
 you.**
 
+### The ESLint config, and the family of checks it silently was not running
+
+One shared flat config, `sdk/org/libs/config/eslint/index.js`, re-exported by
+`sdk/org/eslint.config.js`. Two things about it are worth knowing, because both were invisible while
+wrong.
+
+**`eslint-plugin-react-hooks` was a declared dependency that the config never registered.** It sat in
+`@lmthing/config`'s `dependencies` and appeared in no `plugins` block, so **`rules-of-hooks` had never
+run anywhere in this monorepo**. The only symptom pointed the wrong way: source files carrying
+`// eslint-disable-next-line react-hooks/exhaustive-deps` failed lint with "Definition for rule was
+not found", which reads like a typo in the comment rather than like a whole family of checks being
+absent. Registering it reported, as errors:
+
+- `sdk/org/libs/ui/src/chat/app/Composer.tsx` — an early `return` for replay mode above four hook
+  calls, so the hook COUNT depended on a prop. React matches hook state positionally; that is
+  "Rendered fewer hooks than expected", or silently reading another hook's state.
+- `sdk/org/apps/web/src/lib/gates.tsx#PodEnsureGate` — the same shape above eleven hooks, in the gate
+  that fronts every surface. Latent rather than live: it is stable only because `isPodEmbedded()` and
+  `isLocalRun()` read deployment facts that never change within a session.
+- `sdk/org/libs/state/src/hooks/useDraft.ts#useDraftMutations` — `save` did
+  `await import('./fs/useAppFS')` and then CALLED the hook, inside a plain async callback. Hooks read
+  the fibre that is currently rendering, and a resolved click handler has none.
+
+`exhaustive-deps` stays at the plugin's own `warn` (~47 of them, several deliberate and annotated).
+
+**The `eslint-recommended` overrides layer was missing**, and had been approximated by hand: the
+config turned off `no-undef` and `no-unused-vars`, which are two of the ~23 base rules
+`@typescript-eslint` provides that layer to switch off on TypeScript. The other twenty-one were left
+firing. `no-redeclare` is the one that bit — it reported
+`sdk/org/libs/ui/src/studio/workflow/workflow-card` for importing the TYPE `TasklistListItem` and
+exporting a FUNCTION of the same name, which is legal (separate declaration spaces) and which `tsc`
+is silent about. Note the layer is not only subtractive: it also ENABLES `prefer-const`, whose default
+is too strict for the declare-`let`, define-a-closure, assign-once pattern — hence
+`ignoreReadBeforeAssign`.
+
+Two more things the same pass surfaced, both from rules that had always been enabled and whose
+findings nobody had read:
+
+- `sdk/org/libs/ui/scripts/bem-sweep.mjs` used `unlinkSync` and never imported it, so the one branch
+  that deletes an emptied stylesheet threw instead. Unreportable until now: plain `.js`/`.mjs` matched
+  no globals block, so a script could not be linted against its own environment.
+- `sdk/org/libs/core/src/fork/fork.ts#ForkEngine` runs its fork inside an `async` Promise executor. A
+  throw there does not reject — it leaves the promise **unsettled**, which for a fork is a HANG, not
+  an error. `new Budget(...)` was the one throwable statement above the `try`, and is now inside it.
+
+`import/order` and `jsx-a11y/*` are **not enforced**: those plugins are not dependencies, and the
+`eslint-disable` comments naming them in `libs/ui` are dead references. Adding them is an open
+decision, not an oversight to fix silently.
+
 ---
 
 ## 4. The mock-LLM harness (keyless testing)

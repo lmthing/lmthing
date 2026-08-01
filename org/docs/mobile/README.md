@@ -93,6 +93,17 @@ targets honour it.
   `DropdownItem`, the context-menu `Item` and `ListItem` all had the bug and only
   `Button` had a (private) fix. The gate mounts every such leaf with a bare
   string: `sdk/org/libs/ui/metro/suites/string-children.tsx`.
+
+  A render suite can only cover a leaf someone thought to add to it, and this
+  bug's whole character is that it is written by accident in a file nobody
+  associates with mobile. So the class is also closed STATICALLY, over every
+  `.tsx` in the package rather than over a list:
+  `sdk/org/libs/ui/scripts/lint-rn-text-children.mjs` (`pnpm lint:rn-text`, and
+  part of `pnpm lint`) parses each file and reports a non-whitespace string,
+  number, template or string-valued `?:` sitting directly inside a non-text
+  primitive. It found **64 of them across 25 files** on the tree it was written
+  against — the shared chat composer, the studio sidebar, every settings view,
+  the workflow editor — and walks 229 files to report zero now.
 - **`asChild` must still be measurable.** The native `Dropdown` anchors its panel
   by measuring the trigger, and the `asChild` branch cloned the caller's element
   with the handler but no ref — most callers pass a `Button`, a plain function
@@ -506,6 +517,16 @@ The limits are as important as the coverage:
   invariant themselves, walking the mounted tree for strings outside a text host
   (`sdk/org/libs/ui/metro/suites/chat-shell.tsx`,
   `sdk/org/libs/ui/metro/suites/nav.tsx`).
+
+  A suite can only assert this over a tree someone mounted, and the whole
+  package's surfaces are not mounted. So the coverage for this one class is
+  **static and total** rather than sampled —
+  `sdk/org/libs/ui/scripts/lint-rn-text-children.mjs` reads all 229 files. Its
+  limit in turn is that it is syntax-only: `{tab.label}` handed to a `Box` is the
+  identical bug and no AST can tell it from `{icon}`, so that half stays a
+  reading job (the script's own header names the two it found that way).
+  The fixes it drove are guarded against re-breaking by
+  `sdk/org/libs/ui/metro/suites/text-children-fixes.tsx`.
 - **A jsdom test cannot see the native target** — `isWeb` is always true there,
   and importing `./x.native` by path is not what Metro does.
 - **Style values that Android casts to a `Double`** (`lineHeight`,

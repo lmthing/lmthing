@@ -164,6 +164,23 @@ targets honour it.
   An absent value must be OMITTED, not forwarded as `undefined` — Tamagui treats a passed `undefined`
   as an override, so `{ color: undefined }` clobbers the default and reintroduces the bug on exactly
   the variants that style nothing (`ghost`, `outline`).
+
+  The rest of the package was swept for the same shape: the leaf restates what its container set,
+  which is what `Button` does, and no context was introduced because those sites are one-off literal
+  JSX rather than generic children. Fixed in `chat/app/{Message,tree,ChatView,inspector,replay,
+  BugReportDialog,IntegrationsTab}`, `chat/components/{render-descriptor,ConsentCard,VariablesBlock}`,
+  `chat/components/ui/{Dialog,Drawer}` and `computer/network-panel`. Guards, asserting the resolved
+  style of the LEAF node in both themes, live in `sdk/org/libs/ui/metro/suites/text-styling.tsx`.
+  `DropdownItem`/`ContextMenuItem` pass no styling down and are deliberately left: their
+  `color: '$foreground'` is byte-identical to `NativeText`'s own default, so nothing is observable
+  today — fragile if that ever diverges, not a bug now.
+
+  **One instance of this was broken on WEB as well**, which is worth knowing because it breaks the
+  rule of thumb that these are native-only. `ListItem`'s `selected` put its `color`/`fontWeight` on
+  the row while the label hardcoded `color="$foreground"` — and an explicit prop on the label beats
+  whatever its parent resolves to, on either target. So a selected row changed its fill and never its
+  text, everywhere. The row's effective label styling is now computed once
+  (`sdk/org/libs/ui/src/elements/content/list-item/index.tsx#ListItem`).
 - **A `TextInput` inks what you type with the platform's near-black**, consulting no theme. In dark
   mode the login field held the address you had just typed and looked empty — and the placeholder
   stayed visible, because RN greys that one by default, so the field read as refusing input rather

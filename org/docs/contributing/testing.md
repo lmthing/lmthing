@@ -588,10 +588,14 @@ Scenario users are disposable — provisioned state is cached under `scenarios/h
   | `sdk/org/libs/cli/src/server/session-manager.spaceref.test.ts#sendAndSettle` | 30 ms for a fire-and-forget `persistSession` | `snapshot.json` absent → `expected false to be true` |
   | `sdk/org/libs/cli/src/app/hooks/runtime.test.ts:L171-L179` | 400 ms for a real `worker_thread` to boot and emit | `['raw-sub']` instead of both hooks — the SYNCHRONOUS drain always lands, the worker one is a race |
   | `sdk/org/scenarios/harness/lib/team-thread.test.mjs:L67-L96` | a 40 ms probe against `askGraceMs: 60` | the reply reclassified as a QUESTION, so `text` came back `''` with `status:'done'` |
+  | `sdk/org/libs/core/src/fork/fork.test.ts:L330-L361` | 15 ms for the second fork to overlap the first | `expected 2, got 1` — "the cap serialized forks it should have run in parallel" |
 
   The first two now poll a predicate the caller supplies (`sendAndSettle`'s `persisted`) or a
   condition on the collected results; the third raises the grace window out of the race rather than
-  timing against it. **A flaky test is a dead gate** — nobody reads a suite that fails at random, and
+  timing against it; the fourth waits on the OTHER FORK (`active === 2`) instead of on a clock, which
+  makes the pass condition the thing being tested. Its `cap = 1` sibling then relies on that barrier
+  being UNREACHABLE, and detects a broken cap within a few ms regardless of the bound — only the cost
+  of the passing case depends on the timeout at all. **A flaky test is a dead gate** — nobody reads a suite that fails at random, and
   its randomness is what hid the real ESLint findings in [§3](#the-eslint-config-and-the-family-of-checks-it-silently-was-not-running)
   for as long as it did.
 - **`sdk/org/CLAUDE.md` rule:** *"Always test every fix. No fix is done until a test would have

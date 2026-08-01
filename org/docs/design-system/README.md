@@ -196,13 +196,13 @@ modes (`tokens.json` `$meta`, `spectrum.description`).
 
 ## Related conventions (grounded)
 
-- **Full-spectrum rotation** — spread the cozy rainbow across repeated UI (avatars, sidebar
+- **Full-spectrum rotation** — spread the section ramp across repeated UI (avatars, sidebar
   sections, tabs) with `@lmthing/ui/lib/spectrum`: `spectrumVar(i)`/`brandVar(i)` return
   `var(--spectrum-N)`/`var(--brand-N)` (cycling), and `spectrumColor(key)`/`brandColor(key)`
   pick a stable color from a string hash (`sdk/org/libs/ui/src/lib/spectrum.ts`). Never
   hand-pick a hex for rotation.
 - **THING wordmark is multi-color** — render with `CozyThingText`; it emits one `<span>` per
-  letter, each carrying its own brand class (`cozy-text--brand-1` … `--brand-5` for t/h/i/n/g,
+  letter, each carrying its own frozen logo colour (`$logo-1` … `$logo-5` for t/h/i/n/g,
   with `lm` on the neutral class), never a single solid color
   (`sdk/org/libs/ui/src/elements/branding/cozy-text/index.tsx:9-37`). The five brand tokens are
   authored as exactly that — "THING letter 't' — yellow (sunflower)", … "letter 'g' — orchid"

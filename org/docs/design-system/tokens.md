@@ -57,20 +57,34 @@ Colors are authored as an ordered array in `tokens.json` `colors`, each `{ name,
 
 | Group | Tokens | Role |
 |---|---|---|
-| `brand` | `brand-1`…`brand-5` | THING wordmark letters t/h/i/n/g — yellow→amber→coral→rose→orchid; **identical in light & dark** (`tokens.json:31-35`) |
-| `neutral` | `neutral-1`, `neutral` (alias) | Warm-stone neutral, "never cool grey" (`tokens.json:37-38`) |
-| `surface` | `background`, `foreground`, `card`, `card-foreground`, `popover`, `popover-foreground` | Page/card/menu surfaces + their text; faint warm tint (`tokens.json:40-45`) |
-| `intent` | `primary`, `secondary`, `muted`, `accent` (+ each `-foreground`) | Action/CTA + supporting surfaces (`tokens.json:47-54`) |
-| `functional` | `destructive`, `knowledge`, `agent` (+ `-foreground`) | Errors + the two data-stream colors (sage = knowledge, plum = agent) (`tokens.json:56-57,63-66`) |
-| `status` | `success`, `warning` (+ `-foreground`) | Running/positive (green) and caution/booting (amber) (`tokens.json:68-71`) |
-| `state` | `border`, `input`, `ring`, `hover`, `active`, `focus`, `disabled`, `disabled-foreground` | Borders, focus ring, and interaction overlays (`tokens.json:59-61,73-77`) |
-| `sidebar` | `sidebar-background`, `sidebar-foreground`, `sidebar-primary`, `sidebar-accent`, `sidebar-border`, `sidebar-ring`, `sidebar` (+ `-foreground`s) | Shell-chrome palette; coral active item (`tokens.json:79-87`) |
+| `logo` | `logo-1`…`logo-5` | **The wordmark's five hues, FROZEN** — t/h/i/n/g as yellow→amber→coral→rose→orchid, identical in light & dark. Read only by `elements/branding/cozy-text`; never use one as a general accent (`tokens.json:33-37`) |
+| `brand` | `brand-1`…`brand-5` | Section/avatar **ramp anchors** — slate navy→teal→sage→taupe→muted plum. These follow the palette and **differ between light and dark** (`tokens.json:39-43`) |
+| `neutral` | `neutral-1`, `neutral` (alias) | Cool neutral (`tokens.json:45-46`) |
+| `surface` | `background`, `foreground`, `card`, `card-foreground`, `popover`, `popover-foreground` | Page/card/menu surfaces + their text; cool and near-neutral (`tokens.json:48-53`) |
+| `intent` | `primary`, `secondary`, `muted`, `accent` (+ each `-foreground`) | Action/CTA + supporting surfaces; CTA is slate teal (`tokens.json:55-62`) |
+| `functional` | `destructive`, `knowledge`, `agent` (+ `-foreground`) | Errors + the two data-stream colors (muted green = knowledge, muted violet = agent) (`tokens.json:64-65,71-74`) |
+| `status` | `success`, `warning` (+ `-foreground`) | Running/positive (green) and caution/booting (amber) (`tokens.json:76-79`) |
+| `state` | `border`, `input`, `ring`, `hover`, `active`, `focus`, `disabled`, `disabled-foreground` | Borders, focus ring, and interaction overlays (`tokens.json:67-69,81-85`) |
+| `sidebar` | `sidebar-background`, `sidebar-foreground`, `sidebar-primary`, `sidebar-accent`, `sidebar-border`, `sidebar-ring`, `sidebar` (+ `-foreground`s) | Shell-chrome palette; slate-teal active item (`tokens.json:88-96`) |
 | `spectrum` | `spectrum-1`…`spectrum-50` | **Generated**, not authored — see below (`generate-theme.mjs:54-63`) |
 
 Non-color scales live under `tokens.theme` (`tokens.json:10-20`):
 
 - **Radii:** `radius-sm` `0.125rem`, `radius-md`/`radius` `0.375rem`, `radius-lg` `0.5rem`, `radius-xl` `0.75rem`, `radius-full` `9999px`.
-- **Fonts:** `font-sans` and `font-display` = `TypeMates Cera Round Pro Bold, system-ui, sans-serif`; `font-mono` = `ui-monospace, monospace`.
+- **Fonts:** `font-sans` and `font-display` = `Manrope, system-ui, sans-serif`; `font-mono` = `JetBrains Mono, ui-monospace, monospace`; **`font-brand` = `TypeMates Cera Round Pro Bold, system-ui, sans-serif`** (`tokens.json:17-20`).
+
+  `font-brand` is the WORDMARK's face and nothing else's. Cera Round Pro Bold used to be `font-sans`
+  *and* `font-display`, so every paragraph, label and table cell on every surface rendered in a
+  rounded display cut shipped in a single Bold weight — no weight hierarchy existed anywhere. Only
+  `elements/branding/cozy-text` may reference `$brand`; a surface that names its own `fontFamily` on
+  the mark overrides it (`sdk/org/libs/ui/src/elements/branding/cozy-text/index.tsx#CozyThingText`).
+
+  All three faces are **self-hosted** from `/fonts/` — no Google Fonts request. `fonts.css` declares
+  them and `theme.css` imports it, so every surface gets them; `scripts/sync-fonts.mjs` copies the
+  files into each app's `public/fonts/` from `generate`/`prebuild`
+  (`sdk/org/libs/css/src/fonts.css`, `sdk/org/libs/css/scripts/sync-fonts.mjs`). React Native cannot
+  use `@font-face` at all and bundles the same files through `expo-font`
+  (`sdk/org/apps/mobile/src/fonts.ts#FONT_ASSETS`).
 
 ### `lineHeight` is a number of PIXELS, never a CSS ratio
 
@@ -86,9 +100,9 @@ The `spectrum` object in `tokens.json` is a *spec*, not a color list: `{ from: b
 
 - Anchors `brand-1..5` sit at ramp indices 1, 14, 27, 40, 53 (`spacing = 13`) (`generate-theme.mjs:33-35`).
 - For each step `i` (1..50) it does a **linear RGB lerp** between the two bracketing anchors, rounding to a hex (`generate-theme.mjs:37-45`, using `hexToRgb`/`rgbToHex` `generate-theme.mjs:25-30`).
-- Each `spectrum-<i>` gets the `spectrum` group and the same value for `light` and `dark` (`generate-theme.mjs:56-62`), so the rainbow is unchanged across modes.
+- The ramp is cut **once per theme** — `buildSpectrum(spec, colorMap, 'light')` and again with `'dark'` — because `brand-1..5` now carry different values in each (`generate-theme.mjs#buildSpectrum`). It used to be cut from the light anchors only and copied to `dark`, which was correct only while the anchors were identical in both modes; leaving it that way would have painted the dark UI with the light ramp. `tamagui-tokens.mjs#buildSpectrum` does the same, and `token-parity.test.ts` fails byte-for-byte if the two ever disagree.
 
-Because anchors are placed at index 53 but only 50 steps are emitted, `spectrum-50` stops just short of pure `brand-5` (`#db9bbf` vs `#d59ec8`) (`theme.css:222`, `tokens.json:35`).
+Because anchors are placed at index 53 but only 50 steps are emitted, `spectrum-50` stops just short of pure `brand-5` — `#6e575f` against the anchor's `#6b4f63` in light (`theme.css`, `tokens.json:43`).
 
 **Rotation helpers** (`sdk/org/libs/ui/src/lib/spectrum.ts`) spread the ramp across repeated UI (avatars, sidebar sections, tabs) so code never hand-picks a color:
 
@@ -103,7 +117,7 @@ Because anchors are placed at index 53 but only 50 steps are emitted, `spectrum-
 **One theme, two modes.** Both modes are defined in the single generated `theme.css`: `:root` holds light, `[data-theme="dark"]` holds the dark overrides (`theme.css:124,227`). There is no second stylesheet and no app-level token redefinition.
 
 - **Mode selector.** Dark mode is the presence of `data-theme="dark"` on `<html>`. `applyTheme(theme)` sets that attribute and persists the choice to `localStorage` under key `lm-theme` (`sdk/org/libs/ui/src/theme/theme.ts#STORAGE_KEY,19-27`). `initTheme(fallback='light')` reads the stored value and applies it on boot (`theme.ts:29-38`); `currentTheme()` reads the attribute (`theme.ts:14-17`); `useTheme()` is a React hook returning `[theme, setTheme, toggle]` (`theme.ts:51-61`). These are re-exported from `@lmthing/ui/theme` (`sdk/org/libs/ui/src/theme/index.ts:1`).
-- **Which tokens change in dark.** Only colors with a distinct `dark` value are emitted into the dark block (`generate-theme.mjs:69-71`). Surfaces, text, functional/status colors, state overlays, and sidebar chrome all flip (`theme.css:227-266`). Notably **unchanged** across modes (absent from the dark block): all `brand-*`, all `spectrum-*`, and the coral anchors `primary`, `primary-foreground`, `ring`, `sidebar-primary`, `sidebar-primary-foreground`, `sidebar-ring` — the CTA/ring stays coral in both modes.
+- **Which tokens change in dark.** Only colors with a distinct `dark` value are emitted into the dark block (`generate-theme.mjs:69-71`). Surfaces, text, functional/status colors, state overlays, sidebar chrome, the CTA/ring (slate teal `#15505c` → `#6aa8b4`), **and now `brand-*` and all 50 `spectrum-*`** all flip. The dark block went from 37 overrides to 98 for exactly that reason. The only colors still identical in both modes are `logo-1..5` — the wordmark, deliberately frozen — and `scrim`.
 - **Runtime token override.** A space may inject a custom token block at runtime via `applyThemeTokens(tokens)`, which sets `--lm-*` (and mirrored `--color-lm-*`) properties on `<html>` from a space's optional `theme.json` (`theme.ts:41-49`).
 
 ### `dark:` Tailwind variant

@@ -23,13 +23,9 @@
    `text-muted-foreground`, `border-border`, … exist at all. See the file's own header. */
 @import "@lmthing/css/tailwind-theme.css";
 
-@font-face {
-  font-family: 'TypeMates Cera Round Pro Bold';
-  src: url('/TypeMates  Cera Round Pro Bold.otf') format('opentype');
-  font-weight: bold;
-  font-style: normal;
-  font-display: swap;
-}
+/* The wordmark's @font-face moved to `@lmthing/css/src/fonts.css`, which `theme.css` imports — it was
+   declared here and in `apps/web` and NOWHERE ELSE, so the logo fell back to system-ui on the other
+   six SPAs. Do not re-add it per app. */
 
 @layer base {
   * {

@@ -240,10 +240,17 @@ jobs:
 
           gh release upload nightly publish/* --clobber
 
+      # BUILD-INFO only — the bundles themselves are already on the rolling release, permanently.
+      # See the identical note in the android job: uploading them a second time is ~87 MB of
+      # AppImage plus a .deb to a place that expires in 14 days, immediately after the copy that
+      # does not, and it is spent AFTER the publish has succeeded — so it can only ever turn a
+      # finished build into a run that looks like it failed. It did exactly that to android at the
+      # 60-minute wall. Desktop has the headroom today; keeping the two jobs different would just
+      # mean waiting for it to matter here too.
       - uses: actions/upload-artifact@v4
         with:
-          name: lmthing-desktop-linux-${{ github.sha }}
-          path: sdk/org/apps/desktop/src-tauri/target/release/bundle/publish/*
+          name: lmthing-desktop-linux-buildinfo-${{ github.sha }}
+          path: sdk/org/apps/desktop/src-tauri/target/release/bundle/publish/BUILD-INFO-linux.txt
           if-no-files-found: error
           retention-days: 14
 

@@ -186,6 +186,23 @@ targets honour it.
   `color: '$foreground'` is byte-identical to `NativeText`'s own default, so nothing is observable
   today — fragile if that ever diverges, not a bug now.
 
+  **That sweep was done by reading, and reading missed 31 more.** This shape is the worst thing a
+  human review can be asked to find: both files look right on their own, the leaf renders (so no
+  crash, no blank), and it renders *legibly* (so no glance catches it) — just at the wrong size, face
+  or ink. `sdk/org/libs/ui/scripts/lint-rn-text-inherit.mjs` (`pnpm lint:rn-inherit`, in `pnpm lint`)
+  finds it mechanically: a text host with a non-text-primitive ANCESTOR that sets one of
+  `fontFamily`/`fontSize`/`fontWeight`/`fontStyle`/`color`/`letterSpacing`/`textTransform` and does
+  not restate it. Ancestors accumulate, because a nested `View` inherits nothing but blocks nothing —
+  which is how it caught `chat/app/inspector.tsx`'s k/v pairs, three `Prim.Text`s that restate
+  `color` and sit two `Box`es below the `$mono`/`11px` that a direct-child check would have cleared.
+  Descent stops at the first text host: nested `Text` DOES inherit from `Text` on native.
+
+  It shares its primitive vocabulary with the bare-string gate
+  (`sdk/org/libs/ui/scripts/lib/primitives-ast.mjs`) — two copies of `TEXT_HOSTS` would drift the way
+  `lint-rn-safety.mjs`'s directory list once did, silently and towards a false negative. What it
+  skips: any chain containing a `{...spread}` (unknowable without types), and `textAlign`/
+  `lineHeight`, which on a container mean the box's own layout rather than its text.
+
   **One instance of this was broken on WEB as well**, which is worth knowing because it breaks the
   rule of thumb that these are native-only. `ListItem`'s `selected` put its `color`/`fontWeight` on
   the row while the label hardcoded `color="$foreground"` — and an explicit prop on the label beats
@@ -527,6 +544,12 @@ The limits are as important as the coverage:
   reading job (the script's own header names the two it found that way).
   The fixes it drove are guarded against re-breaking by
   `sdk/org/libs/ui/metro/suites/text-children-fixes.tsx`.
+
+  Its sibling `sdk/org/libs/ui/scripts/lint-rn-text-inherit.mjs` closes the
+  quieter half of the same bug — a leaf that DOES have a text host but relies on
+  a container's `fontSize`/`color`/`fontFamily` reaching it. That one renders,
+  and renders legibly, so it is invisible to a suite, a glance and a review
+  alike; see "A `View` has no text colour to inherit FROM" above.
 - **A jsdom test cannot see the native target** — `isWeb` is always true there,
   and importing `./x.native` by path is not what Metro does.
 - **Style values that Android casts to a `Double`** (`lineHeight`,

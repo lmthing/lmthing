@@ -21,7 +21,7 @@ From `com/src/routes/` (there is no `/home` and no `/cloud`; the landing page is
 
 | Route | File |
 |---|---|
-| `/` | `index.tsx` — landing page; the service grid marks social, team, blog and casa `upcoming: true` |
+| `/` | `index.tsx` — landing page; the service grid |
 | `/about` | `about.tsx` |
 | `/docs` | `docs.tsx` |
 | `/pricing` | `pricing.tsx` |

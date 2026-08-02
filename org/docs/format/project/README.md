@@ -73,14 +73,14 @@ Emitted/synthetic events are source-qualified `<scope>/<event>` and matched agai
 
 ## Capabilities gate who may author and touch each pillar
 
-Every authoring/data power is a **capability** granted in an agent's `instruct.md` frontmatter under the `capabilities:` key, host-injected only when the grant is present (a missing grant is also stripped from the typecheck DTS, so a stray call fails typecheck) (`sdk/org/libs/core/src/spaces/capabilities.ts` `CAPABILITY_IDS`; `sdk/org/libs/core/src/exec/app-globals.ts` `injectAppGlobals`:194-248). The full grant id set is `db:read`, `db:write`, `db:schema`, `pages:write`, `api:write`, `hooks:write`, `api:call`, `connections:use`, `project:manage`, `store:read`, `store:install`, `events:emit`, `fs:scratch` (`sdk/org/libs/core/src/spaces/capabilities.ts`:43-58). The pillar-relevant subset:
+Every authoring/data power is a **capability** granted in an agent's `instruct.md` frontmatter under the `capabilities:` key, host-injected only when the grant is present (a missing grant is also stripped from the typecheck DTS, so a stray call fails typecheck) (`sdk/org/libs/core/src/spaces/capabilities.ts` `CAPABILITY_IDS`; `sdk/org/libs/core/src/exec/app-globals.ts` `injectAppGlobals`:194-248). The full grant id set is `db:read`, `db:write`, `db:schema`, `views:write`, `api:write`, `hooks:write`, `api:call`, `connections:use`, `project:manage`, `store:read`, `store:install`, `events:emit`, `fs:scratch` (`sdk/org/libs/core/src/spaces/capabilities.ts`:43-58). The pillar-relevant subset:
 
 | Capability | Unlocks (project-app pillar) |
 |---|---|
 | `db:read` | `db.query`, `db.tables` (`sdk/org/libs/core/src/exec/app-globals.ts` `buildScopedDb`:134,141) |
 | `db:write` | `db.insert`, `db.update` (`app-globals.ts`:149; hard delete `remove` is host-only — code nodes / app runtime) |
 | `db:schema` | `db.createTable`/`addColumn`, `writeProjectTable` (`app-globals.ts`:165,224) |
-| `pages:write` | `writeProjectPage`/`writeProjectComponent` (`app-globals.ts`:209,210) |
+| `views:write` | `writeProjectView`/`writeProjectViewLayout`/`writeProjectViewComponent`/`writeProjectViewShell` — the ONLY UI-authoring surface (`app-globals.ts` `injectAppGlobals`:231-235) |
 | `api:write` | `writeProjectApi` (`app-globals.ts`:211) |
 | `hooks:write` | `writeProjectHook`/`writeProjectEvent`/`writeProjectFunction` (`app-globals.ts`:217-219) |
 | `api:call` | `apiCall(name, input)` — requires a non-empty `{allow:[...]}` (`sdk/org/libs/core/src/spaces/capabilities.ts` `parseApiCallConfig`) |

@@ -249,7 +249,7 @@ one place session and fork VMs share this substrate; do not duplicate shims in c
    `evalCode` a call.
 
 The project-app `db` object and the live-project authoring writers (`writeProjectTable`/
-`writeProjectPage`/`writeProjectApi`/`writeProjectHook`/…, plus `createProject`/`selectProject`)
+`writeProjectView`/`writeProjectApi`/`writeProjectHook`/…, plus `createProject`/`selectProject`)
 are also synchronous, but injected separately via `injectAppGlobals`
 (`sdk/org/libs/core/src/exec/app-globals.ts:198-232`, called at
 `sdk/org/libs/core/src/exec/bootstrap.ts:143`) and gated on `caps.app`. Extend

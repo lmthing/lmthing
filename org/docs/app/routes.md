@@ -91,7 +91,7 @@ store/projects/blog/pages/_layout.tsx                   →  (wrapper — not a 
 
 The same patterns are matched **client-side** at runtime: `matchRoutes` splits pattern and path into segments and captures `:param`s `sdk/org/libs/cli/src/app/runtime/router.tsx#matchRoutes`; the matched page renders inside `_layout` inside `_app` `sdk/org/libs/cli/src/app/runtime/router.tsx#AppRoot`; an unmatched path renders a minimal `No page for <path>` `sdk/org/libs/cli/src/app/runtime/router.tsx#NotFound`. There is no pod-side page routing beyond the SPA fallback below.
 
-A route is NEVER mounted under `/pages/…` — route paths are derived relative to the `pages/` dir, which is stripped. But the on-disk folder is literally `pages/`, so an author (typically the app-builder) routinely links a sibling page as `/pages/park-fees` instead of the route `/park-fees`. As a fallback — after the literal match pass fails, so a genuine route always wins — `matchRoutes` retries with the stray `/pages` prefix removed, and `toHref` normalizes it out of a pushed link so the URL bar stays clean `sdk/org/libs/cli/src/app/runtime/router.tsx#stripPagesPrefix`.
+A route is NEVER mounted under `/pages/…` — route paths are derived relative to the `pages/` dir, which is stripped. But the on-disk folder is literally `pages/`, so an author (typically the app-builder) routinely links a sibling page as `/pages/park-fees` instead of the route `/park-fees`. As a fallback — after the literal match pass fails, so a genuine route always wins — `matchRoutes` retries with the stray `/pages` prefix removed, and `toHref` normalizes it out of a pushed link so the URL bar stays clean `sdk/org/libs/ui/src/view/router.ts#stripPagesPrefix`.
 
 ### Base resolution (why the same bundle works on both mounts)
 

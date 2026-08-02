@@ -1,12 +1,14 @@
-# `pages/` — client-side React routes
+# `pages/` — a project-app's routes
 
-A project-app's `pages/` directory holds **real client-side React** — each non-`_`-prefixed `.tsx`/`.jsx` file is a file-routed page, built once on save/boot (never per request) into a self-contained static bundle under `<projectRoot>/.data/pages-dist/` and served under `…/app/<project>/*` (`sdk/org/libs/cli/src/app/build/pages.ts:1-26`). Pages are pure browser code — there is no pod-side loader; they pull data over HTTP through `@app/runtime` (`sdk/org/CLAUDE.md` "pages/ are real client-side React").
+A project-app's `pages/` directory is served as the app's file-routed route tree: every non-`_`-prefixed `.tsx`/`.jsx` file becomes a route, built once on save/boot (never per request) into a self-contained static bundle under `<projectRoot>/.data/pages-dist/` and served under `…/app/<project>/*` (`sdk/org/libs/cli/src/app/build/pages.ts:1-26`). There is no pod-side loader; a served page pulls data over HTTP through `@app/runtime`.
 
-Pages are written by the capability-gated live-project global `writeProjectPage(route, src, opts?)`, injected only when the agent holds the `pages:write` grant (`sdk/org/libs/cli/src/app/authoring/globals.ts#writeProjectPage`; DTS gated at `sdk/org/libs/core/src/typecheck/library-dts.ts#PROJECT_PAGE_DTS`). See [capabilities.md](../../space/agents/capabilities.md) for the grant model.
+**A page is authored as a VIEW SPEC, not as hand-written TSX.** `views:write` is the only UI-authoring capability there is — it earns `writeProjectView(route, spec)`, which validates `spec` against the project's real endpoint contracts and writes `views/<route>.view.json` (`sdk/org/libs/cli/src/app/authoring/globals.ts#createProjectAuthoringGlobals`, DTS at `sdk/org/libs/core/src/typecheck/library-dts.ts#PROJECT_VIEW_DTS`). There is no capability, and no writer, that lands a freehand `pages/<route>.tsx` — that authoring surface and its `pages:write` capability id were removed from the codebase, so a spec is the only shape "author a page" can take for any agent. See [capabilities.md](../../space/agents/capabilities.md) for the grant model and [view-spec.md](./view-spec.md) for the spec format itself.
 
-> **There is a second authoring medium.** A page may instead be a **view spec** — a validated object rather than TSX, rendered by a shared `ViewRenderer` on the web bundle and natively in the mobile app. It is written by `writeProjectView` under a separate `views:write` grant, and it lands beside a *generated* `.tsx` wrapper so everything on this page — file routing, the bundle, the cache — applies to it unchanged (`sdk/org/libs/cli/src/app/view-spec/wrapper.ts#renderViewWrapper`). **That is the medium `system-appbuilder` authors in**; the TSX pages this page describes are still served, but no shipped agent holds the `pages:write` grant that writes one. Full contract → [view-spec.md](./view-spec.md).
+**`writeProjectView` writes ONLY the spec JSON (`views/<route>.view.json`) — nothing is generated beside it.** A spec app has no per-page `.tsx` and no per-project bundle: on the web it is rendered by a prebuilt SPA, the AppHost, which fetches the specs from `GET /api/apps/:id/views` and renders them through the shared `ViewRenderer` (`sdk/org/apps/app-shell/src/app-host.tsx#AppHost`, `sdk/org/libs/cli/src/server/routes/app-views.ts#handleAppViews`) — the SAME transport the native mobile app already uses (`sdk/org/apps/mobile/src/app-views.ts`). See [view-spec.md](./view-spec.md) for the spec format and the three validation tiers a spec goes through before it lands.
 
-A page **must have a default export** (the component the route renders); a write without one is rejected at write time with a thrown, retryable error rather than failing later as an esbuild bundle error `sdk/org/libs/cli/src/app/authoring/lint.ts#lintPageSource`.
+**The route tree described below is the LEGACY hand-written-TSX serving path** — still used by a project that ships `.tsx` pages (the store catalog, or a project built before the builder went spec-only). A spec app never touches it.
+
+A hand-written `.tsx` page still SERVES if one already exists on disk (the store catalog ships some, and a project built before the builder went spec-only may have more) — the build pipeline below does not distinguish a generated wrapper from a hand-written page. A page missing a default export fails at BUILD time now (the esbuild bundle step, `sdk/org/libs/cli/src/app/build/pages.ts#buildProjectPagesChecked`), not at write time — the write-time check existed only in the now-removed `writeProjectPage`, and nothing writes a new TSX page for that check to run over.
 
 ## File routing
 
@@ -19,7 +21,7 @@ pages/feed/[articleId].tsx           →  /feed/:articleId
 pages/feed/[articleId]/research.tsx  →  /feed/:articleId/research
 ```
 
-The route table above is grounded in `routePathFor` (`sdk/org/libs/cli/src/app/build/pages.ts:184-194`) and the matcher `matchRoutes`, which splits both request and pattern into segments and captures `:param` segments (`sdk/org/libs/cli/src/app/runtime/router.tsx#matchRoutes`). Dynamic-segment authoring uses `[seg]` wrapped in brackets and the writer accepts it as a valid path segment (`sdk/org/libs/cli/src/app/authoring/globals.ts#writeProjectPage`). Directories named `components/` and `lib/` under `pages/` hold shared code, not routes, and are skipped during discovery (`sdk/org/libs/cli/src/app/build/pages.ts#walkPages`).
+The route table above is grounded in `routePathFor` (`sdk/org/libs/cli/src/app/build/pages.ts:184-194`) and the matcher `matchRoutes`, which splits both request and pattern into segments and captures `:param` segments (`sdk/org/libs/cli/src/app/runtime/router.tsx#matchRoutes`). Dynamic-segment authoring uses `[seg]` wrapped in brackets; a view spec's own route grammar accepts the same `[param]` shape, further narrowed by `ROUTE_RE` (`sdk/org/libs/cli/src/app/view-spec/schema.ts#ROUTE_RE`). Directories named `components/` and `lib/` under `pages/` hold shared code, not routes, and are skipped during discovery (`sdk/org/libs/cli/src/app/build/pages.ts#walkPages`).
 
 ## Special files: `_app` / `_layout`
 
@@ -27,7 +29,7 @@ Two `_`-prefixed basenames are wrappers, not routes: `_app.tsx` (root wrapper �
 
 ## `@app/runtime` — data hooks + routing
 
-A page default-exports a React component and imports data/routing helpers from `@app/runtime`; the build aliases `@app/runtime` to this package's runtime source and `@app/types` to the project's generated dts (`sdk/org/libs/cli/src/app/build/pages.ts:472-473`, `sdk/org/libs/cli/src/app/build/pages.ts:249-250`).
+A page default-exports a React component and imports data/routing helpers from `@app/runtime`; the build aliases `@app/runtime` to this package's runtime source and `@app/types` to the project's generated dts (`sdk/org/libs/cli/src/app/build/pages.ts:472-473`, `sdk/org/libs/cli/src/app/build/pages.ts:249-250`). This is the surface a HAND-WRITTEN page imports from; a view spec imports nothing — the AppHost owns its routing and data fetching (see [../../../app/views.md](../../../app/views.md#the-viewrenderer--spec-pages-rendered-natively)).
 
 | Import | Purpose | Returns |
 |---|---|---|
@@ -50,9 +52,9 @@ Pages must use the shared design-system tokens only — **never a raw color** (n
 
 Shared page components live in [../components/README.md](../components/README.md).
 
-## Worked example
+## Worked example — a hand-written (legacy) page
 
-Adapted from the real `store/projects/blog/pages/index.tsx` (`store/projects/blog/pages/index.tsx:1-27`) — a page that reads with `useApi`, mutates with `useApiMutation`, and fires a one-shot `apiCall`:
+Nothing authors a page shaped like this anymore (see above), but it is what a served TSX page — a store-catalog app, or a project built before the builder went spec-only — looks like. Adapted from the real `store/projects/blog/pages/index.tsx` (`store/projects/blog/pages/index.tsx:1-27`) — a page that reads with `useApi`, mutates with `useApiMutation`, and fires a one-shot `apiCall`:
 
 ```tsx
 import React from 'react';

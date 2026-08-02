@@ -1,8 +1,8 @@
 # View specs — a page as data
 
-A project page exists in **two media**. The one described in [README.md](./README.md) is a React `.tsx` file. This page describes the other — and the only one an agent authors today: a **view spec** — a plain object, validated against the project's own endpoint contracts at save time and rendered by a shared `ViewRenderer` on the web bundle **and** natively in the mobile app.
+A project page exists in **two media**. The one described in [README.md](./README.md) is a React `.tsx` file. This page describes the other — and the only one that has an author at all: a **view spec** — a plain object, validated against the project's own endpoint contracts at save time and rendered by a shared `ViewRenderer` on the web bundle **and** natively in the mobile app.
 
-Which medium an agent can use is decided by capability, not by instruction: `pages:write` earns the TSX writers, `views:write` earns the spec writers, and they are disjoint `sdk/org/libs/core/src/typecheck/library-dts.ts#CAPABILITY_DTS_FRAGMENTS`. **Today only the spec medium has an author.** `system-appbuilder`, the one shipped app builder, holds `views:write` and **cannot name** `writeProjectPage`, so freehand UI is a typecheck error there rather than a policed instruction `sdk/org/libs/core/src/exec/app-globals.ts:229-231`. TSX pages are still served — the store catalog ships them (`store/projects/blog/pages/index.tsx`) — but nothing writes a new one.
+**`views:write` is the ONE UI-authoring capability, and it is the mechanism, not a policy.** It earns the spec writers (`writeProjectView`, `writeProjectViewLayout`, `writeProjectViewComponent`, `writeProjectViewShell`) `sdk/org/libs/core/src/typecheck/library-dts.ts#CAPABILITY_DTS_FRAGMENTS`. There is no freehand-TSX writer left to grant instead — the model-facing global and its capability id were removed from the codebase entirely, so "author a page" has exactly one shape now, for every agent, not a rule `system-appbuilder` happens to follow `sdk/org/libs/core/src/exec/app-globals.ts#injectAppGlobals`. TSX pages are still SERVED — the store catalog ships them (`store/projects/blog/pages/index.tsx`) through the legacy per-project build — but a view spec is never compiled to TSX; it is rendered at runtime by the shared `ViewRenderer`, and nothing writes a new hand-authored page.
 
 The writers themselves → [../../../runtime-globals/app-authoring.md](../../../runtime-globals/app-authoring.md).
 
@@ -12,18 +12,18 @@ The writers themselves → [../../../runtime-globals/app-authoring.md](../../../
 
 | path | what |
 |---|---|
-| `pages/<route>.view.json` | one page spec `sdk/org/libs/cli/src/app/view-spec/files.ts#viewSpecPath` |
-| `pages/<route>.tsx` | its **generated** wrapper — never hand-edited `sdk/org/libs/cli/src/app/view-spec/files.ts#viewWrapperPath` |
-| `pages/components/<Name>.view.json` | a reusable element composition `sdk/org/libs/cli/src/app/view-spec/files.ts#viewComponentPath` |
-| `pages/_shell.view.json` | the app shell (nav, brand, assistant dock) `sdk/org/libs/cli/src/app/view-spec/files.ts:44` |
+| `views/<route>.view.json` | one page spec `sdk/org/libs/cli/src/app/view-spec/files.ts#viewSpecPath` |
+| `views/<prefix>/_layout.view.json` | a nested layout frame `sdk/org/libs/cli/src/app/view-spec/files.ts#viewLayoutPath` |
+| `components/<Name>.view.json` | a reusable element composition `sdk/org/libs/cli/src/app/view-spec/files.ts#viewComponentPath` |
+| `shell.view.json` | the app shell (nav, brand, assistant dock) `sdk/org/libs/cli/src/app/view-spec/files.ts#SHELL_SPEC_PATH` |
 
-The two non-route paths are chosen so the build cannot mistake them for routes: `walkPages` already skips a `components/` dir under `pages/` and any `_`-prefixed basename, and `.json` is not a page extension `sdk/org/libs/cli/src/app/build/pages.ts:232-245`.
+The v1 layout (`pages/**/*.view.json`, `pages/components/`, `pages/_shell.view.json`) is still read for existing projects `sdk/org/libs/cli/src/app/view-spec/files.ts#loadProjectViews`.
 
-**The wrapper is the whole trick.** Because a spec sits beside a trivial `.tsx` that renders it, the page pipeline never learns that view specs exist — discovery, content hashing, caching, the route table and the client entry are all unchanged `sdk/org/libs/cli/src/app/view-spec/wrapper.ts#renderViewWrapper`. The wrapper **inlines** the spec, the app's components and the shell, so a web page carries its own definition and fetches no spec; the native target fetches instead. A component or shell write therefore re-emits every wrapper `sdk/org/libs/cli/src/app/view-spec/files.ts#listViewRoutes`.
+**A spec is never compiled — it is fetched and rendered at runtime.** Both hosts read the specs from the same transport, `GET /api/apps/:id/views` (`sdk/org/libs/cli/src/server/routes/app-views.ts#handleAppViews`): the web AppHost (`sdk/org/apps/app-shell/src/app-host.tsx#AppHost`) and the native mobile app (`sdk/org/apps/mobile/src/app-views.ts`). There is no per-page `.tsx` and no per-project bundle, so a write of a view, component, shell or layout lands exactly one artifact — the next fetch composes the whole app afresh.
 
-Three things the wrapper does that are not decoration, each of which breaks **every route** of an app when absent: it mounts `ViewThemeProvider` (a page bundle has no root that supplies the theme context `Prim.*` requires); it builds the data client **inside** the component, because ESM hoists page imports above the entry's `mountApp({ manifest })` and a module-scope client would capture an empty manifest; and it passes the router's `[param]` values through as `route`, which is what `$route.*` resolves against `sdk/org/libs/cli/src/app/view-spec/wrapper.ts#renderViewWrapper`.
+`ViewThemeProvider`, the data client and the router's `[param]` values are the renderer's own responsibility, mounted once by the AppHost (and by the native screen), not per page — each was a live source of "breaks every route" bugs back when a generated wrapper had to reproduce it, and each is now owned in one place `sdk/org/apps/app-shell/src/app-host.tsx#AppHost`.
 
-Renderer improvements reach **already-built** apps through the builder-version bump, because a spec app's UI lives in the renderer rather than in its pages `sdk/org/libs/cli/src/app/build/pages.ts:100-108`.
+Renderer improvements reach **every** spec app at once: its UI lives in the prebuilt shell and the fetched specs, not in a per-project build, so a fixed renderer is served to all of them with no rebuild `sdk/org/apps/app-shell/src/app-host.tsx#AppHost`.
 
 ---
 

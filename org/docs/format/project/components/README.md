@@ -1,64 +1,30 @@
-# `components/<Name>.tsx` — the project-app's shared React library
+# `components/<Name>.view.json` — reusable view fragments
 
-`components/` is a project-root directory (a sibling of `pages/ api/ hooks/ database/`) that the app scaffolder creates alongside the other app dirs (`sdk/org/libs/cli/src/app/authoring/globals.ts:160` lists `'components'` among the app dirs). It holds plain React components (cards, rows, skeletons, empty states, formatters) imported by the app's [pages](../pages/README.md) — the project-app's own presentation library, distinct from a **space's** agent-rendered `components/{view,form}` (see [../../space/components/README.md](../../space/components/README.md)).
+A project-app's shared "component library" is a set of **view components** — named, parameterised compositions of view elements, not React. `components/` is a top-level project directory (a sibling of `views/ pages/ api/ hooks/ database/`), distinct from a **space's** agent-rendered `components/{view,form}` (see [../../space/components/README.md](../../space/components/README.md)) and from the legacy `pages/components/<Name>.tsx` React library a hand-written TSX app could once hold.
 
-## Not file-routed; one typed live-project writer
+## The writer — `writeProjectViewComponent`, under `views:write`
 
-Unlike pages, components are **not** discovered as routes: the page-build route walker skips any `components/`/`lib/` directory and any `_`-prefixed file (`sdk/org/libs/cli/src/app/build/pages.ts#walkPages`, comment "hold shared code, not routes"). Only non-`_`-prefixed `.tsx`/`.jsx` files under `pages/` become routes (`sdk/org/libs/cli/src/app/build/pages.ts:11-12`).
+`views:write` is the ONLY UI-authoring capability. It earns `writeProjectViewComponent(name, def)`, which validates `def` against the project's real endpoint contracts (props declared, references acyclic, bindings well-formed) exactly like a page spec, then writes `components/<Name>.view.json` (`sdk/org/libs/cli/src/app/authoring/globals.ts#writeProjectViewComponent`, `sdk/org/libs/cli/src/app/view-spec/validate.ts#validateViewComponent`). `<Name>` must be **PascalCase** (`COMPONENT_NAME_RE` — `sdk/org/libs/cli/src/app/authoring/globals.ts#COMPONENT_NAME_RE`). Its DTS lives in `PROJECT_VIEW_DTS`, gated on the same `views:write` grant as the page/layout/shell writers (`sdk/org/libs/core/src/typecheck/library-dts.ts#PROJECT_VIEW_DTS`).
 
-The **live project** has a typed shared-component writer: **`writeProjectComponent(name, src)`** writes `<projectRoot>/components/<Name>.tsx` and rebuilds the served app so a page can import it (`sdk/org/libs/cli/src/app/authoring/globals.ts:496-514`); the `<Name>` is **PascalCase** and `.tsx` is enforced (`COMPONENT_NAME_RE` at `sdk/org/libs/cli/src/app/authoring/globals.ts#COMPONENT_NAME_RE`). It is declared in the model DTS as `PROJECT_COMPONENT_DTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts#PROJECT_COMPONENT_DTS`) and earned by the **`pages:write`** capability, injected on the `pages:write` grant of a project-rooted session (`sdk/org/libs/core/src/exec/app-globals.ts:219`) — it is the typed surface for shared UI now that the space-rooted fs writers are gone. A component may still also be an ordinary source file imported by the generated pages.
+There is no writer, and no capability, for a hand-written `.tsx` component — that surface (`writeProjectComponent`, gated on a `pages:write` capability id) was removed from the codebase entirely, along with the id itself. A component is data or it does not exist.
 
-## Imported by pages via a relative path
+A `ViewComponentSpec` is `{ name, props?, node, description? }`: `props` declares typed parameters referenced inside the composition as `$props.<key>`, and `node` is the element tree (or another component reference) the definition renders (`sdk/org/libs/cli/src/app/view-spec/schema.ts#ViewComponentSpec`). Writing one **re-emits every page wrapper in the app**, because a wrapper inlines every component it renders with — there is no separate component bundle to invalidate (`sdk/org/libs/cli/src/app/authoring/globals.ts:574-613`).
 
-Pages pull components in by relative path — e.g. `import { InsightsPanel } from '../components/InsightsPanel'` (`store/projects/blog/pages/insights.tsx:3`) and `import { MarkdownBody } from '../../components/MarkdownBody'` from a nested page (`store/projects/blog/pages/briefings/[briefingId].tsx:4`). Components freely import each other (`ArticleCard` imports `./icons`, `./format`, `./RelevanceMeter` — `store/projects/blog/components/ArticleCard.tsx:4-6`) and may import DB-derived row types from the generated `@app/types` module (`import type { Article } from '@app/types'` — `store/projects/blog/components/ArticleCard.tsx:2`), which is `types/generated.d.ts` produced from `database/*.json` (`sdk/org/libs/cli/src/app/build/schema.ts` `generateAppTypes`). Components may also use `@app/runtime` client helpers such as `Link` (`store/projects/blog/components/ArticleCard.tsx:3`). A sibling may be a plain non-component `.ts` helper module too (`store/projects/blog/components/format.ts:1-4`, pure formatting functions, no JSX).
+## Referenced from a page as `{ use: '<Name>' }`
 
-## Design tokens only
+Any section slot — a list item, a detail field, a toolbar action — can be an element tree, a flat convenience object, or a **component reference**: `{ use: 'RecipeCard', props: { title: '$.name' } }` (`sdk/org/libs/cli/src/app/view-spec/schema.ts#ComponentRef`, `sdk/org/libs/cli/src/app/view-spec/schema.ts#Slot`). The referenced name is checked against the project's declared components at save time, the same way an endpoint name is checked — an unknown reference is a menu-shaped, retryable rejection, not a silent miss.
 
-Components must style with **design tokens only** — no raw hex/`rgb()`/`hsl()` and no stock Tailwind color utilities (`gray-*`/`blue-*`/`green-500`), the same rule every lmthing surface follows. The rule is stated and enforced by the linter itself (`sdk/org/libs/css/scripts/lint-design-tokens.mjs:5-10`); the full ruleset is [`../../../design-system/README.md`](../../../design-system/README.md). Real components obey this: `EmptyState` uses only `bg-card`, `text-foreground`, `text-muted-foreground`, `bg-primary`, `text-primary-foreground`, `border-destructive` (`store/projects/blog/components/EmptyState.tsx:26-77`), and `StatsStrip` uses `bg-card`/`border-border`/`text-primary` (`store/projects/blog/components/StatsStrip.tsx:14-43`).
+## Design tokens — structurally, not by convention
 
-For components, **nothing enforces that rule — and nothing authors these files either.** `writeProjectComponent` rides `pages:write`, and no shipped system agent holds it: `system-appbuilder`, the one app builder, has `views:write` and builds reusable shapes as spec objects instead, whose only styling dial is a semantic `tone` from a closed set (`sdk/org/libs/cli/src/app/view-spec/schema.ts#TONES`). So a `components/<Name>.tsx` in a project today came from the store catalog or from a hand edit, and the token rule is discipline on whoever wrote it. Nothing downstream re-checks the COLORS: `writeProjectComponent` validates the PascalCase name, that the source parses as TSX, and that it has a **default export** (the component a page renders) — but not its color usage (`sdk/org/libs/cli/src/app/authoring/globals.ts#writeProjectComponent` · `sdk/org/libs/cli/src/app/authoring/lint.ts#lintComponentSource`), and the pod's page build only *compiles* the Tailwind/`@lmthing/css` layer — its CSS step runs the Tailwind v4 compiler over the stylesheets and passes plain CSS straight through, checking nothing about the colors a component wrote (`sdk/org/libs/cli/src/app/build/pages.ts:376-390`).
+A view component's only styling dial is a semantic **`tone`** drawn from a closed set (`neutral accent success warning danger info auto`), mapped to a design token by the renderer (`sdk/org/libs/cli/src/app/view-spec/schema.ts#TONES`). There is no class name and no color literal anywhere in the spec vocabulary, so the token-only rule every other lmthing surface enforces by lint holds here by construction — a spec has nowhere to put a raw hex even if a model tried. Full ruleset (for the surfaces that DO carry raw markup) → [../../../design-system/README.md](../../../design-system/README.md).
 
-CI does not cover these files either. The `lint-design-tokens` gate walks exactly the roots it is handed (`sdk/org/libs/css/scripts/lint-design-tokens.mjs:75-90`), and the roots are `sdk/org/libs/css/src sdk/org/libs/ui/src sdk/org/apps/web/src com/src social/src store/src space/src blog/src casa/src` (`.github/workflows/design-tokens.yml:42-43`; the root `pnpm lint:tokens` script adds `org/src` — `package.json:14`). `store/src` is the store SPA; `store/projects/` — where every catalog app's `components/` lives — is in neither list, so a raw hex in one fails nothing. Point the linter at them by hand and they pass today (`node sdk/org/libs/css/scripts/lint-design-tokens.mjs store/projects`), but that is discipline, not a gate: unpointed, it defaults to `./src` (`sdk/org/libs/css/scripts/lint-design-tokens.mjs:22,75-76`).
+## A legacy React component library can still exist and still serve
 
-## What a real one looks like
-
-Adapted from `store/projects/blog/components/EmptyState.tsx#EmptyState` (tokens only, `@app/runtime` `Link`):
-
-```tsx
-import React from 'react';
-import { Link } from '@app/runtime';
-
-export function EmptyState({
-  title,
-  message,
-  ctaLabel,
-  ctaHref,
-}: {
-  title: string;
-  message?: string;
-  ctaLabel?: string;
-  ctaHref?: string;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center">
-      <p className="font-semibold text-foreground">{title}</p>
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
-      {ctaLabel && ctaHref ? (
-        <Link
-          href={ctaHref}
-          className="rounded-full bg-primary px-4 py-1.5 text-sm text-primary-foreground hover:opacity-90"
-        >
-          {ctaLabel}
-        </Link>
-      ) : null}
-    </div>
-  );
-}
-```
+A project built before the builder went spec-only (or a store-catalog app) may still carry a `pages/components/<Name>.tsx` library — plain React components imported by its hand-written pages via a relative path, e.g. `import { InsightsPanel } from '../components/InsightsPanel'` (`store/projects/blog/pages/insights.tsx:3`). The page-build route walker still skips any `components/`/`lib/` directory under `pages/` and any `_`-prefixed file when discovering routes (`sdk/org/libs/cli/src/app/build/pages.ts#walkPages`), so such a library never becomes routes. Components there may import each other, import DB-derived row types from the generated `@app/types` module, and use `@app/runtime` client helpers such as `Link` — see the worked example in [../pages/README.md](../pages/README.md#worked-example--a-hand-written-legacy-page). Nothing writes a NEW file into a `.tsx` component library today: the writer that once did (`writeProjectComponent`) and its lint (a required default export) were removed along with `pages:write`. A hand-written component that already exists on disk is discipline-only for the token rule and for CI coverage — neither the `lint-design-tokens` gate (which never walks `store/projects/`) nor anything in the page build checks its colors.
 
 ## See also
 
-- [../pages/README.md](../pages/README.md) — the file-routed pages that import these components.
+- [../pages/README.md](../pages/README.md) — the view-spec pages that reference these components, and the legacy hand-written pages that may still import a `.tsx` component library.
+- [../pages/view-spec.md](../pages/view-spec.md) — the full spec format, section kinds and element catalogue.
+- [../../../runtime-globals/app-authoring.md](../../../runtime-globals/app-authoring.md) — the writer contract in the context of every other project-authoring global.
 - [../../space/components/README.md](../../space/components/README.md) — the different, agent-rendered space `components/{view,form}`.
-
-Real examples live in every catalog app's `components/` dir — e.g. `store/projects/blog/components/` (`ArticleCard.tsx`, `EmptyState.tsx`, `Skeleton.tsx`, `StatsStrip.tsx`, `icons.tsx`, `format.ts`, …).

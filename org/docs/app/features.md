@@ -400,7 +400,7 @@ guard regardless of hook contents (§5).
 hangs never settles its response (`runWorker` installs no timer;
 `sdk/org/libs/cli/src/app/api/runtime.ts:220-269` contains no `setTimeout`), unlike the
 worker-load seam which is timeout-bounded `sdk/org/libs/cli/src/app/worker-load.ts:186-202`.
-`pages:write` can also pull npm dependencies into the pod, so dependency installs are a supply-chain
+`views:write` (and the other project-authoring writers) can also pull npm dependencies into the pod, so dependency installs are a supply-chain
 surface that must be gated outside this layer.
 
 **Nor is SSRF: there is no egress filter, at this layer or under it.** A handler's import surface is

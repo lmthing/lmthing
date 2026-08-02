@@ -73,7 +73,7 @@ capabilities:
   - db:schema
   - db:read
   - db:write
-  - pages:write
+  - views:write
   - api:write
 defaultAction: build_live_project   # runs the action's tasklist host-driven
 actions:

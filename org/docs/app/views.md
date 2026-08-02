@@ -4,10 +4,19 @@
 > [Gotchas](#gotchas) — or a **view spec**, rendered by a shared `ViewRenderer` that runs on the web
 > bundle *and* natively in the mobile app with no WebView
 > ([The ViewRenderer](#the-viewrenderer--spec-pages-rendered-natively) at the end). They meet at one
-> routing seam and never mix within an app. **Only the spec layer is authored by an agent today**:
-> `system-appbuilder`, the sole app builder, holds `views:write` and not `pages:write`. The React
-> layer is still live — it serves the store catalog's shipped apps and any project built before the
-> builder became spec-only. The spec FORMAT the model authors is
+> routing seam and never mix within an app. **Only the spec layer can be authored at all**:
+> `views:write` is the ONE UI-authoring capability, earning `system-appbuilder` (the sole app
+> builder) the view-spec writers `sdk/org/libs/core/src/typecheck/library-dts.ts#PROJECT_VIEW_DTS`.
+> There is no freehand-TSX writer to grant any agent — the model-facing global and its capability
+> id were removed, and the on-disk format has no slot left for one — so "renders natively" holds by
+> construction rather than by a rule an agent is asked to respect. The React layer described below
+> is still LIVE — it still serves the store catalog's shipped TSX apps and any project built before
+> the builder went spec-only, through the same esbuild page-build pipeline (`pages.ts`) — but
+> nothing writes a NEW hand-authored `.tsx` page anymore, and a project with view specs is no
+> longer served through that pipeline at all: it is served by a separate prebuilt SPA, **AppHost**
+> (`sdk/org/apps/app-shell/src/app-host.tsx#AppHost`), which FETCHES the specs over
+> `GET /api/apps/:id/views` and mounts them with the same `ViewRenderer` (below) — the mobile app
+> fetches the identical payload. The spec FORMAT the model authors is
 > [../format/project/pages/view-spec.md](../format/project/pages/view-spec.md).
 
 A project-app's views are **real client-side React**. Every non-`_`-prefixed `.tsx`/`.jsx` under `<projectRoot>/pages/` is a file-routed page, bundled once (on save / boot / install — never per request) into a self-contained static bundle under `<projectRoot>/.data/pages-dist/` and served under `…/app/<project>/*` `sdk/org/libs/cli/src/app/build/pages.ts:1-26`. There is no pod-side loader and no descriptor flattening: a page is browser code that pulls its data over HTTP from the project's own `api/` endpoints through the `@app/runtime` module `sdk/org/libs/cli/src/app/runtime/index.ts:1-11`.
@@ -202,14 +211,14 @@ const client = createViewClient({ baseUrl, getToken, endpoints })
 ```
 
 `ViewThemeProvider` is the theme context the renderer's `Prim.*` primitives require — every one of
-them calls Tamagui's `useTheme()`, which throws `Missing theme.` outside a provider. It is the
-generated wrapper's alias for `UiThemeProvider`, which every `@lmthing/ui` host needs and which
+them calls Tamagui's `useTheme()`, which throws `Missing theme.` outside a provider. It is
+**AppHost's** alias for `UiThemeProvider`, which every `@lmthing/ui` host needs and which
 therefore lives with the config it mounts `sdk/org/libs/ui/src/theme/provider.tsx#UiThemeProvider`;
 the alias stays because the name is baked into the codegen, the DTS shim and the validator
 `sdk/org/libs/ui/src/view/provider.tsx:15`. A host that already has one does **not**
 wrap it (the unified web SPA at `sdk/org/apps/web/src/routes/__root.tsx:22-29`, the mobile app at
-its own root); the **generated web wrapper** does, because a project-app page bundle has no root of
-its own `sdk/org/libs/cli/src/app/view-spec/wrapper.ts#renderViewWrapper`.
+its own root); **AppHost** does, because it is the one delivery path that owns no root of its own
+`sdk/org/apps/app-shell/src/app-host.tsx#AppHost`.
 
 `ViewRenderer` takes the page spec, the component definitions a `{ use: … }` reference resolves
 against, the app shell, the data client, optionally every route in the app (for shell derivation)
@@ -469,7 +478,7 @@ pre-materialised data, because a spec is authored before the data exists.
   map wins over a literal tone; `auto`'s own vocabulary is kept deliberately small
   `sdk/org/libs/ui/src/view/format.ts#autoTone`.
 - **`maxLines`** clamps with an ellipsis on both targets (RN's `numberOfLines` and the web
-  line-clamp trio) `sdk/org/libs/ui/src/view/elements.tsx#clampProps`; **`strike`** and the other
+  line-clamp trio) `sdk/org/libs/ui/src/view/clamp.ts#clampProps`; **`strike`** and the other
   leaf props ride on `text` `sdk/org/libs/ui/src/view/types.ts#TextEl`.
 - **`suffix`** puts a unit on a flat value — `meta: { value: '$.prepMinutes', suffix: 'min' }`
   renders "20 min" where a bare binding rendered "20" `sdk/org/libs/ui/src/view/types.ts#FlatValue`.

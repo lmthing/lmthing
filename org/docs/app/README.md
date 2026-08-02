@@ -136,7 +136,7 @@ TS types + JSDoc in `database/*.json` and the api handlers are the single source
 | pages | `generatedDts` → `types/generated.d.ts` (row types + `<Name>Input`/`<Name>Output`) |
 | the browser client | the `name → { method, routePath }` endpoint manifest |
 
-A live authoring write (`writeProjectApi` / `writeProjectPage`) invalidates the cached contracts *and* disposes the project's api runtime, so the next call re-derives from the new files; page **compilation** is deliberately not done on write — the caller POSTs a rebuild (`sdk/org/libs/cli/src/server/session-manager.ts:L648-L666`, `onAppWrite`). The authoring globals → [../runtime-globals/app-authoring.md](../runtime-globals/app-authoring.md).
+A live authoring write (`writeProjectApi` / `writeProjectView`) invalidates the cached contracts *and* disposes the project's api runtime, so the next call re-derives from the new files; page **compilation** is deliberately not done on write — the caller POSTs a rebuild (`sdk/org/libs/cli/src/server/session-manager.ts:L648-L666`, `onAppWrite`). The authoring globals → [../runtime-globals/app-authoring.md](../runtime-globals/app-authoring.md).
 
 > The builder has its own cache-busting knob: the page build's content hash covers only the *project's* files, so a change to `@app/runtime` itself needs `BUILDER_VERSION` bumped or already-built pods keep serving the old bundle (`sdk/org/libs/cli/src/app/build/pages.ts#BUILDER_VERSION`).
 

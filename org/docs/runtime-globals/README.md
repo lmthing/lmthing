@@ -121,14 +121,14 @@ The profile has seven boolean flags plus the parsed app grants
 `intersectAppCaps` (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`) is the read-only-fork
 gate: a `explore`/`plan` role keeps only `db:read`, `api:call`, `connections:use`,
 `store:read`, `team:read`; every mutating/authoring grant (`db:write`, `db:schema`,
-`pages:write`, `views:write`, `api:write`, `hooks:write`, `store:install`, `events:emit`,
+`views:write`, `api:write`, `hooks:write`, `store:install`, `events:emit`,
 `team:post`, and `fs:scratch`) is **dropped before the profile is built**, so it can neither
 be injected nor declared — which is why a read-only fork's `scratchFs` is false.
 
-### The 15 app capabilities
+### The 14 app capabilities
 
 `CapabilityId` (`sdk/org/libs/core/src/spaces/capabilities.ts#CapabilityId`) —
-`db:read`, `db:write`, `db:schema`, `pages:write`, `views:write`, `api:write`, `hooks:write`,
+`db:read`, `db:write`, `db:schema`, `views:write`, `api:write`, `hooks:write`,
 `api:call`, `connections:use`, `knowledge:write`, `project:manage`, `store:read`,
 `store:install`, `events:emit`, `fs:scratch`, plus the two **team-pod-only** ids `team:read`
 and `team:post`. Parsing is fail-loud (`parseCapabilities`,
@@ -149,7 +149,7 @@ globals are neither injected nor declared — see [team.md](./team.md).
 | `db:schema` | `{ tables?: [] }` | `db.createTable`, `db.addColumn`, `writeProjectTable` | [data-db.md](./data-db.md) · [app-authoring.md](./app-authoring.md) |
 | `api:call` | `{ allow: [] }` **required** | `apiCall` | [data-db.md](./data-db.md) |
 | `connections:use` | `{ providers: [] }` **required** | `callConnection` | [events-and-integrations.md](./events-and-integrations.md) |
-| `pages:write` | bare | `writeProjectPage`, `writeProjectComponent` | [app-authoring.md](./app-authoring.md) |
+| `views:write` | bare | `writeProjectView`, `writeProjectViewLayout`, `writeProjectViewComponent`, `writeProjectViewShell` — the ONLY UI-authoring surface | [app-authoring.md](./app-authoring.md) |
 | `api:write` | bare | `writeProjectApi` | [app-authoring.md](./app-authoring.md) |
 | `hooks:write` | bare | `writeProjectHook`, `writeProjectEvent`, `writeProjectFunction` | [app-authoring.md](./app-authoring.md) |
 | `project:manage` | bare | `createProject`, `selectProject` (live build target) | [app-authoring.md](./app-authoring.md) |
@@ -164,7 +164,7 @@ Injection: `sdk/org/libs/core/src/exec/bootstrap.ts:175-235` (yielding app globa
 `sdk/org/libs/core/src/exec/app-globals.ts#injectAppGlobals` (synchronous `db` + writers); the
 `fs:scratch` scratch block is bootstrap step 4c (`sdk/org/libs/core/src/exec/bootstrap.ts:154-167`).
 DTS: `CAPABILITY_DTS_FRAGMENTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts#CAPABILITY_DTS_FRAGMENTS`) —
-note `pages:write` maps to `PAGES_WRITE_DTS` + `PROJECT_PAGE_DTS` + `PROJECT_COMPONENT_DTS`
+note `views:write` maps to `PROJECT_VIEW_DTS` (the four spec writers — the only UI-authoring DTS fragment there is)
 (`:300`), etc.; `fs:scratch`'s `EXEC_SHELL_DTS`/`SCRATCH_DTS` are emitted directly in
 `buildAmbientDts`, not via that flat map (`sdk/org/libs/core/src/exec/bootstrap.ts#buildAmbientDts`).
 
@@ -292,7 +292,7 @@ Y = value-yielding (ends the turn). S = synchronous host call. F = fire-and-forg
 | `db.insert` / `db.update` | S | Write rows (hard delete `db.remove` is host-only — code nodes / app runtime) | `db:write` | [data-db.md](./data-db.md) |
 | `db.createTable` / `db.addColumn` | S | Evolve the live schema | `db:schema` | [data-db.md](./data-db.md) |
 | `createProject` / `selectProject` | S | Create a NEW **live** project (under `<lmthingRoot>/<slug>/`) or bind an existing one as the app-build target | `project:manage` | [app-authoring.md](./app-authoring.md) |
-| `writeProjectPage` / `writeProjectApi` / `writeProjectComponent` / `writeProjectTable` / `writeProjectHook` / `writeProjectEvent` / `writeProjectFunction` | S | Author into the **live project** and republish/rebuild | same grants as above **and** a host impl (project-rooted session); `writeProjectComponent` on `pages:write` | [app-authoring.md](./app-authoring.md) |
+| `writeProjectView` / `writeProjectViewLayout` / `writeProjectViewComponent` / `writeProjectViewShell` / `writeProjectApi` / `writeProjectTable` / `writeProjectHook` / `writeProjectEvent` / `writeProjectFunction` | S | Author into the **live project** and republish/rebuild | `views:write` (the four spec writers — the only UI-authoring surface) / `api:write` / `db:schema` / `hooks:write`, **and** a host impl (project-rooted session) | [app-authoring.md](./app-authoring.md) |
 | `listProjectDir(dir)` / `readProjectFile(path)` | S | List/read project files, rooted at `projectRoot` — the **only** way an agent reads project files now | `projectRoot` set (**not** a capability) | [app-authoring.md](./app-authoring.md) · [../format/project/README.md](../format/project/README.md) |
 | `console.log/warn/error` | S | Log via the render host | none | [session-and-utils.md](./session-and-utils.md) |
 | `execShell(cmd, opts?)` | S | Run a shell command; **blocks the Node event loop** | injected on every VM but **on the model DTS only under `fs:scratch`** (engineer scratch sandbox, scratch-rooted); mutating commands refused (`exitCode: 126`) under a read-only role | [session-and-utils.md](./session-and-utils.md) |

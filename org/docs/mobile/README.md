@@ -673,8 +673,9 @@ corner `×` always has, via the same `onDismiss` seam `Drawer`/`Dialog` already 
 Everything above describes a project whose pages are **TSX**: a browser bundle, so on a phone it can
 only be a WebView. That is still a real shape — the store catalog ships TSX apps
 (`store/projects/blog/pages/index.tsx`), and any project built before the builder became spec-only
-has TSX pages — but **nothing authors one any more**: `system-appbuilder` holds `views:write` and not
-`pages:write`, so its pages are **view specs** — data — and `@lmthing/ui/view` renders them on the
+has TSX pages — but **nothing authors one any more**: `views:write` is the ONLY UI-authoring
+capability there is (the freehand-TSX `pages:write` id and its writers were removed entirely), so
+every authored page is a **view spec** — data — and `@lmthing/ui/view` renders them on the
 `Prim.*` primitives, so they mount as real native views. **A spec app never touches a WebView, on any
 page.** That is the single capability the spec pipeline exists to deliver, and no amount of
 improvement to a TSX-authoring builder could have produced it, because its output is a browser

@@ -62,6 +62,7 @@
         EMAIL_FROM: "{{ vault_email_from | default('') }}"
         EMAIL_FROM_NAME: "{{ vault_email_from_name | default('') }}"
         RESEND_API_KEY: "{{ vault_resend_api_key | default('') }}"
+        RESEND_AUDIENCE_ID: "{{ vault_resend_audience_id | default('') }}"
         SMTP_HOST: "{{ vault_smtp_host | default('') }}"
         SMTP_PORT: "{{ vault_smtp_port | default('') }}"
         SMTP_USER: "{{ vault_smtp_user | default('') }}"

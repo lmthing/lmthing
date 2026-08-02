@@ -246,6 +246,13 @@ spec:
                   name: lmthing-secrets
                   key: RESEND_API_KEY
                   optional: true
+            # Resend audience (now "Segment") for newsletter subscribers; see routes/newsletter.ts
+            - name: RESEND_AUDIENCE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: RESEND_AUDIENCE_ID
+                  optional: true
             - name: SMTP_HOST
               valueFrom:
                 secretKeyRef:

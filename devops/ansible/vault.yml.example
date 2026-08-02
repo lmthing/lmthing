@@ -88,6 +88,9 @@ vault_connections_enc_key: ""
 # code. The sender domain must be verified with the provider or mail is dropped.
 #   Resend: resend.com → API Keys (sending access is enough)
 vault_resend_api_key: ""
+# Resend audience (now "Segment") to add newsletter subscribers to. Blank = store
+# the contact without a segment. Create it in Resend → Contacts → Segments.
+vault_resend_audience_id: ""
 vault_email_from: "login@lmthing.com"
 vault_email_from_name: "lmthing"
 # Only needed to force a transport ("resend" | "smtp" | "console"); normally blank.

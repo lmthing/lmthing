@@ -108,6 +108,14 @@ export async function register(email: string, password: string) {
   })
 }
 
+// ── Newsletter API ────────────────────────────────────────────
+export function subscribeNewsletter(email: string) {
+  return cloudFetchPublic('/api/newsletter/subscribe', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
 export async function login(email: string, password: string) {
   const data = await cloudFetchPublic('/api/auth/login', {
     method: 'POST',

@@ -1,6 +1,7 @@
 import { createRootRoute, Outlet, Link, useNavigate } from '@tanstack/react-router'
 import { AuthProvider, useAuth } from '@/lib/auth/AuthProvider'
 import { isAlphaActive, isAlphaUnlocked } from '@/lib/alpha'
+import { NewsletterSignup } from '@/components/NewsletterSignup'
 import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 import '@/index.css'
 
@@ -49,10 +50,19 @@ function Nav() {
 function Footer() {
   return (
     <footer className="mt-16 border-t border-border">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-6 px-6 py-6">
-        <Link to="/privacy" className="text-sm text-muted-foreground hover:text-foreground">Privacy</Link>
-        <Link to="/delete-account" className="text-sm text-muted-foreground hover:text-foreground">Delete account</Link>
-        <a href="mailto:support@lmthing.org" className="text-sm text-muted-foreground hover:text-foreground">Support</a>
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">Get launch updates</p>
+            <p className="text-xs text-muted-foreground">No spam — just the milestones.</p>
+          </div>
+          <NewsletterSignup compact />
+        </div>
+        <div className="flex flex-wrap items-center gap-6">
+          <Link to="/privacy" className="text-sm text-muted-foreground hover:text-foreground">Privacy</Link>
+          <Link to="/delete-account" className="text-sm text-muted-foreground hover:text-foreground">Delete account</Link>
+          <a href="mailto:support@lmthing.org" className="text-sm text-muted-foreground hover:text-foreground">Support</a>
+        </div>
       </div>
     </footer>
   )

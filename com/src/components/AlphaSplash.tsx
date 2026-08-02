@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Countdown } from './Countdown'
+import { NewsletterSignup } from './NewsletterSignup'
 import { codeInUrl, unlockAlpha, verifyInviteCode } from '@/lib/alpha'
 
 /**
@@ -95,6 +96,19 @@ export function AlphaSplash() {
           {busy ? 'Checking…' : 'Unlock access'}
         </button>
       </form>
+
+      <div className="my-2 flex w-full items-center gap-3">
+        <span className="h-px flex-1 bg-border" />
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">or</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
+      <div className="w-full">
+        <p className="mb-3 text-sm text-muted-foreground">
+          No invite yet? Get launch updates by email.
+        </p>
+        <NewsletterSignup />
+      </div>
     </div>
   )
 }

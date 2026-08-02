@@ -182,17 +182,9 @@ sendJson(res, result.status, result.body);
 
 ### Mount order & the root mount
 
-Route order is load-bearing (the router is first-match-wins by registration order):
+Route order is load-bearing (the router is first-match-wins by registration order): the literal `/api/*` and `/app/:projectId/*` routes are registered before the bare `/:projectId/*` root mount, so they always win over the `:projectId` param.
 
-```
-serve.ts:218   * /app/:projectId/api/*     → appApiHandler          (api wins over pages)
-serve.ts:306   * /app/:projectId/*         → createPageServeHandler  (the built React bundle)
-serve.ts:322   const rootMountApps = Boolean(process.env['LMTHING_GATEWAY_URL']);
-serve.ts:324   * /:projectId/api/*         → appApiHandler           (only when set)
-serve.ts:325   * /:projectId/*             → createPageServeHandler(…, '')  (only when set)
-```
-
-The bare `/:projectId/*` root mount serves the same app with **no `/app` prefix** (clean `lmthing.app/blog/…` URLs) and is gated on `LMTHING_GATEWAY_URL`, which the gateway injects into every per-user pod and nothing else sets. Locally (`lmthing serve` / `pnpm thing`) it is unset, because a bare `/:projectId/*` would shadow every SPA route — hence apps live at `localhost:8080/app/<project>` `sdk/org/libs/cli/src/server/serve.ts:309-325`.
+The bare `/:projectId/*` root mount serves the same app with **no `/app` prefix** (clean `lmthing.app/blog/…` URLs) and is registered **last and unconditionally** — it is no longer gated on an env var (the old `LMTHING_GATEWAY_URL` gate starved pods that lacked the variable, so every app rendered blank). What makes an always-on `/:projectId/*` safe is the fallback: a first segment that is not a built project, or is one of the `RESERVED_ROOT_SEGMENTS` this server answers itself, falls through to the SPA handler untouched. So the clean URL works locally (`localhost:8080/<project>/`) too `sdk/org/libs/cli/src/server/serve.ts#RESERVED_ROOT_SEGMENTS`.
 
 Full serving behaviour of the page bundle (asset-manifest SPA fallback, `<base href>`, CSP) → [../../app/README.md](../../app/README.md).
 

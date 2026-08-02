@@ -75,6 +75,7 @@ const METER_MODEL: [RegExp, string][] = [
   [/^R1 /i, 'DeepSeek-R1-0528'],
   [/^K2\.6/i, 'Kimi-K2.6'],
   [/^5\.5 /i, 'gpt-5.5'],
+  [/^5\.6 luna /i, 'gpt-5.6-luna'],
   [/^5\.4 nano/i, 'gpt-5.4-nano'],
   [/^5\.4 mini/i, 'gpt-5.4-mini'],
   [/^5\.4 /i, 'gpt-5.4'],

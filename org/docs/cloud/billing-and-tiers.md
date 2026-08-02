@@ -74,6 +74,7 @@ export const ENABLED_MODELS = [
   "DeepSeek-V4-Pro",
   "Kimi-K2.6",
   "gpt-5.5",
+  "gpt-5.6-luna",
   // Cheap vision-capable model — the system-vision space agent analyzes images
   // on this (delegated from THING); also usable directly as a low-cost model.
   "gpt-5.4-mini",
@@ -82,13 +83,13 @@ export const ENABLED_MODELS = [
 export const TRANSCRIBE_MODELS = ["whisper-1"] as const;
 ```
 
-That is **five** chat models plus `whisper-1`, on every tier. `whisper-1` must be in the key's
+That is **six** chat models plus `whisper-1`, on every tier. `whisper-1` must be in the key's
 `models` list or LiteLLM 403s `key_model_access_denied` on `/audio/transcriptions`
 (`cloud/gateway/src/lib/tiers.ts:L17-L22`).
 
 The pod's model aliases are pinned to these names in the `user-env` secret
-(`cloud/gateway/src/lib/compute.ts#litellmEnvDefaults`): `LM_MODEL_XS/S/M → DeepSeek-V4-Flash`,
-`LM_MODEL_M_R/L → DeepSeek-V4-Pro`, `LM_MODEL_L_R → Kimi-K2.6`,
+(`cloud/gateway/src/lib/compute.ts#litellmEnvDefaults`): `LM_MODEL_XS/S → DeepSeek-V4-Flash`,
+`LM_MODEL_M → gpt-5.6-luna`, `LM_MODEL_M_R/L → DeepSeek-V4-Pro`, `LM_MODEL_L_R → Kimi-K2.6`,
 `LM_MODEL_VISION → gpt-5.4-mini`, `LM_TRANSCRIBE_MODEL → lmthingcloud:whisper-1`.
 
 ---

@@ -61,6 +61,17 @@ data:
           input_cost_per_token: 0.00000575
           output_cost_per_token: 0.0000345
           cache_read_input_token_cost: 0.000000575
+      - model_name: gpt-5.6-luna
+        litellm_params:
+          model: azure/gpt-5.6-luna
+          api_base: os.environ/AZURE_API_BASE
+          api_key: os.environ/AZURE_API_KEY
+          api_version: "2024-12-01-preview"
+        model_info:
+          # 15% markup over Azure base price (azure_per_1K / 1000 * 1.15)
+          input_cost_per_token: 0.00000115
+          output_cost_per_token: 0.0000069
+          cache_read_input_token_cost: 0.000000115
       # gpt-5.4-mini — cheap VISION-capable model used by the system-vision space
       # agent (image analysis). ~20x cheaper than gpt-5.5.
       - model_name: gpt-5.4-mini

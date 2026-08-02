@@ -511,7 +511,7 @@ function litellmEnvDefaults(litellmKey: string): Record<string, string> {
     RENDER_SERVICE_TOKEN: process.env.RENDER_SERVICE_TOKEN ?? "",
     LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash",
     LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash",
-    LM_MODEL_M: "lmthingcloud:DeepSeek-V4-Flash",
+    LM_MODEL_M: "lmthingcloud:gpt-5.6-luna",
     LM_MODEL_L: "lmthingcloud:DeepSeek-V4-Pro",
     LM_MODEL_M_R: "lmthingcloud:DeepSeek-V4-Pro",
     LM_MODEL_L_R: "lmthingcloud:Kimi-K2.6",

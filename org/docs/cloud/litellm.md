@@ -43,7 +43,7 @@ Envoy routes `lmthing.cloud/v1/*` → the `litellm:4000` Service in `lmthing` (`
 
 ## Model routing (`model_list`)
 
-The config's `model_list` maps a public `model_name` to an Azure deployment via `litellm_params.model: azure/<deployment>` (`devops/argocd/core/litellm.yaml:13-88`). All models share `api_base: os.environ/AZURE_API_BASE` and `api_key: os.environ/AZURE_API_KEY` — the deployment name in the `azure/…` path is the only thing that differs.
+The config's `model_list` maps a public `model_name` to an Azure deployment via `litellm_params.model: azure/<deployment>` (`devops/argocd/core/litellm.yaml:13-99`). All models share `api_base: os.environ/AZURE_API_BASE` and `api_key: os.environ/AZURE_API_KEY` — the deployment name in the `azure/…` path is the only thing that differs.
 
 | `model_name` (what pods call) | Azure deployment | api_version | Notes | Citation |
 |---|---|---|---|---|
@@ -51,12 +51,13 @@ The config's `model_list` maps a public `model_name` to an Azure deployment via 
 | `DeepSeek-V4-Pro` | `azure/DeepSeek-V4-Pro` | `2024-12-01-preview` | mid chat/reasoning | `litellm.yaml:25-35` |
 | `Kimi-K2.6` | `azure/Kimi-K2.6` | `2024-12-01-preview` | large reasoning; **Data Zone** rates — Kimi is sold only under `Azure Fireworks Models`, which publishes no Global meter | `litellm.yaml:36-48` |
 | `gpt-5.5` | `azure/gpt-5.5` | `2024-12-01-preview` | large chat; priced at the **short-context** (`ShortCo`) tier | `litellm.yaml:53-63` |
-| `gpt-5.4-mini` | `azure/gpt-5.4-mini` | `2024-12-01-preview` | cheap **vision**-capable model for the `system-vision` agent | `litellm.yaml:66-76` |
-| `whisper-1` | `azure/whisper` | `2024-06-01` | audio transcription; billed per-minute (LiteLLM's built-in `azure/whisper` cost map, so no `model_info`) | `litellm.yaml:82-88` |
+| `gpt-5.6-luna` | `azure/gpt-5.6-luna` | `2024-12-01-preview` | default general-purpose model; priced at the **short-context** (`ShortCo`) tier | `litellm.yaml:64-74` |
+| `gpt-5.4-mini` | `azure/gpt-5.4-mini` | `2024-12-01-preview` | cheap **vision**-capable model for the `system-vision` agent | `litellm.yaml:77-87` |
+| `whisper-1` | `azure/whisper` | `2024-06-01` | audio transcription; billed per-minute (LiteLLM's built-in `azure/whisper` cost map, so no `model_info`) | `litellm.yaml:93-98` |
 
-All five chat/vision models carry a `cache_read_input_token_cost`, so prompt-cache reads bill at the (much lower) cached rate rather than the full input rate — DeepSeek-V4-Pro's cached rate is ~12× below its input rate (`litellm.yaml:33-35`).
+All six chat/vision models carry a `cache_read_input_token_cost`, so prompt-cache reads bill at the (much lower) cached rate rather than the full input rate — DeepSeek-V4-Pro's cached rate is ~12× below its input rate (`litellm.yaml:33-35`).
 
-The five chat/vision models are the canonical enabled set, mirrored in the Gateway at `cloud/gateway/src/lib/tiers.ts#ENABLED_MODELS` (`ENABLED_MODELS`); `whisper-1` is `TRANSCRIBE_MODELS` (`tiers.ts:22`). A user key's allowlist is `TIER_MODELS = [...ENABLED_MODELS, ...TRANSCRIBE_MODELS]` (`tiers.ts:25`) — a key missing `whisper-1` gets a `key_model_access_denied` 403 on `/audio/transcriptions` (`tiers.ts:17-21`).
+The six chat/vision models are the canonical enabled set, mirrored in the Gateway at `cloud/gateway/src/lib/tiers.ts#ENABLED_MODELS` (`ENABLED_MODELS`); `whisper-1` is `TRANSCRIBE_MODELS` (`tiers.ts:22`). A user key's allowlist is `TIER_MODELS = [...ENABLED_MODELS, ...TRANSCRIBE_MODELS]` (`tiers.ts:25`) — a key missing `whisper-1` gets a `key_model_access_denied` 403 on `/audio/transcriptions` (`tiers.ts:17-21`).
 
 ### `general_settings` / `litellm_settings`
 
@@ -71,7 +72,7 @@ litellm_settings:
   num_retries: 2
   request_timeout: 120
 ```
-— `devops/argocd/core/litellm.yaml:81-89`.
+— `devops/argocd/core/litellm.yaml:100-108`.
 
 ### Local dev
 
@@ -86,7 +87,7 @@ Per-token costs in `model_info` are **generated, not hand-written**. `cloud/scri
 ```
 input_cost_per_token = inputPer1K / 1000 * 1.15
 ```
-— the 15% gateway markup (`generate-litellm-models.ts#MARKUP`, `:58-77`). It prints a `model_list:` block to paste into `devops/argocd/core/litellm.yaml` (the ArgoCD YAML stays the source of truth; the script keeps the markup deterministic — `generate-litellm-models.ts:10-13`). Run it with `cd cloud && pnpm litellm:generate-models` (the config header, `litellm.yaml:8-12`). The script's `ENABLED_MODELS` list must match the Gateway's (`generate-litellm-models.ts#ENABLED_MODELS`) and it emits a `cache_read_input_token_cost` for every model whose source entry has `cachedInputPer1K` (`:76-78`) — which, since the price refresh below, is all five. `whisper-1` gets no `model_info` — LiteLLM bills it per-minute from its own cost map.
+— the 15% gateway markup (`generate-litellm-models.ts#MARKUP`, `:58-77`). It prints a `model_list:` block to paste into `devops/argocd/core/litellm.yaml` (the ArgoCD YAML stays the source of truth; the script keeps the markup deterministic — `generate-litellm-models.ts:10-13`). Run it with `cd cloud && pnpm litellm:generate-models` (the config header, `litellm.yaml:8-12`). The script's `ENABLED_MODELS` list must match the Gateway's (`generate-litellm-models.ts#ENABLED_MODELS`) and it emits a `cache_read_input_token_cost` for every model whose source entry has `cachedInputPer1K` (`:76-78`) — which, since the price refresh below, is all six. `whisper-1` gets no `model_info` — LiteLLM bills it per-minute from its own cost map.
 
 ### Refreshing the base prices
 
@@ -141,7 +142,7 @@ LMTHINGCLOUD_API_KEY:  litellmKey,   // the user's own virtual key
 LMTHINGCLOUD_BASE_URL: "http://litellm.lmthing.svc.cluster.local:4000/v1",
 LM_MODEL_XS:   "lmthingcloud:DeepSeek-V4-Flash",
 LM_MODEL_S:    "lmthingcloud:DeepSeek-V4-Flash",
-LM_MODEL_M:    "lmthingcloud:DeepSeek-V4-Flash",
+LM_MODEL_M:    "lmthingcloud:gpt-5.6-luna",
 LM_MODEL_L:    "lmthingcloud:DeepSeek-V4-Pro",
 LM_MODEL_M_R:  "lmthingcloud:DeepSeek-V4-Pro",
 LM_MODEL_L_R:  "lmthingcloud:Kimi-K2.6",

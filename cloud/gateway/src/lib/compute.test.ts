@@ -61,6 +61,14 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+describe("managed model allowlist", () => {
+  it("includes gpt-5.6-luna in every tier", () => {
+    for (const tier of Object.values(TIERS)) {
+      expect(tier.models).toContain("gpt-5.6-luna");
+    }
+  });
+});
+
 describe("principal identity", () => {
   it("maps a user to their existing namespace and bare key", () => {
     const p = userPrincipal("379847");
@@ -155,6 +163,9 @@ describe("createPod — user principal (regression: unchanged shape)", () => {
     for (const key of aliases) {
       expect(Buffer.from(data[key]!, "base64").toString()).toMatch(/^lmthingcloud:/);
     }
+    expect(Buffer.from(data.LM_MODEL_M!, "base64").toString()).toBe(
+      "lmthingcloud:gpt-5.6-luna",
+    );
   });
 
   it("does NOT put a user pod into team mode", () => {

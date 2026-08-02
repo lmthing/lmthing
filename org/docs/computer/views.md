@@ -154,7 +154,7 @@ A `Page` of five `Card`s `sdk/org/apps/web/src/routes/computer/settings.tsx#Sett
 | `/computer/spaces/$spaceId` | `<h1>Space: {spaceId}</h1>` `sdk/org/apps/web/src/routes/computer/spaces/$spaceId/index.tsx:33-39` |
 | `/computer/spaces/$spaceId/config` | `<h1>Config: {spaceId}</h1>` `sdk/org/apps/web/src/routes/computer/spaces/$spaceId/config.tsx:47-53` |
 | `/computer/spaces/$spaceId/logs` | `<h1>Logs: {spaceId}</h1>` `sdk/org/apps/web/src/routes/computer/spaces/$spaceId/logs.tsx:61-67` |
-| `/computer/login` | `<Navigate to="/"/>` when authenticated, else `null` — the real login screen is `AuthGate` in the root route `sdk/org/apps/web/src/routes/computer/login.tsx#Login` |
+| `/computer/login` | `<Navigate to="/"/>` when authenticated, else `null` — auth is handled by `AuthGate` in the root route, which redirects unauthenticated users to lmthing.com `sdk/org/apps/web/src/lib/gates.tsx#AuthGate` |
 
 Both `ComputerLayout` and `IdeLayout` link to `/computer/spaces` even though it has no content `sdk/org/libs/ui/src/computer/computer-layout.tsx#navItems` · `sdk/org/libs/ui/src/computer/ide-layout.tsx#navItems`.
 

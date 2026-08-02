@@ -153,7 +153,7 @@ function SpaceList() {
 
 Same for `/computer/spaces/$spaceId`, `…/config` and `…/logs` (`spaces/$spaceId/index.tsx`, `spaces/$spaceId/config.tsx`, `spaces/$spaceId/logs.tsx`). Space browsing/authoring lives in Studio; the on-disk space format is [../format/space/README.md](../format/space/README.md). The one way `/computer` touches spaces today is as raw files in the IDE tree.
 
-`/computer/login` is likewise vestigial — it returns `<Navigate to="/"/>` when authenticated and `null` otherwise, because the real login screen is rendered by `AuthGate` in the shared root (`sdk/org/apps/web/src/routes/computer/login.tsx`).
+`/computer/login` is likewise vestigial — it returns `<Navigate to="/"/>` when authenticated and `null` otherwise, because auth is handled by `AuthGate` in the shared root, which redirects unauthenticated users to lmthing.com (`sdk/org/apps/web/src/lib/gates.tsx#AuthGate`).
 
 ---
 

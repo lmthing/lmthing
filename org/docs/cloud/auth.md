@@ -170,6 +170,8 @@ Returns a signed access token for `local-dev-user` / `dev@local`; 404 unless `LO
 
 Other lmthing.\* SPAs delegate login to com/ via a single-use code exchanged for a gateway session.
 
+The five web product surfaces (chat / studio / computer / team / app) have **no in-page login**: their shared `AuthGate` redirects any unauthenticated visitor to `{comUrl}/auth/sso` via the `login()` path, so sign-in — by email or GitHub — happens at lmthing.com and the session returns through the code exchange below `sdk/org/apps/web/src/lib/gates.tsx#AuthGate`. The desktop and mobile shells keep an in-app `LoginScreen` instead (email fully in-app, GitHub via a system-browser session), so one native login is shared across every in-app surface `sdk/org/apps/desktop/src/AuthGate.tsx#AuthGate` · `sdk/org/apps/mobile/App.tsx#AuthGate`.
+
 - `POST /sso/create` (JWT): mints a 32-byte hex `code` with a **60-second** TTL and stores it via `db.insertSsoCode(user.id, code, redirect_uri, app, expiresAt)` `cloud/gateway/src/routes/auth.ts:255-277`.
 - `POST /sso/exchange` (public): `db.findAndConsumeSsoCode(code, redirect_uri)` atomically consumes the row, then `zitadel.getUserById` + `signTokens` return `{ access_token, refresh_token, expires_at, user: { id, email } }` and best-effort provision `cloud/gateway/src/routes/auth.ts:280-317`.
 
@@ -199,7 +201,7 @@ Two target-specific rules, both enforced by the native suite `sdk/org/libs/ui/me
 
 **GitHub sign-in still leaves the app, and must.** An OAuth handoff to an external identity provider has to happen in a real browser session (`ASWebAuthenticationSession` / Custom Tab) — embedding it in a WebView breaks GitHub's policy and is an app-store rejection risk. `platform/sso.native.ts` is the correct primitive, not a workaround. Only the email path can be fully in-app.
 
-Both doors are rendered by one shared `LoginScreen` `sdk/org/libs/ui/src/components/auth/login-screen/index.tsx`. Two cross-platform traps it encodes: the field uses **`inputMode`** rather than RN's `keyboardType` (the one spelling React DOM and `TextInput` both accept, and the only one `InputProps` types), and it sets **no `autoCorrect`** — the DOM types it as a *string* while RN wants a *boolean*, so `"off"` would arrive truthy on a phone and switch autocorrect **on**, corrupting typed addresses.
+On the **native** shells both doors are rendered by one shared `LoginScreen` `sdk/org/libs/ui/src/components/auth/login-screen/index.tsx` (the web surfaces redirect to lmthing.com instead — see above). Two cross-platform traps it encodes: the field uses **`inputMode`** rather than RN's `keyboardType` (the one spelling React DOM and `TextInput` both accept, and the only one `InputProps` types), and it sets **no `autoCorrect`** — the DOM types it as a *string* while RN wants a *boolean*, so `"off"` would arrive truthy on a phone and switch autocorrect **on**, corrupting typed addresses.
 
 **Demo mode**: `AuthProvider` uses a hardcoded `DEMO_SESSION` (accessToken `"demo"`, userId `demo-user`, email `demo@lmthing.local`) whenever `import.meta.env.VITE_DEMO_USER === 'true'` **or** `isLocalRun()` is true (localhost/loopback/`*.test`) `sdk/org/libs/auth/src/AuthProvider.tsx:27-40`, `sdk/org/libs/auth/src/client.ts#isLocalRun`. This pairs with the middleware's `"demo"` bypass above.
 

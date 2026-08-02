@@ -23,7 +23,7 @@ Two origins are resolved at boot (`sdk/org/apps/web/src/lib/config.ts`, `sdk/org
 - **`COMPUTER_BASE_URL`** — the pod. Same-origin in production and under `pnpm thing`; only the `*.test` nginx proxy stack uses `https://computer.test`.
 - **`CLOUD_BASE_URL`** — the gateway. `https://lmthing.cloud` in production, `https://cloud.test` under the proxy stack.
 
-Above every surface sits the shared root: `AuthProvider(appName='studio') → AuthGate → PinGate → <Outlet/>` (`sdk/org/apps/web/src/routes/__root.tsx`). `/computer/login` is therefore vestigial — it renders `null` (or redirects when already authed); the real login screen comes from `AuthGate` (`sdk/org/apps/web/src/routes/computer/login.tsx#Login`).
+Above every surface sits the shared root: `AuthProvider(appName='studio') → AuthGate → PinGate → <Outlet/>` (`sdk/org/apps/web/src/routes/__root.tsx`). `/computer/login` is therefore vestigial — it renders `null` (or redirects when already authed); the web surfaces have no in-page login, because `AuthGate` redirects unauthenticated users to lmthing.com (`sdk/org/apps/web/src/lib/gates.tsx#AuthGate`).
 
 ---
 

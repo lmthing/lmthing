@@ -141,8 +141,8 @@ LMTHINGCLOUD_API_KEY:  litellmKey,   // the user's own virtual key
 LMTHINGCLOUD_BASE_URL: "http://litellm.lmthing.svc.cluster.local:4000/v1",
 LM_MODEL_XS:   "lmthingcloud:DeepSeek-V4-Flash",
 LM_MODEL_S:    "lmthingcloud:DeepSeek-V4-Flash",
-LM_MODEL_M:    "lmthingcloud:DeepSeek-V4-Pro",
-LM_MODEL_L:    "lmthingcloud:gpt-5.5",
+LM_MODEL_M:    "lmthingcloud:DeepSeek-V4-Flash",
+LM_MODEL_L:    "lmthingcloud:DeepSeek-V4-Pro",
 LM_MODEL_M_R:  "lmthingcloud:DeepSeek-V4-Pro",
 LM_MODEL_L_R:  "lmthingcloud:Kimi-K2.6",
 LM_MODEL_VISION:     "lmthingcloud:gpt-5.4-mini",   // system-vision agent

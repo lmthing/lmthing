@@ -37,6 +37,24 @@ spec:
 
           local user_id = request_handle:headers():get("x-user-id")
           if user_id == nil then
+            -- The JWT policy is `optional`, so a request carrying NO token reaches here
+            -- (x-user-id is unset); an INVALID token is still rejected by the filter
+            -- before this runs. A DOCUMENT navigation (typing lmthing.app/<app>/, a
+            -- bookmark, a shared link) cannot carry a Bearer header, and without the
+            -- access_token cookie there is no user id to route to a pod with — so a
+            -- logged-out visitor used to hit the raw JWT "401" wall. Bounce document
+            -- navigations to the shell at the same origin ("/", served JWT-free by the
+            -- studio Service): its AuthGate either signs them in (lmthing.com/auth/sso)
+            -- or, if they hold a valid in-browser session, lands them on the launcher,
+            -- whose openApp re-sets the access_token cookie. Asset/XHR requests have no
+            -- such recovery path and stay 401.
+            if request_handle:headers():get("sec-fetch-dest") == "document" then
+              request_handle:respond(
+                {[":status"] = "302", ["location"] = "/", ["content-type"] = "text/plain"},
+                ""
+              )
+              return
+            end
             request_handle:respond(
               {[":status"] = "401", ["content-type"] = "text/plain"},
               "missing user_id claim"
@@ -171,6 +189,15 @@ spec:
       kind: HTTPRoute
       name: app-pages-bare
   jwt:
+    # Optional: a request with NO token passes the filter (no x-user-id header is set)
+    # so the Lua above can redirect a logged-out DOCUMENT navigation to the shell to
+    # sign in, instead of answering Envoy's raw JWT 401. This does NOT weaken auth:
+    # an INVALID token is still rejected here, and the Lua 401s every token-less
+    # non-document request (asset/XHR, including the apps' own /<project>/api/* data
+    # calls that ride these page routes). So a forged token is blocked at the filter
+    # and a token-less data call is blocked at the Lua — only a token-less page
+    # navigation is let through, to the login shell.
+    optional: true
     providers:
       - name: gateway
         extractFrom:

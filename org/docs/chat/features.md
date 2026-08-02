@@ -2,7 +2,7 @@
 
 What the chat surface actually does, and which pod / gateway endpoint each feature calls.
 
-The `/chat` route itself is two thin files — a layout that wraps the surface in `PodEnsureGate` (`sdk/org/apps/web/src/routes/chat/route.tsx`) and an index that renders `<ChatShell/>` from `@lmthing/ui/chat` (`sdk/org/apps/web/src/routes/chat/index.tsx`). Every feature below is implemented in `sdk/org/libs/ui/src/chat/**`. See [routes.md](./routes.md) for the route tree and [views.md](./views.md) for the component layout.
+The `/chat` routes themselves are thin — a layout that wraps the subtree in `PodEnsureGate` (`sdk/org/apps/web/src/routes/chat/route.tsx`) and three leaves (`/chat`, `/chat/$projectId`, `/chat/$projectId/$sessionId`) that render `<ChatShell/>` from `@lmthing/ui/chat` with the project and conversation their URL names (`sdk/org/apps/web/src/routes/chat/-shell.tsx#ChatRouteShell`). Every feature below is implemented in `sdk/org/libs/ui/src/chat/**`. See [routes.md](./routes.md) for the route tree and [views.md](./views.md) for the component layout.
 
 Two origins are in play. Same-origin `/api/*` is the **pod** (the CLI server — see [../cli-api/rest/README.md](../cli-api/rest/README.md)); `dataPlaneOrigin('cloud')` is the **gateway** (`sdk/org/libs/ui/src/lib/app-urls.ts`, `dataPlaneOrigin`).
 
@@ -32,7 +32,7 @@ Because the gate has already confirmed the edge is serving, `ChatShell`'s boot f
 
 ### Boot and project selection
 
-`ChatShell` fetches `GET /api/projects`, stores them, and auto-selects the project with id `user` (else `projects[0]`), then applies/syncs the URL state (`ChatShell.tsx:21-36`). The sidebar repeats the same fetch + default-selection as a fallback (`sdk/org/libs/ui/src/chat/app/Sidebar.tsx:107-119`).
+`ChatShell` fetches `GET /api/projects` and stores them. When the location names no project (`/chat`), it **redirects** — replacing the history entry, not pushing one — to the project with id `user` (else `projects[0]`), then applies/syncs the `?node=&tab=&follow=` view state (`sdk/org/libs/ui/src/chat/app/ChatShell.tsx#ChatShell`). The sidebar repeats the fetch to keep the list fresh, but no longer picks a default of its own: that would leave the URL saying `/chat` while the app showed a project (`sdk/org/libs/ui/src/chat/app/Sidebar.tsx#Sidebar`). Which project is open is a **route param** — see [routes.md](./routes.md) §3.
 
 ### Sidebar — projects, app pages, spaces, conversations
 
@@ -47,13 +47,15 @@ Because the gate has already confirmed the edge is serving, `ChatShell`'s boot f
 | spaces list | `GET /api/projects/:id/spaces` | `Sidebar.tsx:101` |
 | app pages (the `APP` section) | `GET /api/projects/:id/app` | `use-app-pages.ts#useAppPages` |
 | per-token pricing | `GET /api/prices/azure` | `Sidebar.tsx:123` |
-| new chat | `POST /api/sessions {projectId}` | `Sidebar.tsx:165` |
-| resume chat | `POST /api/sessions {projectId, resumeSessionId}` | `Sidebar.tsx:174` |
-| delete chat | `DELETE /api/sessions/:id` | `Sidebar.tsx:180` |
+| new chat | `POST /api/sessions {projectId}` | `session-control.ts#startSession` |
+| open/resume chat | `POST /api/sessions {projectId, resumeSessionId}` | `session-control.ts#openSession` |
+| delete chat | `DELETE /api/sessions/:id` | `Sidebar.tsx#Sidebar` |
 
 Sessions are grouped Today / Yesterday / Last 7 days / Older by `lastActivity` (`Sidebar.tsx:35-51`) and each row shows its cost (`totalCostUsd`, or the live store cost for the active session) (`Sidebar.tsx:222-223`). Clicking a **space** navigates out to Studio (`crossAppOrigin('studio')` + `/studio/<projectId>/<spaceId>`, `Sidebar.tsx:191-194`). The footer is the shared `SidebarFooter` — cross-app links plus an account row that opens the global settings dialog (`Sidebar.tsx:261`; see [The shared settings dialog](#the-shared-settings-dialog-sidebar-footer) below).
 
 Opening, switching and ending the live session is `sdk/org/libs/ui/src/chat/app/session-control.ts` — one module owns the socket, so the sidebar is not the only surface that can start a chat (the shell's no-session pane calls the same `startSession`, see [Mobile: the chat surface with no conversation open](../mobile/README.md#the-chat-surface-with-no-conversation-open)).
+
+Clicking a listed chat does **not** fetch here: it navigates, and the shell's location effect does the resuming (`sdk/org/libs/ui/src/chat/app/Sidebar.tsx#Sidebar`). Both deletes navigate away *before* the DELETE lands, so the surface never flashes "that project isn't here" for something the user removed on purpose.
 
 Both create and resume go through the same pod route — `POST /api/sessions` accepts `{spaceDir?, agentSlug?, spaceRef?, model?, projectId?, resumeSessionId?, budget?}` and answers `201 {sessionId}`; under memory pressure it answers `503` + `Retry-After: 5` (`sdk/org/libs/cli/src/server/routes/sessions.ts#handleCreateSession`) → [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md).
 
@@ -111,8 +113,8 @@ The header's ⏻ button POSTs `/api/restart`, then polls `GET /api/env` every 80
 - `StatusLine` is the chat's whole account of in-flight sub-agent work: ONE sentence under the title (the current running fork / delegate / tasklist / task, else THING's own line). It reads `model.nodes` only and writes nothing to the transcript (`sdk/org/libs/ui/src/chat/app/StatusLine.tsx#StatusLine`).
 - `DevPanel` (execution tree + inspector) opens on `Alt+I` or `?inspect=1` (`sdk/org/libs/ui/src/chat/app/AppShell.tsx:64,89-94`).
 - **Keyboard shortcuts** (web only — `platform/keyboard`'s `onKeyDown` is a documented no-op on native, so this needs no separate native fork): `Alt+N` starts a new session in the active project (shares `Alt+I`'s modifier rather than `Ctrl`/`Cmd`+N, which every browser reserves for a new window); bare `/` focuses the composer, the same convention GitHub/Slack/Discord/Notion use, and is skipped whenever an editable element already has focus so it never steals a `/` the user meant to type (`AppShell.tsx#isEditableTarget`, effect at `AppShell.tsx:96-121`). Neither is offered in a `singleSession` embedding without a project to hold the new session.
-- URL state is deep-linkable: `?node=`, `?tab=`, `?follow=0` are read into the store on boot (`applyUrlToState`) and written back via `history.replaceState` from a store subscription (`sdk/org/libs/ui/src/chat/app/url-state.ts:6-30`).
-- The document title reflects run state (`⟳ N running` / `✓ done` / `⏵ replay`) (`AppShell.tsx:58-66`).
+- URL state is deep-linkable at two levels: the **location** (`/chat/<project>/<conversation>`) is a route param pair the shell drives state from, and the **view** params `?node=`, `?tab=`, `?follow=0` are read into the store on mount (`applyUrlToState`) and written back via `history.replaceState` from a store subscription (`sdk/org/libs/ui/src/chat/app/url-state.ts#syncStateToUrl`). See [routes.md](./routes.md) §3.
+- The document title is the open conversation's title, prefixed by run state (`⟳ N running` / `✓ done` / `⏵ replay`) (`sdk/org/libs/ui/src/chat/app/AppShell.tsx#AppShell`) — the browser's own history menu is labelled by it.
 - Replay mode loads a local NDJSON trace file client-side (no endpoint) and disables the composer (`Composer.tsx:263-269`).
 
 ---

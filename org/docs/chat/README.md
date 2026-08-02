@@ -4,7 +4,8 @@
 
 | | |
 |---|---|
-| Route files | `sdk/org/apps/web/src/routes/chat/route.tsx`, `sdk/org/apps/web/src/routes/chat/index.tsx` — **the only two files** under `routes/chat/` |
+| Route files | `sdk/org/apps/web/src/routes/chat/` — a layout (`route.tsx`) and three leaves: `index.tsx`, `$projectId/index.tsx`, `$projectId/$sessionId.tsx`, all rendering the same `-shell.tsx` |
+| URLs | `/chat` · `/chat/<project>` · `/chat/<project>/<conversation>` — every state the surface has is addressable ([routes.md](./routes.md)) |
 | Implementation | `sdk/org/libs/ui/src/chat/**`, imported via the `@lmthing/ui/chat` subpath export (`sdk/org/libs/ui/package.json:L10-L11`) |
 | Pod API it drives | [../cli-api/rest/](../cli-api/rest/README.md) — sessions, projects, uploads, env, budget, prices, restart, report-bug |
 | Detail pages | [routes.md](./routes.md) · [features.md](./features.md) · [views.md](./views.md) |
@@ -32,13 +33,15 @@ export const Route = createFileRoute('/chat')({ component: ChatLayout })
 
 `PodEnsureGate` is the shared readiness gate (`sdk/org/apps/web/src/lib/gates.tsx:L206-L219`): it POSTs `{CLOUD}/api/compute/ensure`, polls `{CLOUD}/api/compute/status` while the pod cold-wakes, offers an upgrade when the running image tag is older than the latest CI tag (`POST {CLOUD}/api/compute/upgrade`), probes the same-origin pod edge, and — once ready — POSTs `/api/keepalive` every 5 minutes while the tab is visible (`sdk/org/apps/web/src/lib/gates.tsx#KEEPALIVE_MS`, `:L330-L350`). It is skipped entirely for pod-embedded / local runs (`sdk/org/apps/web/src/lib/gates.tsx#PodEnsureGate`).
 
-The `/chat/` index route is 11 lines — the entire surface is `<ChatShell/>` (`sdk/org/apps/web/src/routes/chat/index.tsx:L1-L11`).
+Each of the three leaf routes is a few lines — the entire surface is `<ChatShell/>`, handed the project and conversation its URL names (`sdk/org/apps/web/src/routes/chat/-shell.tsx#ChatRouteShell`).
 
 ---
 
 ## What `<ChatShell/>` does
 
-On mount it fetches `GET /api/projects`, selects the project with id `user` (else the first one), then wires URL ↔ store state and renders `<AppShell/>` (`sdk/org/libs/ui/src/chat/app/ChatShell.tsx#ChatShell`). It is safe to fetch once here because `PodEnsureGate` has already confirmed the pod edge is serving (`sdk/org/libs/ui/src/chat/app/ChatShell.tsx:L17-L19`).
+It is the surface's one synchronisation point: the **location** (which project, which conversation) is the source of truth, and `ChatShell` is the only thing that turns it into store state and a live socket (`sdk/org/libs/ui/src/chat/app/ChatShell.tsx#ChatShell`). On mount it fetches `GET /api/projects` — safe to do once, because `PodEnsureGate` has already confirmed the pod edge is serving — redirects `/chat` to the project with id `user` (else the first one), applies the `?node=&tab=&follow=` view params, and renders `<AppShell/>`.
+
+The location arrives as props from a host that owns a history stack; with no host the store holds it instead, which is how the same shell runs on desktop and on a phone (`sdk/org/libs/ui/src/chat/app/chat-nav.tsx#useChatNav`). See [routes.md](./routes.md) §3.
 
 `AppShell` is a responsive 3-pane layout — **Sidebar** (docked ≥768px, drawer below) | **ChatView** | **DevPanel** (docked ≥1024px, drawer below; toggled with `Alt+I` or `?inspect=1`) plus the project-settings drawer (`sdk/org/libs/ui/src/chat/app/AppShell.tsx:L3-L7`, `:L42-L43`, `:L71`, `:L77-L83`).
 
@@ -48,7 +51,7 @@ All chat state lives in one Zustand store composed from session / replay / prici
 
 ## The live session
 
-A conversation is a **pod session** streamed over a WebSocket. Selecting a chat closes the old socket, resets the store, opens `WS /api/ws?sessionId=<id>&access_token=<jwt>` and publishes the sender on `window.__LM_SEND__` — the seam every component uses to send (`sdk/org/libs/ui/src/chat/app/session-control.ts#switchSession`).
+A conversation is a **pod session** streamed over a WebSocket. Its id is what the URL carries, and every way of arriving at one — a sidebar click, a fresh chat, a pasted link, a reload, Back — goes through `openSession`, which resumes it pod-side if needed and is both idempotent and race-guarded (`sdk/org/libs/ui/src/chat/app/session-control.ts#openSession`). That closes the old socket, resets the store, opens `WS /api/ws?sessionId=<id>&access_token=<jwt>` and publishes the sender on `window.__LM_SEND__` — the seam every component uses to send (`sdk/org/libs/ui/src/chat/app/session-control.ts#switchSession`).
 
 ```ts
 activeConn = connectLive(`${proto}//${window.location.host}/api/ws?sessionId=${encodeURIComponent(sessionId)}${wsTokenSuffix()}`);
@@ -67,7 +70,7 @@ Every same-origin pod call carries the gateway JWT from `@lmthing/auth` as `Auth
 
 ## Where to go next
 
-- **[routes.md](./routes.md)** — the (tiny) route tree, the URL/query state it deep-links (`?node=`, `?tab=`, `?follow=0`, `?inspect=1`), and the surrounding gates.
+- **[routes.md](./routes.md)** — the route tree, the two path params that make every state addressable, the push/replace rules behind the back button, the query state it deep-links (`?node=`, `?tab=`, `?follow=0`, `?inspect=1`), and the surrounding gates.
 - **[features.md](./features.md)** — the feature → endpoint table: projects & conversations, live streaming, attachments & voice, `@` completions, cost & budget, restart, bug report, consent cards, replay, and the **Integrations** settings tab (pod `GET /api/projects/:id/integrations` + gateway `GET/PUT /api/compute/env` + gateway `GET /api/inbound`, with the save → pod-restart → auto-resume flow).
 - **[views.md](./views.md)** — the component map under `sdk/org/libs/ui/src/chat/` (ChatShell, AppShell, Sidebar, ChatView, Composer, Message, StatusLine, DevPanel, ProjectSettings, IntegrationsTab, ConsentCard, replay).
 - **[../cli-api/rest/](../cli-api/rest/README.md)** — the pod endpoints behind all of it.

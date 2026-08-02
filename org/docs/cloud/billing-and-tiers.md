@@ -89,7 +89,7 @@ That is **six** chat models plus `whisper-1`, on every tier. `whisper-1` must be
 
 The pod's model aliases are pinned to these names in the `user-env` secret
 (`cloud/gateway/src/lib/compute.ts#litellmEnvDefaults`): `LM_MODEL_XS/S → DeepSeek-V4-Flash`,
-`LM_MODEL_M → gpt-5.6-luna`, `LM_MODEL_M_R/L → DeepSeek-V4-Pro`, `LM_MODEL_L_R → Kimi-K2.6`,
+`LM_MODEL_M/M_R/L → DeepSeek-V4-Pro`, `LM_MODEL_L_R → Kimi-K2.6`,
 `LM_MODEL_VISION → gpt-5.4-mini`, `LM_TRANSCRIBE_MODEL → lmthingcloud:whisper-1`.
 
 ---

@@ -22,6 +22,7 @@ const {
   userPrincipal,
   teamPrincipal,
   getEnvVars,
+  injectLiteLLMEnv,
   sweepIdlePods,
 } = await import("./compute.js");
 const { TIERS } = await import("./tiers.js");
@@ -66,6 +67,71 @@ describe("managed model allowlist", () => {
     for (const tier of Object.values(TIERS)) {
       expect(tier.models).toContain("gpt-5.6-luna");
     }
+  });
+});
+
+describe("injectLiteLLMEnv — propagating a changed default model", () => {
+  /** base64-encode/decode a user-env Secret's `data`, as k8s stores it. */
+  const enc = (vars: Record<string, string>) =>
+    Object.fromEntries(
+      Object.entries(vars).map(([k, v]) => [k, Buffer.from(v).toString("base64")]),
+    );
+  const dec = (data: Record<string, string>) =>
+    Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, Buffer.from(v, "base64").toString()]),
+    );
+
+  /**
+   * injectLiteLLMEnv's merge used to be non-clobbering (`{...defaults, ...existing}`),
+   * so a pod provisioned under an OLD default kept its stale LM_MODEL_M forever — a
+   * restart just re-read the same Secret. The model aliases are now force-overwritten,
+   * so a changed default reaches EXISTING pods (the /ensure `modelStale` gate calls this)
+   * and rolls them. This pins both halves: a stale alias is rewritten AND the deployment
+   * is rolled, then a second pass over the now-current env writes nothing — the
+   * steady-state no-op that keeps the /ensure hot path from rolling every pod every load.
+   */
+  it("overwrites a stale alias, rolls the pod, then no-ops once current", async () => {
+    let current: Record<string, string> = {
+      LMTHINGCLOUD_API_KEY: "sk-test",
+      LMTHING_COMPUTE_JWT: "j",
+      LMTHING_SELF_IDLE: "i",
+      LMTHINGCLOUD_BASE_URL: "http://litellm.lmthing.svc.cluster.local:4000/v1",
+      LMTHING_GATEWAY_URL: "http://gateway.lmthing.svc.cluster.local:3000",
+      RENDER_SERVICE_URL: "http://render.lmthing.svc.cluster.local:3000",
+      RENDER_SERVICE_TOKEN: process.env.RENDER_SERVICE_TOKEN ?? "",
+      LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash",
+      LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash",
+      LM_MODEL_M: "lmthingcloud:gpt-5.6-luna", // ← stale default
+      LM_MODEL_L: "lmthingcloud:DeepSeek-V4-Pro",
+      LM_MODEL_M_R: "lmthingcloud:DeepSeek-V4-Pro",
+      LM_MODEL_L_R: "lmthingcloud:Kimi-K2.6",
+      LM_MODEL_VISION: "lmthingcloud:gpt-5.4-mini",
+      LM_TRANSCRIBE_MODEL: "lmthingcloud:whisper-1",
+    };
+    stubK8s((path, method) => {
+      if (method === "GET" && path.includes("/secrets/user-env")) {
+        return { data: enc(current) };
+      }
+      return undefined;
+    });
+
+    await injectLiteLLMEnv(userPrincipal("1"), "sk-test");
+
+    const put = sent("/secrets/user-env", "PUT");
+    expect(put).toBeTruthy();
+    expect(Buffer.from(put.body.data.LM_MODEL_M, "base64").toString()).toBe(
+      "lmthingcloud:DeepSeek-V4-Pro",
+    );
+    // setEnvVars rolls the pod via a template-annotation PATCH on the deployment.
+    expect(sent("/deployments/lmthing", "PATCH")).toBeTruthy();
+
+    // Feed the just-written canonical env back as "existing": every gateway-owned
+    // key now matches, so a second pass must NOT write or roll.
+    current = dec(put.body.data);
+    calls = [];
+    await injectLiteLLMEnv(userPrincipal("1"), "sk-test");
+    expect(sent("/secrets/user-env", "PUT")).toBeUndefined();
+    expect(sent("/deployments/lmthing", "PATCH")).toBeUndefined();
   });
 });
 
@@ -164,7 +230,7 @@ describe("createPod — user principal (regression: unchanged shape)", () => {
       expect(Buffer.from(data[key]!, "base64").toString()).toMatch(/^lmthingcloud:/);
     }
     expect(Buffer.from(data.LM_MODEL_M!, "base64").toString()).toBe(
-      "lmthingcloud:gpt-5.6-luna",
+      "lmthingcloud:DeepSeek-V4-Pro",
     );
   });
 

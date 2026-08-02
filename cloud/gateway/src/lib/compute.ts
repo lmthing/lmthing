@@ -496,6 +496,29 @@ async function getLiteLLMKey(p: PodPrincipal): Promise<string> {
  * model aliases resolve through @lmthing/cli's `lmthingcloud:` provider, which
  * reads LMTHINGCLOUD_API_KEY + LMTHINGCLOUD_BASE_URL.
  */
+// The size/role + vision/transcribe model aliases. Gateway-owned and STATIC
+// (independent of the user's LiteLLM key), so declared apart from
+// litellmEnvDefaults: the /ensure hot path can detect a stale alias from these
+// WITHOUT a LiteLLM round-trip, and force-overwriting them (injectLiteLLMEnv)
+// propagates a changed default to EXISTING pods instead of freezing it out.
+// A user wanting a different model keeps the escape hatch of bare LM_MODEL or
+// --model — neither lives here, so neither is clobbered.
+const MODEL_ALIAS_DEFAULTS = {
+  LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash",
+  LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash",
+  LM_MODEL_M: "lmthingcloud:DeepSeek-V4-Pro",
+  LM_MODEL_L: "lmthingcloud:DeepSeek-V4-Pro",
+  LM_MODEL_M_R: "lmthingcloud:DeepSeek-V4-Pro",
+  LM_MODEL_L_R: "lmthingcloud:Kimi-K2.6",
+  // Vision model for the system-vision space agent (image analysis). Cheap,
+  // vision-capable; THING (a text model) delegates images to it.
+  LM_MODEL_VISION: "lmthingcloud:gpt-5.4-mini",
+  // Audio transcription (chat vision/audio feature) routed through LiteLLM so
+  // Azure creds stay off the pod and usage bills against the user's own key.
+  // `whisper-1` is registered in devops/argocd/core/litellm.yaml → azure/whisper.
+  LM_TRANSCRIBE_MODEL: "lmthingcloud:whisper-1",
+} as const satisfies Record<string, string>;
+
 function litellmEnvDefaults(litellmKey: string): Record<string, string> {
   return {
     LMTHINGCLOUD_API_KEY: litellmKey,
@@ -509,28 +532,21 @@ function litellmEnvDefaults(litellmKey: string): Record<string, string> {
     // token-gated (RENDER_SERVICE_TOKEN below); reachable only from compute pods.
     RENDER_SERVICE_URL: "http://render.lmthing.svc.cluster.local:3000",
     RENDER_SERVICE_TOKEN: process.env.RENDER_SERVICE_TOKEN ?? "",
-    LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash",
-    LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash",
-    LM_MODEL_M: "lmthingcloud:gpt-5.6-luna",
-    LM_MODEL_L: "lmthingcloud:DeepSeek-V4-Pro",
-    LM_MODEL_M_R: "lmthingcloud:DeepSeek-V4-Pro",
-    LM_MODEL_L_R: "lmthingcloud:Kimi-K2.6",
-    // Vision model for the system-vision space agent (image analysis). Cheap,
-    // vision-capable; THING (a text model) delegates images to it.
-    LM_MODEL_VISION: "lmthingcloud:gpt-5.4-mini",
-    // Audio transcription (chat vision/audio feature) routed through LiteLLM so
-    // Azure creds stay off the pod and usage bills against the user's own key.
-    // `whisper-1` is registered in devops/argocd/core/litellm.yaml → azure/whisper.
-    LM_TRANSCRIBE_MODEL: "lmthingcloud:whisper-1",
+    ...MODEL_ALIAS_DEFAULTS,
   };
 }
 
 /**
- * Merges LiteLLM model env vars into the user-env secret without clobbering
- * keys the user set themselves. Only writes defaults for keys that are absent —
- * except LMTHINGCLOUD_API_KEY, which always tracks the user's current key.
+ * Merges LiteLLM env into the user-env secret. User-only keys (anything not in
+ * litellmEnvDefaults) are preserved; gateway-owned keys are authoritative — the
+ * subscription key, the in-cluster endpoints, AND the model aliases — so a
+ * changed default model propagates to EXISTING pods instead of being frozen at
+ * the old value by the merge. Only writes (and thus rolls the pod, via
+ * setEnvVars) when something actually changed. /ensure calls this only when
+ * creds are incomplete OR a model alias is stale (the modelStale gate), so a
+ * steady-state wake no-ops.
  */
-async function injectLiteLLMEnv(
+export async function injectLiteLLMEnv(
   p: PodPrincipal,
   litellmKey: string,
 ): Promise<void> {
@@ -543,6 +559,12 @@ async function injectLiteLLMEnv(
   // stale or user-set value can't misroute or break the webSearch google provider.
   merged.RENDER_SERVICE_URL = defaults.RENDER_SERVICE_URL!;
   merged.RENDER_SERVICE_TOKEN = defaults.RENDER_SERVICE_TOKEN!;
+  // The model aliases are gateway-owned defaults too, so force them — otherwise a
+  // change to MODEL_ALIAS_DEFAULTS (e.g. a new default M model) would be frozen out
+  // by the spread above on every pod that already carries the old value.
+  for (const [k, v] of Object.entries(MODEL_ALIAS_DEFAULTS)) {
+    merged[k] = v;
+  }
   // Only update if something actually changed
   const needsUpdate = Object.keys(defaults).some(
     (k) => existing[k] !== merged[k],
@@ -915,27 +937,36 @@ export async function ensurePod(
     // Ensure LiteLLM + compute env are present (idempotent merges). On a steady-
     // state wake all creds already live in user-env from a prior ensure, so skip
     // the LiteLLM round-trips + extra k8s GETs entirely — they no-op but cost real
-    // gateway↔LiteLLM latency on the blocking /ensure the SPA awaits.
+    // gateway↔LiteLLM latency on the blocking /ensure the SPA awaits. The one
+    // exception is a stale MODEL alias: a changed default must reach EXISTING pods,
+    // so a stale alias also buys the LiteLLM round-trip (one-time, per default
+    // change) and force-overwrites via injectLiteLLMEnv.
     let envComplete = false;
+    let modelStale = false;
     try {
       const env = await getEnvVars(p);
       envComplete = Boolean(
         env.LMTHINGCLOUD_API_KEY && env.LMTHING_COMPUTE_JWT && env.LMTHING_SELF_IDLE,
       );
+      modelStale = Object.entries(MODEL_ALIAS_DEFAULTS).some(
+        ([k, v]) => env[k] !== v,
+      );
     } catch {
       /* couldn't read env — fall through to the full (idempotent) inject path */
     }
-    if (!envComplete) {
+    if (!envComplete || modelStale) {
       try {
         const litellmKey = await getLiteLLMKey(p);
         await injectLiteLLMEnv(p, litellmKey);
       } catch (err) {
         console.warn(`Could not inject LiteLLM env for ${ns}: ${err}`);
       }
-      try {
-        await injectComputeEnv(p);
-      } catch (err) {
-        console.warn(`Could not inject compute env for ${ns}: ${err}`);
+      if (!envComplete) {
+        try {
+          await injectComputeEnv(p);
+        } catch (err) {
+          console.warn(`Could not inject compute env for ${ns}: ${err}`);
+        }
       }
     }
   }

@@ -51,6 +51,7 @@ COPY libs/config/package.json ./libs/config/package.json
 COPY libs/state/package.json  ./libs/state/package.json
 COPY libs/utils/package.json  ./libs/utils/package.json
 COPY apps/web/package.json    ./apps/web/package.json
+COPY apps/app-shell/package.json ./apps/app-shell/package.json
 
 # Install all workspace dependencies (dev deps needed for tsup + vite builds).
 # The checked-in pnpm-lock.yaml is the source of truth; --frozen-lockfile
@@ -90,6 +91,11 @@ COPY libs/    ./libs/
 COPY common/  ./common/
 COPY apps/    ./apps/
 RUN cd apps/web && pnpm exec vp build
+# The prebuilt AppHost (@lmthing/app-shell) — ONE static Vite build that renders
+# every view-spec app; the pod serves it for a project with view specs (W6) and
+# resolves it via findAppsBase() → /app/apps/app-shell/dist. Without this the pod
+# has no shell dist and every spec app falls back to the legacy per-project bundle.
+RUN cd apps/app-shell && pnpm exec vp build
 
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime
@@ -199,6 +205,10 @@ COPY --from=builder /build/libs/utils ./libs/utils
 # client-side routes under /studio, /computer, /chat). static-apps.ts resolves it
 # via findAppsBase() → /app/apps/web/dist.
 COPY --from=builder /build/apps/web/dist        ./apps/web/dist
+# Prebuilt AppHost (@lmthing/app-shell) — the single static build that renders every
+# view-spec app. resolveAppShellDist() → /app/apps/app-shell/dist; serve.ts serves it
+# for a project with view specs and falls back to the legacy bundle if it is absent.
+COPY --from=builder /build/apps/app-shell/dist  ./apps/app-shell/dist
 # Copy package.json files so the module resolver can walk the workspace graph
 COPY --from=builder /build/package.json         ./package.json
 COPY --from=builder /build/libs/core/package.json ./libs/core/package.json

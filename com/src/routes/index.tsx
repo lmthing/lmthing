@@ -1,5 +1,7 @@
 import type { ComponentType } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { AlphaSplash } from '@/components/AlphaSplash'
+import { isAlphaActive, isAlphaUnlocked } from '@/lib/alpha'
 import {
   Blocks,
   Bot,
@@ -294,6 +296,7 @@ const jumpLinks = [
 ]
 
 function Landing() {
+  const alphaGated = isAlphaActive() && !isAlphaUnlocked()
   return (
     <div className="min-h-screen">
       {/* Hero */}
@@ -317,19 +320,25 @@ function Landing() {
             Describe what you want. It writes the agents, the app and the automations — and hands
             you the files.
           </p>
-          <div className="mt-10 flex items-center justify-center gap-4 animate-fade-in-up-delay-2">
-            <Link
-              to="/signup"
-              className="rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Get started free
-            </Link>
-            <Link
-              to="/pricing"
-              className="rounded-lg border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-accent transition-colors"
-            >
-              View pricing
-            </Link>
+          <div className="mt-10 animate-fade-in-up-delay-2">
+            {alphaGated ? (
+              <AlphaSplash />
+            ) : (
+              <div className="flex items-center justify-center gap-4">
+                <Link
+                  to="/signup"
+                  className="rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  Get started free
+                </Link>
+                <Link
+                  to="/pricing"
+                  className="rounded-lg border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-accent transition-colors"
+                >
+                  View pricing
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Wayfinding */}
@@ -613,10 +622,10 @@ function Landing() {
           </p>
           <div className="mt-10 flex items-center justify-center gap-4">
             <Link
-              to="/signup"
+              to={alphaGated ? '/login' : '/signup'}
               className="rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
             >
-              Create your account
+              {alphaGated ? 'Enter invite code' : 'Create your account'}
             </Link>
             <Link
               to="/pricing"

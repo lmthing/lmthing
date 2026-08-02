@@ -1,5 +1,6 @@
 import { createRootRoute, Outlet, Link, useNavigate } from '@tanstack/react-router'
 import { AuthProvider, useAuth } from '@/lib/auth/AuthProvider'
+import { isAlphaActive, isAlphaUnlocked } from '@/lib/alpha'
 import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 import '@/index.css'
 
@@ -28,6 +29,8 @@ function Nav() {
               <Link to="/billing" className="text-sm text-muted-foreground hover:text-foreground">Billing</Link>
               <button onClick={handleSignOut} className="text-sm text-muted-foreground hover:text-foreground">Sign out</button>
             </>
+          ) : isAlphaActive() && !isAlphaUnlocked() ? (
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">Private alpha</span>
           ) : (
             <>
               <Link to="/login" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Sign in</Link>

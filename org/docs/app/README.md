@@ -65,7 +65,7 @@ Two mounts, registered in this order — the api route **before** the page catch
 | `* /app/:projectId/*` | `createPageServeHandler` (`sdk/org/libs/cli/src/app/pages-serve.ts#createPageServeHandler`) | the built React bundle |
 | `* /:projectId/api/*` · `* /:projectId/*` | the **same** handlers, mount prefix `''` | clean URLs (`lmthing.app/<project>/…`) |
 
-The bare root mount is registered **last** and only when `process.env.LMTHING_GATEWAY_URL` is set — the gateway injects it into every per-user pod, and nothing else does. Locally it is unset, because a bare `/:projectId/*` would shadow every SPA route on the single-serve origin; that is why local apps live at `localhost:8080/app/<project>` (`sdk/org/libs/cli/src/server/serve.ts:L308-L326`).
+The bare root mount is registered **last and unconditionally** — it is NOT gated on an env var (an earlier `LMTHING_GATEWAY_URL` gate was removed: a pod whose env predated the variable never got the route, so `/<project>/` matched nothing, fell to the SPA shell, and every app rendered blank). What makes an always-on `/:projectId/*` safe is the **fallback**: when the first segment is not a project with a built app — or is one of the `RESERVED_ROOT_SEGMENTS` this server answers itself — the request falls through to the SPA handler untouched. So the clean URL works locally (`localhost:8080/<project>/`) as well as behind Envoy (`sdk/org/libs/cli/src/server/serve.ts#RESERVED_ROOT_SEGMENTS`, [routes.md](./routes.md)).
 
 Full route table (including the reserved admin API) → [routes.md](./routes.md) · pod REST context → [../cli-api/rest/README.md](../cli-api/rest/README.md).
 
@@ -73,7 +73,7 @@ Full route table (including the reserved admin API) → [routes.md](./routes.md)
 
 The page server does **not** probe the filesystem. The build hands it an `assetManifest` — the exact list of files it emitted — and the handler serves a static file only when the sub-path is *in the manifest*; everything else falls back to `index.html` so the client router owns it. That is what lets a dynamic route param containing a dot (`/items/my.v2.id`) route client-side instead of 404-ing as a missing asset (`sdk/org/libs/cli/src/app/pages-serve.ts:L13-L21,L128-L153`). Hashed assets are `immutable`, `index.html` is `no-cache` (`:L139-L147`), and a `..` escape is rejected before the manifest is consulted (`:L119-L126`).
 
-Into the shell's `<head>` the handler injects `<base href="<mountPrefix>/<project>/">` plus a nonce'd `window.__APP_BASE__`, so the identical bundle works on **both** mounts and at any route depth (`sdk/org/libs/cli/src/app/pages-serve.ts:L156-L198`, `serveIndex`).
+Into the shell's `<head>` the handler injects `<base href="<mountPrefix>/<project>/">` plus a nonce'd `window.__APP_BASE__` **and** `window.__APP_PROJECT_ID__`, so the identical bundle works on **both** mounts and at any route depth. Both overrides matter on the root mount: there is no `/app/<project>` segment for the client router to derive either the base or the project id from, so without the injected id the host renders "No project id in this URL" and the clean URL never loads (`sdk/org/libs/cli/src/app/pages-serve.ts#serveIndex`).
 
 ### CSP
 

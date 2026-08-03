@@ -58,6 +58,11 @@ runs:
       working-directory: sdk/org/libs/cli
       run: |
         set -euo pipefail
+        # On windows-latest, Git Bash `tar` treats `D:\...` as a remote archive
+        # spec (`host:path`). Prefer the system tar so absolute drive paths work.
+        if [[ "${RUNNER_OS}" == "Windows" ]]; then
+          export PATH="/c/Windows/System32:$PATH"
+        fi
         node scripts/bundle/build.mjs --target "${{ inputs.target }}"
         bin="$PWD/dist-bundle/lmthing-${{ inputs.target }}"
         echo "path=$bin" >> "$GITHUB_OUTPUT"

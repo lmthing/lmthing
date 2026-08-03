@@ -53,7 +53,7 @@ That is a **declared property of the target**, not a build that quietly succeeds
 - the launcher leaves `LMTHING_ZEROSTACK_BIN` **unset** rather than pointing it at a file that is not there, so the endpoint reports the binary as not installed instead of failing to spawn one `sdk/org/libs/cli/scripts/bundle/launcher.cjs#main`;
 - `lightpandaAssetName` returns undefined for `win32`, so the installer says upstream publishes no build rather than 404ing on a URL it invented `sdk/org/libs/cli/src/browser/lightpanda-install.ts#lightpandaAssetName`.
 
-The bundle step also runs `tar` from the temp work directory with relative paths, because Git Bash tar on Windows interprets a `D:\...` archive path as a remote-spec hostname and fails before compression starts `sdk/org/libs/cli/scripts/bundle/build.mjs:70-74`.
+The CI bundle step prepends `C:\Windows\System32` to `PATH` on Windows so `build.mjs` uses the system `tar`: Git Bash tar interprets a `D:\...` archive path as a remote-spec hostname and fails before compression starts `.github/actions/build-cli-bundle/action.yml:55-68`.
 
 The CI smoke test skips the zerostack assertion by target **name** rather than making it best-effort everywhere — a check relaxed for all five would let a silently-missing binary ship on the four that do have one.
 

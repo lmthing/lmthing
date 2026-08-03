@@ -58,7 +58,7 @@ runs:
       working-directory: sdk/org/libs/cli
       run: |
         set -euo pipefail
-        node scripts/bundle/build.mjs --target "${{ inputs.target }}"
+        node scripts/bundle/build.mjs --target "${{ inputs.target }}" --out "dist-bundle"
         bin="$PWD/dist-bundle/lmthing-${{ inputs.target }}"
         echo "path=$bin" >> "$GITHUB_OUTPUT"
         # shasum is present on both macOS and Linux runners; sha256sum is not.

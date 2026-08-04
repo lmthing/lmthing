@@ -727,6 +727,28 @@ rail is full-width anyway, so what actually differs is the back affordance, and 
 its own. The probe's answer is handed to `AppScreen` rather than re-asked, since the team surface
 had to ask before it could choose.
 
+#### Opening a page from the chat sidebar
+
+The chat sidebar's `APP` section lists a project's openable pages the same on a phone as on the web
+(one shared `AppSidebar`, driven by `GET /api/projects/:id/app` —
+[chat/features.md](../chat/features.md)). On the web a row is an anchor that opens the pod's
+`/app/<project>/…` mount in a new tab; on a phone that would be a browser, which is the whole thing
+the spec pipeline exists to avoid. So the mobile host passes `onOpenAppPage`
+(`sdk/org/libs/ui/src/chat/app/ChatShell.tsx#ChatShellProps` → `AppSidebar`), and the row becomes a
+`Pressable` that hands back the project and the **served** route rather than a link
+(`sdk/org/libs/ui/src/elements/nav/app-sidebar/index.tsx#AppSidebarProps`). `HomeShell` covers the
+tabs with `AppScreen` on that page (`sdk/org/apps/mobile/App.tsx#HomeShell`) — the same full-screen
+cover Home uses, so the live chat socket underneath is not torn down to look at the app.
+
+The one seam this crosses is a **grammar** one. The sidebar speaks the served route pattern (`/`,
+`/settings/profile`) — the manifest's mapping — while the native host holds **authoring** routes
+(`index`, `settings/profile`, `ViewSpec.route`). `AppScreen` translates the tapped served route back
+to the authoring route that owns it, mirroring the pod's `viewRoutePath`, and lands the renderer
+there; a route no view owns (a stale manifest, a legacy page) falls back to the app's landing page
+(`sdk/org/apps/mobile/src/app-views.ts#routeForServedPath`). A legacy TSX app resolves to the
+WebView as always, but now deep-linked to the tapped page instead of its index
+(`sdk/org/apps/mobile/src/hosts.ts#appUrl`).
+
 ## Pointing a device build somewhere other than production
 
 A React Native bundle has no origin, so every control-plane host is a literal in

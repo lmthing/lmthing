@@ -720,6 +720,18 @@ project's handlers are served under `/app/<project>/api/*`. Absolute, and authen
 pod token — the `teamTokenGetter` pattern, no cookie and no same-origin assumption
 (`sdk/org/libs/ui/src/team/teams.ts#teamTokenGetter`).
 
+**That base is `lmthing.app` for a personal project, NOT the chat host.** `AppScreen` defaults
+`baseUrl` to `appBase()` (`sdk/org/apps/mobile/src/hosts.ts#appBase`), because `lmthing.app` is the
+one host whose edge has an `/app/*` HTTPRoute into the per-user pod
+(`devops/argocd/envoy/app-routes.yaml`), and its JWT policy reads the Bearer token from the header on
+a fetch (`devops/argocd/envoy/app-policies.yaml`). The chat host (`apiBase()` = `lmthing.chat`)
+routes ONLY `/api/*` to the pod (`devops/argocd/envoy/chat-routes.yaml`); a `/app/<project>/api/*`
+call there falls through to the static chat SPA and returns HTML, which the view client surfaces as
+"request failed" (a write) or an empty list (a read). `/api/*` is bound to the same per-user backend
+on `lmthing.app` too, so the `GET /api/apps/:id/views` probe rides the same base. (The team surface
+passes its own `teamBase()`; `lmthing.team` has the same missing-`/app`-route gap, tracked
+separately.)
+
 The **team rail gets the same branch**. `onOpenApp` no longer sets the rail directly: it starts the
 probe, and the answer picks the destination — the native screen full-width, or the rail exactly as
 before for a TSX app (`sdk/org/apps/mobile/src/TeamScreen.tsx#TeamScreen`). On a phone the

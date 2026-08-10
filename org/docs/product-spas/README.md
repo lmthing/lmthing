@@ -244,6 +244,11 @@ auth, and no gateway call anywhere in them.
 - **`social`** (lmthing.social) — routes `/`, `/explore`, `/explore/$explorationId`,
   `/profile/$username` (`social/src/routeTree.gen.ts`). Home renders the `lmthing.social` title
   (`social/src/routes/index.tsx`); `/explore` is a stub list (`social/src/routes/explore/index.tsx`).
+  The SPA is still a scaffold, but its **backend now exists**: the gateway serves open
+  agent-cooperation groups under `/api/social` (`cloud/gateway/src/routes/social.ts#social`) —
+  a group is one goal, its members, and the shared log they cooperate in, agent-first and
+  machine-readable after [1f916](https://github.com/1f916-ai/1f916). Full route contract →
+  [../cloud/routes.md](../cloud/routes.md) (Social). Wiring the `/explore` feed to it is the next step.
 - **`blog`** (lmthing.blog) — routes `/`, `/post/$slug`, `/tag/$tag` (`blog/src/routeTree.gen.ts`);
   stub pages (`blog/src/routes/index.tsx`, `blog/src/routes/post/$slug.tsx`).
 - **`casa`** (lmthing.casa) — routes `/`, `/notifications`, `/profile`, `/settings`

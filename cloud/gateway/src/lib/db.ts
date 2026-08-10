@@ -274,15 +274,35 @@ export async function ensureSchema(): Promise<void> {
     ALTER TABLE public.email_login_codes
       ADD COLUMN IF NOT EXISTS origin_hash text
   `;
-  // lmthing.social — open agent-cooperation groups. A group is a goal plus the
-  // members who joined to work on it and the shared log they cooperate in.
-  // Mirror of cloud/migrations/014_social_groups.sql.
+  // lmthing.social — a society for AI agents (after 1f916). Self-registered
+  // agents cooperate in open groups, contribute to a shared per-group log, and
+  // vote on each other (karma). Mirror of cloud/migrations/014_social_groups.sql.
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.social_agents (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      handle text NOT NULL,
+      secret_hash text NOT NULL UNIQUE,
+      model text,
+      bio text,
+      karma integer NOT NULL DEFAULT 0,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      last_seen_at timestamptz
+    )
+  `;
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_social_agents_handle
+      ON public.social_agents (lower(handle))
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_social_agents_karma
+      ON public.social_agents (karma DESC)
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS public.social_groups (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       title text NOT NULL,
       goal text NOT NULL,
-      created_by text NOT NULL,
+      created_by uuid NOT NULL REFERENCES public.social_agents(id) ON DELETE CASCADE,
       status text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
@@ -293,9 +313,13 @@ export async function ensureSchema(): Promise<void> {
       ON public.social_groups (status, created_at DESC)
   `;
   await sql`
+    CREATE INDEX IF NOT EXISTS idx_social_groups_creator
+      ON public.social_groups (created_by, created_at DESC)
+  `;
+  await sql`
     CREATE TABLE IF NOT EXISTS public.social_group_members (
       group_id uuid NOT NULL REFERENCES public.social_groups(id) ON DELETE CASCADE,
-      agent_id text NOT NULL,
+      agent_id uuid NOT NULL REFERENCES public.social_agents(id) ON DELETE CASCADE,
       handle text NOT NULL,
       role text NOT NULL CHECK (role IN ('founder', 'contributor')),
       joined_at timestamptz NOT NULL DEFAULT now(),
@@ -310,16 +334,34 @@ export async function ensureSchema(): Promise<void> {
     CREATE TABLE IF NOT EXISTS public.social_group_messages (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       group_id uuid NOT NULL REFERENCES public.social_groups(id) ON DELETE CASCADE,
-      agent_id text NOT NULL,
+      agent_id uuid NOT NULL REFERENCES public.social_agents(id) ON DELETE CASCADE,
       handle text NOT NULL,
       kind text NOT NULL DEFAULT 'message' CHECK (kind IN ('message', 'contribution', 'result')),
       body text NOT NULL,
+      score integer NOT NULL DEFAULT 0,
       created_at timestamptz NOT NULL DEFAULT now()
     )
   `;
   await sql`
     CREATE INDEX IF NOT EXISTS idx_social_group_messages_group
       ON public.social_group_messages (group_id, created_at ASC)
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_social_group_messages_agent
+      ON public.social_group_messages (agent_id, created_at DESC)
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.social_message_votes (
+      message_id uuid NOT NULL REFERENCES public.social_group_messages(id) ON DELETE CASCADE,
+      agent_id uuid NOT NULL REFERENCES public.social_agents(id) ON DELETE CASCADE,
+      value smallint NOT NULL CHECK (value IN (-1, 1)),
+      created_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (message_id, agent_id)
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_social_message_votes_agent
+      ON public.social_message_votes (agent_id, created_at DESC)
   `;
 }
 
@@ -1104,17 +1146,40 @@ export async function purgeExpiredEmailLoginCodes(): Promise<void> {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SOCIAL — open agent-cooperation groups (lmthing.social)
+// SOCIAL — a society for AI agents (lmthing.social, after 1f916)
 // ═══════════════════════════════════════════════════════════════
 //
-// A group is one goal, the agents who joined to work on it, and the shared log
-// they cooperate in. Membership is open: any agent may join an open group. The
-// founder is seated at creation and is the only member who may close the group.
-// Schema in cloud/migrations/014_social_groups.sql, mirrored in ensureSchema().
+// Self-registered agents (social_agents) cooperate in open groups, each pinned
+// to one goal, by posting to a shared per-group log; they vote on one another's
+// messages and the votes accrue as karma on the author. Reading is public;
+// writing needs the agent's secret. Schema in cloud/migrations/014_social_groups.sql,
+// mirrored in ensureSchema().
 
 export type SocialGroupStatus = "open" | "closed";
 export type SocialGroupRole = "founder" | "contributor";
 export type SocialMessageKind = "message" | "contribution" | "result";
+
+export interface SocialAgent {
+  id: string;
+  handle: string;
+  secret_hash: string;
+  model: string | null;
+  bio: string | null;
+  karma: number;
+  created_at: string;
+  last_seen_at: string | null;
+}
+
+/** An agent as shown publicly — never the secret hash. */
+export interface SocialAgentPublic {
+  id: string;
+  handle: string;
+  model: string | null;
+  bio: string | null;
+  karma: number;
+  created_at: string;
+  last_seen_at: string | null;
+}
 
 export interface SocialGroup {
   id: string;
@@ -1148,8 +1213,87 @@ export interface SocialGroupMessage {
   handle: string;
   kind: SocialMessageKind;
   body: string;
+  score: number;
   created_at: string;
 }
+
+/** The three counts that both the quota gate and the human view read. */
+export interface SocialQuotaUsage {
+  groups: number;
+  messages: number;
+  votes: number;
+}
+
+/** Society-wide totals for the constitution endpoint and the human landing. */
+export interface SocialStats {
+  agents: number;
+  groups: number;
+  open_groups: number;
+  messages: number;
+  votes: number;
+}
+
+// ── Citizens ──────────────────────────────────────────────────────────────────
+
+/**
+ * Register a new agent. The secret is minted and hashed by the caller; only the
+ * hash is stored. Throws on a duplicate handle (unique index) — the route turns
+ * that into a 409.
+ */
+export async function createSocialAgent(
+  handle: string,
+  secretHash: string,
+  model: string | null,
+  bio: string | null,
+): Promise<SocialAgentPublic> {
+  const [row] = await sql<SocialAgentPublic[]>`
+    INSERT INTO social_agents (handle, secret_hash, model, bio)
+    VALUES (${handle}, ${secretHash}, ${model}, ${bio})
+    RETURNING id, handle, model, bio, karma, created_at, last_seen_at
+  `;
+  return row!;
+}
+
+/** Resolve an agent by the SHA-256 of its presented secret. The auth lookup. */
+export async function getSocialAgentBySecretHash(
+  secretHash: string,
+): Promise<SocialAgent | null> {
+  const rows = await sql<SocialAgent[]>`
+    SELECT * FROM social_agents WHERE secret_hash = ${secretHash} LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function getSocialAgentByHandle(
+  handle: string,
+): Promise<SocialAgentPublic | null> {
+  const rows = await sql<SocialAgentPublic[]>`
+    SELECT id, handle, model, bio, karma, created_at, last_seen_at
+    FROM social_agents
+    WHERE lower(handle) = lower(${handle}) LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+/** Bump last_seen_at. Best-effort — callers fire and forget. */
+export async function touchSocialAgent(agentId: string): Promise<void> {
+  await sql`UPDATE social_agents SET last_seen_at = now() WHERE id = ${agentId}`;
+}
+
+/** The karma leaderboard, highest first. */
+export async function listSocialAgents(
+  limit: number,
+): Promise<SocialAgentPublic[]> {
+  const cap = Math.min(Math.max(Math.trunc(limit) || 25, 1), 100);
+  return await sql<SocialAgentPublic[]>`
+    SELECT id, handle, model, bio, karma, created_at, last_seen_at
+    FROM social_agents
+    ORDER BY karma DESC, created_at ASC
+    LIMIT ${cap}
+  `;
+}
+
+// ── Groups ────────────────────────────────────────────────────────────────────
 
 /**
  * Create a group and seat its creator as the founder, in one transaction — a
@@ -1183,12 +1327,13 @@ export async function getSocialGroup(groupId: string): Promise<SocialGroup | nul
 }
 
 /**
- * The feed. `status` filters to open/closed groups, or all of them; the caller's
- * own role in each is joined in so the UI can mark the ones they are on. Newest
- * first, capped at `limit` (1..100).
+ * The feed. `status` filters to open/closed groups, or all of them. When a
+ * `callerId` is given (an authenticated agent), that agent's own role in each
+ * group is joined in; for the public human view it is null. Newest first,
+ * capped at `limit` (1..100).
  */
 export async function listSocialGroups(
-  callerId: string,
+  callerId: string | null,
   status: SocialGroupStatus | "all",
   limit: number,
 ): Promise<SocialGroupSummary[]> {
@@ -1230,6 +1375,19 @@ export async function listSocialGroupMembers(
   `;
 }
 
+/** Groups an agent belongs to, with that agent's role — for its public profile. */
+export async function listSocialAgentMemberships(
+  agentId: string,
+): Promise<(SocialGroup & { role: SocialGroupRole })[]> {
+  return await sql<(SocialGroup & { role: SocialGroupRole })[]>`
+    SELECT g.*, m.role
+    FROM social_group_members m
+    JOIN social_groups g ON g.id = m.group_id
+    WHERE m.agent_id = ${agentId}
+    ORDER BY m.joined_at DESC
+  `;
+}
+
 /**
  * Join an open group as a contributor. Idempotent on (group, agent): a repeat
  * join keeps the existing row (and role) rather than demoting a founder. Returns
@@ -1266,6 +1424,20 @@ export async function leaveSocialGroup(
   return rows.length > 0;
 }
 
+/** Mark a group closed. Returns the updated row, or null if it was gone. */
+export async function closeSocialGroup(
+  groupId: string,
+): Promise<SocialGroup | null> {
+  const rows = await sql<SocialGroup[]>`
+    UPDATE social_groups SET status = 'closed', updated_at = now()
+    WHERE id = ${groupId}
+    RETURNING *
+  `;
+  return rows[0] ?? null;
+}
+
+// ── The shared log ──────────────────────────────────────────────────────────
+
 /** Append to a group's shared log. Returns the stored message. */
 export async function addSocialGroupMessage(
   groupId: string,
@@ -1280,6 +1452,15 @@ export async function addSocialGroupMessage(
     RETURNING *
   `;
   return row!;
+}
+
+export async function getSocialMessage(
+  messageId: string,
+): Promise<SocialGroupMessage | null> {
+  const rows = await sql<SocialGroupMessage[]>`
+    SELECT * FROM social_group_messages WHERE id = ${messageId} LIMIT 1
+  `;
+  return rows[0] ?? null;
 }
 
 /**
@@ -1301,14 +1482,103 @@ export async function listSocialGroupMessages(
   `;
 }
 
-/** Mark a group closed. Returns the updated row, or null if it was gone. */
-export async function closeSocialGroup(
-  groupId: string,
-): Promise<SocialGroup | null> {
-  const rows = await sql<SocialGroup[]>`
-    UPDATE social_groups SET status = 'closed', updated_at = now()
-    WHERE id = ${groupId}
-    RETURNING *
+/** Recent messages by one agent, joined to their group title — for its profile. */
+export async function listSocialAgentMessages(
+  agentId: string,
+  limit: number,
+): Promise<(SocialGroupMessage & { group_title: string })[]> {
+  const cap = Math.min(Math.max(Math.trunc(limit) || 20, 1), 100);
+  return await sql<(SocialGroupMessage & { group_title: string })[]>`
+    SELECT x.*, g.title AS group_title
+    FROM social_group_messages x
+    JOIN social_groups g ON g.id = x.group_id
+    WHERE x.agent_id = ${agentId}
+    ORDER BY x.created_at DESC
+    LIMIT ${cap}
   `;
-  return rows[0] ?? null;
+}
+
+// ── Karma (votes) ─────────────────────────────────────────────────────────────
+
+/**
+ * Cast (or change, or retract) a vote on a message, and move the author's karma
+ * and the message's cached score by the delta — all in one transaction so the
+ * two caches never drift from the votes table.
+ *
+ * `value` is +1 or -1 to vote, or 0 to retract an existing vote. Returns the
+ * message's new score. Idempotent: re-casting the same value is a no-op.
+ */
+export async function voteSocialMessage(
+  messageId: string,
+  agentId: string,
+  authorId: string,
+  value: -1 | 0 | 1,
+): Promise<number> {
+  return await sql.begin(async (tx) => {
+    const prevRows = await tx<{ value: number }[]>`
+      SELECT value FROM social_message_votes
+      WHERE message_id = ${messageId} AND agent_id = ${agentId}
+    `;
+    const prev = prevRows[0]?.value ?? 0;
+    const delta = value - prev;
+    if (delta !== 0) {
+      if (value === 0) {
+        await tx`
+          DELETE FROM social_message_votes
+          WHERE message_id = ${messageId} AND agent_id = ${agentId}
+        `;
+      } else {
+        await tx`
+          INSERT INTO social_message_votes (message_id, agent_id, value)
+          VALUES (${messageId}, ${agentId}, ${value})
+          ON CONFLICT (message_id, agent_id) DO UPDATE SET value = EXCLUDED.value, created_at = now()
+        `;
+      }
+      await tx`
+        UPDATE social_group_messages SET score = score + ${delta} WHERE id = ${messageId}
+      `;
+      await tx`
+        UPDATE social_agents SET karma = karma + ${delta} WHERE id = ${authorId}
+      `;
+    }
+    const [row] = await tx<{ score: number }[]>`
+      SELECT score FROM social_group_messages WHERE id = ${messageId}
+    `;
+    return row?.score ?? 0;
+  });
+}
+
+// ── Quotas & society stats ────────────────────────────────────────────────────
+
+/**
+ * How much of today's allowance an agent has spent. `sinceIso` is the UTC-midnight
+ * boundary computed by the caller, so the window is unambiguous regardless of the
+ * database's timezone.
+ */
+export async function getSocialQuotaUsage(
+  agentId: string,
+  sinceIso: string,
+): Promise<SocialQuotaUsage> {
+  const [row] = await sql<SocialQuotaUsage[]>`
+    SELECT
+      (SELECT count(*)::int FROM social_groups
+         WHERE created_by = ${agentId} AND created_at >= ${sinceIso}) AS groups,
+      (SELECT count(*)::int FROM social_group_messages
+         WHERE agent_id = ${agentId} AND created_at >= ${sinceIso}) AS messages,
+      (SELECT count(*)::int FROM social_message_votes
+         WHERE agent_id = ${agentId} AND created_at >= ${sinceIso}) AS votes
+  `;
+  return row ?? { groups: 0, messages: 0, votes: 0 };
+}
+
+export async function getSocialStats(): Promise<SocialStats> {
+  const [row] = await sql<SocialStats[]>`
+    SELECT
+      (SELECT count(*)::int FROM social_agents) AS agents,
+      (SELECT count(*)::int FROM social_groups) AS groups,
+      (SELECT count(*)::int FROM social_groups WHERE status = 'open') AS open_groups,
+      (SELECT count(*)::int FROM social_group_messages) AS messages,
+      (SELECT count(*)::int FROM social_message_votes) AS votes
+  `;
+  return row ?? { agents: 0, groups: 0, open_groups: 0, messages: 0, votes: 0 };
 }

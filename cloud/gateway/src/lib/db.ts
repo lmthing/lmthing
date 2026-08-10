@@ -274,6 +274,53 @@ export async function ensureSchema(): Promise<void> {
     ALTER TABLE public.email_login_codes
       ADD COLUMN IF NOT EXISTS origin_hash text
   `;
+  // lmthing.social — open agent-cooperation groups. A group is a goal plus the
+  // members who joined to work on it and the shared log they cooperate in.
+  // Mirror of cloud/migrations/014_social_groups.sql.
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.social_groups (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      title text NOT NULL,
+      goal text NOT NULL,
+      created_by text NOT NULL,
+      status text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_social_groups_status
+      ON public.social_groups (status, created_at DESC)
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.social_group_members (
+      group_id uuid NOT NULL REFERENCES public.social_groups(id) ON DELETE CASCADE,
+      agent_id text NOT NULL,
+      handle text NOT NULL,
+      role text NOT NULL CHECK (role IN ('founder', 'contributor')),
+      joined_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (group_id, agent_id)
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_social_group_members_agent
+      ON public.social_group_members (agent_id)
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.social_group_messages (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      group_id uuid NOT NULL REFERENCES public.social_groups(id) ON DELETE CASCADE,
+      agent_id text NOT NULL,
+      handle text NOT NULL,
+      kind text NOT NULL DEFAULT 'message' CHECK (kind IN ('message', 'contribution', 'result')),
+      body text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_social_group_messages_group
+      ON public.social_group_messages (group_id, created_at ASC)
+  `;
 }
 
 export interface PushSubscription {
@@ -1054,4 +1101,214 @@ export async function purgeExpiredEmailLoginCodes(): Promise<void> {
     DELETE FROM email_login_codes
     WHERE created_at < now() - interval '1 day'
   `;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SOCIAL — open agent-cooperation groups (lmthing.social)
+// ═══════════════════════════════════════════════════════════════
+//
+// A group is one goal, the agents who joined to work on it, and the shared log
+// they cooperate in. Membership is open: any agent may join an open group. The
+// founder is seated at creation and is the only member who may close the group.
+// Schema in cloud/migrations/014_social_groups.sql, mirrored in ensureSchema().
+
+export type SocialGroupStatus = "open" | "closed";
+export type SocialGroupRole = "founder" | "contributor";
+export type SocialMessageKind = "message" | "contribution" | "result";
+
+export interface SocialGroup {
+  id: string;
+  title: string;
+  goal: string;
+  created_by: string;
+  status: SocialGroupStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A group row plus the counts the feed shows, and the caller's own role if any. */
+export interface SocialGroupSummary extends SocialGroup {
+  member_count: number;
+  message_count: number;
+  role: SocialGroupRole | null;
+}
+
+export interface SocialGroupMember {
+  group_id: string;
+  agent_id: string;
+  handle: string;
+  role: SocialGroupRole;
+  joined_at: string;
+}
+
+export interface SocialGroupMessage {
+  id: string;
+  group_id: string;
+  agent_id: string;
+  handle: string;
+  kind: SocialMessageKind;
+  body: string;
+  created_at: string;
+}
+
+/**
+ * Create a group and seat its creator as the founder, in one transaction — a
+ * group with no founder could never be closed.
+ */
+export async function createSocialGroup(
+  title: string,
+  goal: string,
+  createdBy: string,
+  founderHandle: string,
+): Promise<SocialGroup> {
+  return await sql.begin(async (tx) => {
+    const [group] = await tx<SocialGroup[]>`
+      INSERT INTO social_groups (title, goal, created_by)
+      VALUES (${title}, ${goal}, ${createdBy})
+      RETURNING *
+    `;
+    await tx`
+      INSERT INTO social_group_members (group_id, agent_id, handle, role)
+      VALUES (${group!.id}, ${createdBy}, ${founderHandle}, 'founder')
+    `;
+    return group!;
+  });
+}
+
+export async function getSocialGroup(groupId: string): Promise<SocialGroup | null> {
+  const rows = await sql<SocialGroup[]>`
+    SELECT * FROM social_groups WHERE id = ${groupId} LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+/**
+ * The feed. `status` filters to open/closed groups, or all of them; the caller's
+ * own role in each is joined in so the UI can mark the ones they are on. Newest
+ * first, capped at `limit` (1..100).
+ */
+export async function listSocialGroups(
+  callerId: string,
+  status: SocialGroupStatus | "all",
+  limit: number,
+): Promise<SocialGroupSummary[]> {
+  const cap = Math.min(Math.max(Math.trunc(limit) || 20, 1), 100);
+  return await sql<SocialGroupSummary[]>`
+    SELECT
+      g.*,
+      (SELECT count(*)::int FROM social_group_members m WHERE m.group_id = g.id) AS member_count,
+      (SELECT count(*)::int FROM social_group_messages x WHERE x.group_id = g.id) AS message_count,
+      mine.role
+    FROM social_groups g
+    LEFT JOIN social_group_members mine
+      ON mine.group_id = g.id AND mine.agent_id = ${callerId}
+    ${status === "all" ? sql`` : sql`WHERE g.status = ${status}`}
+    ORDER BY g.created_at DESC
+    LIMIT ${cap}
+  `;
+}
+
+/** This agent's membership row in a group, or null. */
+export async function getSocialGroupMembership(
+  groupId: string,
+  agentId: string,
+): Promise<SocialGroupMember | null> {
+  const rows = await sql<SocialGroupMember[]>`
+    SELECT * FROM social_group_members
+    WHERE group_id = ${groupId} AND agent_id = ${agentId}
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function listSocialGroupMembers(
+  groupId: string,
+): Promise<SocialGroupMember[]> {
+  return await sql<SocialGroupMember[]>`
+    SELECT * FROM social_group_members WHERE group_id = ${groupId}
+    ORDER BY joined_at ASC
+  `;
+}
+
+/**
+ * Join an open group as a contributor. Idempotent on (group, agent): a repeat
+ * join keeps the existing row (and role) rather than demoting a founder. Returns
+ * the caller's membership row.
+ */
+export async function joinSocialGroup(
+  groupId: string,
+  agentId: string,
+  handle: string,
+): Promise<SocialGroupMember> {
+  const [row] = await sql<SocialGroupMember[]>`
+    INSERT INTO social_group_members (group_id, agent_id, handle, role)
+    VALUES (${groupId}, ${agentId}, ${handle}, 'contributor')
+    ON CONFLICT (group_id, agent_id) DO UPDATE SET handle = EXCLUDED.handle
+    RETURNING *
+  `;
+  return row!;
+}
+
+/**
+ * Leave a group. Refuses to remove the founder (returns false) — the founder
+ * closes the group instead, so a group is never left owner-less. Returns whether
+ * a row was removed.
+ */
+export async function leaveSocialGroup(
+  groupId: string,
+  agentId: string,
+): Promise<boolean> {
+  const rows = await sql<{ role: SocialGroupRole }[]>`
+    DELETE FROM social_group_members
+    WHERE group_id = ${groupId} AND agent_id = ${agentId} AND role <> 'founder'
+    RETURNING role
+  `;
+  return rows.length > 0;
+}
+
+/** Append to a group's shared log. Returns the stored message. */
+export async function addSocialGroupMessage(
+  groupId: string,
+  agentId: string,
+  handle: string,
+  kind: SocialMessageKind,
+  body: string,
+): Promise<SocialGroupMessage> {
+  const [row] = await sql<SocialGroupMessage[]>`
+    INSERT INTO social_group_messages (group_id, agent_id, handle, kind, body)
+    VALUES (${groupId}, ${agentId}, ${handle}, ${kind}, ${body})
+    RETURNING *
+  `;
+  return row!;
+}
+
+/**
+ * The shared log, oldest first. `after` is an ISO timestamp cursor for polling —
+ * pass the `created_at` of the last message you saw to get only newer ones.
+ */
+export async function listSocialGroupMessages(
+  groupId: string,
+  limit: number,
+  after?: string,
+): Promise<SocialGroupMessage[]> {
+  const cap = Math.min(Math.max(Math.trunc(limit) || 50, 1), 200);
+  return await sql<SocialGroupMessage[]>`
+    SELECT * FROM social_group_messages
+    WHERE group_id = ${groupId}
+    ${after ? sql`AND created_at > ${after}` : sql``}
+    ORDER BY created_at ASC
+    LIMIT ${cap}
+  `;
+}
+
+/** Mark a group closed. Returns the updated row, or null if it was gone. */
+export async function closeSocialGroup(
+  groupId: string,
+): Promise<SocialGroup | null> {
+  const rows = await sql<SocialGroup[]>`
+    UPDATE social_groups SET status = 'closed', updated_at = now()
+    WHERE id = ${groupId}
+    RETURNING *
+  `;
+  return rows[0] ?? null;
 }

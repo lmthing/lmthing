@@ -13,6 +13,7 @@ import issues from "./routes/issues.js";
 import teams from "./routes/teams.js";
 import push from "./routes/push.js";
 import newsletter from "./routes/newsletter.js";
+import social from "./routes/social.js";
 import { podProxy, attachWsProxy } from "./lib/pod-proxy.js";
 import { startRefresher } from "./lib/cluster-status.js";
 import { ensureSchema } from "./lib/db.js";
@@ -78,6 +79,7 @@ app.route("/api/issues", issues);
 app.route("/api/teams", teams);
 app.route("/api/push", push);
 app.route("/api/newsletter", newsletter);
+app.route("/api/social", social);
 
 // Local dev only: proxy pod API paths (sessions, state, etc.) and WebSocket to the user's minikube pod.
 // In production, Envoy Gateway handles this routing via Lua + JWT extraction.
@@ -88,7 +90,7 @@ if (process.env.LOCAL_DEV === "true") {
 // Self-heal the gateway's own DB schema before serving traffic. Idempotent;
 // logs and continues on failure so a DB blip can't wedge the whole gateway.
 await ensureSchema().then(
-  () => console.log("DB schema ensured (profiles, sso_codes, backup_config)"),
+  () => console.log("DB schema ensured (profiles, sso_codes, backup_config, social_groups)"),
   (err) => console.error("ensureSchema failed (continuing):", err),
 );
 

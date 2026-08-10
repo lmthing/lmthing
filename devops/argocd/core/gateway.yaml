@@ -68,7 +68,7 @@ spec:
         - name: acr-pull-secret
       containers:
         - name: gateway
-          image: lmthingacr.azurecr.io/gateway:48c2c53
+          image: lmthingacr.azurecr.io/gateway:87078b4
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -338,7 +338,7 @@ spec:
                   name: lmthing-secrets
                   key: ACR_PASSWORD
             - name: COMPUTE_IMAGE_TAG
-              value: "a55b385"
+              value: "87078b4"
             # Phase 4 fast cold-start: when set (bare "sha256:...", no
             # "compute@" prefix), the gateway builds
             # ${ACR_REGISTRY}/compute@${COMPUTE_IMAGE_DIGEST} with
@@ -348,7 +348,7 @@ spec:
             # next successful compute image build, in lockstep with
             # COMPUTE_IMAGE_TAG and the compute-prepull DaemonSet image.
             - name: COMPUTE_IMAGE_DIGEST
-              value: "sha256:fbcb4f070e2e28c15fda80c7f01ccb63b6cf85ad13cb77e491e463c07f2a9da7"
+              value: "sha256:269e0096c069ea3b17bb29c0d37313653f014e9843a428b65cbb6d586d96f399"
           resources:
             requests:
               memory: "128Mi"

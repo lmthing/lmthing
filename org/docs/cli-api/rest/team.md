@@ -177,7 +177,7 @@ Registered only in team mode `sdk/org/libs/cli/src/server/serve.ts:209-217`:
 |---|---|---|---|
 | GET | `/api/team/channels` | member | List the channels this caller can see, **plus** the categories, in one response `sdk/org/libs/cli/src/server/routes/team-channels.ts#handleListChannels` |
 | POST | `/api/team/channels` | **editor** | Create a channel (`{name, categoryId?}`); the id is the slugified name |
-| PATCH | `/api/team/channels/:channelId` | **editor** | Rename it, file it under a category, or set the apps pinned to it (`{name?, categoryId?, apps?}`) `sdk/org/libs/cli/src/server/team-channels.ts#patchChannel` |
+| PATCH | `/api/team/channels/:channelId` | **editor** | Rename it, file it under a category, set the apps pinned to it, or set who may invoke THING (`{name?, categoryId?, apps?, thingAccess?}`, `thingAccess: 'all' \| 'editors'`) `sdk/org/libs/cli/src/server/team-channels.ts#patchChannel` |
 | GET | `/api/team/channels/:channelId/messages` | member | History, newest last; `?limit=` (≤200) and `?before=<messageId>` page backwards. Also returns `turns` — the THING turns running in this channel right now (below) |
 | POST | `/api/team/channels/:channelId/messages` | member | Post `{text, threadId?, clientId?, answersAskId?, attachmentIds?}`; **404** if the channel does not exist or is not visible to the caller `sdk/org/libs/cli/src/server/routes/team-channels.ts#handlePostMessage`. **200** (not 201) with `deduplicated:true` when `clientId` repeats a send; **409** when `answersAskId` names a question the thread is not waiting on; **403** when an `attachmentIds` entry is an upload the caller does not own (below) |
 | POST | `/api/team/channels/:channelId/read` | member | Mark read, optionally `{messageId}` to say how far `sdk/org/libs/cli/src/server/routes/team-channels.ts#handleMarkRead` |
@@ -305,6 +305,22 @@ thread THING has never answered in stays between the humans. Threads are what
 makes implicit addressing safe — you opt in by opening one with THING. The
 thread composer stops advertising `@thing` once THING has answered there
 `sdk/org/libs/ui/src/team/channels-view.tsx#TeamChannelsView`.
+
+### Access mode — who may invoke THING in a channel
+
+A channel carries an optional `thingAccess`
+`sdk/org/libs/cli/src/server/team-channels.ts#Channel`. Absent (the default, and
+how every channel written before access modes reads) means `'all'` — any member
+can invoke THING. `'editors'` restricts **invocation** to editors: a viewer's
+`@thing` in such a channel is declined with a `system` notice ("Only editors can
+ask THING in this channel.") and no turn runs, while the viewer's own message
+still stands. The decision is the pure
+`sdk/org/libs/cli/src/server/team-guard.ts#canInvokeThing`, enforced at the post
+edge `sdk/org/libs/cli/src/server/routes/team-channels.ts#postThingAccessDenied`.
+
+This gates invocation only — it is **not** a read/write permission. A viewer keeps
+every channel right they had (`VIEWER_ALLOWED`): reading, posting, opening a DM. It
+is set by an editor through the channel PATCH route above (`{thingAccess}`).
 
 The mechanism is the one the inbound-webhook dispatcher already uses: a stable
 session id per `(channel, thread)`, resolved through

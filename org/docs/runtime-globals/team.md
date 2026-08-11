@@ -19,8 +19,8 @@ The surface, the capability that earns it, and the identity it acts under
 
 | Capability | Config | Globals it earns |
 |---|---|---|
-| `team:read` | bare | `teamContext`, `teamMembers`, `teamChannels`, `teamHistory` |
-| `team:post` | bare | `teamPost`, `teamPinApp`, `teamCreateChannel` |
+| `team:read` | bare | `teamContext`, `teamMembers`, `teamChannels`, `teamHistory`, `teamMemory` |
+| `team:post` | bare | `teamPost`, `teamPinApp`, `teamCreateChannel`, `teamRemember` |
 
 Both are bare-only — a config payload throws, like `store:read`
 `sdk/org/libs/core/src/spaces/capabilities.ts#BARE_ONLY_CAPABILITY_IDS`. There is no
@@ -140,7 +140,7 @@ channel. What it may *call* is still its own grants' business.
 
 ## 4. What each global does
 
-All seven are **value-yielding** — they push a `YieldRequest` and end the turn, resolved by
+All nine are **value-yielding** — they push a `YieldRequest` and end the turn, resolved by
 one arm of the router `sdk/org/libs/core/src/eval/yield-router.ts#routeCommonYield`.
 
 ### `team:read`
@@ -150,6 +150,7 @@ teamContext(): Promise<{ teamId; channelId; channelName; channelKind: 'channel'|
 teamMembers(): Promise<Array<{ userId; label; handle?; displayName?; email?; isCaller }>>
 teamChannels(): Promise<Array<{ id; name; kind; categoryId?; apps? }>>
 teamHistory(channelId, { limit?, before? }): Promise<{ messages: […]; hasMore }>
+teamMemory(): Promise<{ facts: string[] }>
 ```
 
 * `teamContext` answers "who asked, in which channel, in which thread" — the turn's own
@@ -163,6 +164,13 @@ teamHistory(channelId, { limit?, before? }): Promise<{ messages: […]; hasMore 
 * `teamHistory` pages a channel's log newest-last, over the same reader the REST route uses
   `sdk/org/libs/cli/src/server/team-channels.ts#readMessages`. This is how "what did we decide
   about X last week" gets answered.
+* `teamMemory` returns THING's **durable, learned notes for this channel** — a small bounded
+  list of facts kept ACROSS turns and sessions, so a thing the team said last week is still
+  known without re-reading the whole log `sdk/org/libs/cli/src/server/team-memory.ts#readChannelMemory`.
+  Scoped to the turn's own channel (no `channelId` argument): a turn cannot read another
+  channel's memory, and a DM's memory is as private as the DM. Distinct from a thread's session
+  snapshot, which is ephemeral; this is what makes THING accumulate context over time. Kept
+  current with `teamRemember` (below).
 
 ### `team:post`
 
@@ -170,6 +178,7 @@ teamHistory(channelId, { limit?, before? }): Promise<{ messages: […]; hasMore 
 teamPost(channelId, text, { threadId? }): Promise<{ ok; channelId; messageId?; receipt? }>
 teamPinApp(channelId, projectId): Promise<{ ok; channelId; apps }>
 teamCreateChannel(name, { categoryId? }): Promise<{ ok; channelId; name; created }>
+teamRemember(facts): Promise<{ ok; count }>
 ```
 
 * Every message these append is `kind: 'thing'` with **no** `userId`
@@ -187,6 +196,14 @@ teamCreateChannel(name, { categoryId? }): Promise<{ ok; channelId; name; created
   the sidebar. Pinning twice is idempotent
   `sdk/org/libs/cli/src/server/team-channels.ts#patchChannel`.
 * `teamCreateChannel` is how "give this its own room" gets answered — see below.
+* `teamRemember` **replaces** this channel's durable memory with the given facts — a whole-list
+  rewrite (read `teamMemory`, edit, write the full list), the same model as `todoWrite`. It is
+  a write to the shared workspace, so it sits under `team:post` and refuses a viewer exactly as
+  the other writers do `sdk/org/libs/cli/src/server/team-globals.ts#createTeamResolver`. The
+  list is sanitized and **bounded** on the way in — junk dropped, duplicates removed, each fact
+  truncated, and the newest kept when over the cap
+  `sdk/org/libs/cli/src/server/team-memory.ts#sanitizeFacts` — so memory cannot grow without
+  limit or persist garbage. It is silent (no message, no badge): housekeeping, not a broadcast.
 
 ### Creating a channel — one creation path, get-or-create, and it announces itself
 
@@ -346,6 +363,7 @@ operator on a terminal, not a colleague in a channel `sdk/org/libs/cli/src/cli/b
 | `onBehalfOf` stamped; receipt written to the originating thread; each message announced against the channel it landed in | `sdk/org/libs/cli/src/server/team-globals.test.ts` |
 | history capped at 100 (30 default) and the cap reported | `sdk/org/libs/cli/src/server/team-globals.test.ts` |
 | the channel route really hands the turn a resolver bound to the requesting member | `sdk/org/libs/cli/src/server/team-globals.test.ts` |
+| memory round-trips across turns/members, scopes per channel, viewer refused the write; the store is bounded and tolerant | `sdk/org/libs/cli/src/server/team-globals.test.ts` · `sdk/org/libs/cli/src/server/team-memory.test.ts` |
 
 ---
 

@@ -70,7 +70,7 @@ The one function-only space. Its 8 functions are injected into the **fork-engine
 | `webSearch(query, opts?)` | Ranked web results (Tavily / Bing-render / DuckDuckGo; `provider: 'auto'` by default) (`webSearch.ts:L1-L3`) — **GRANTED-ONLY** |
 | `webFetch(url, opts?)` | Fetch a URL; HTML reduced to text, or `{format:'markdown'}` to keep structure (`webFetch.ts:L1-L3`) — **GRANTED-ONLY** |
 | `remember(key, value)` / `recall(key)` / `recallAll()` / `forget(key)` | Durable JSON facts at `<spaceDir>/.lmthing/memory.json` (`remember.ts:L1-L3`) — universal |
-| `todoWrite(items)` / `todoRead()` | The soft checklist, persisted to `.lmthing/todos.json` (`todoWrite.ts:L1`) — universal |
+| `todoWrite(items)` / `todoRead()` | The dynamic plan/checklist, persisted to `.lmthing/todos.json` (`todoWrite.ts#todoWrite`) — universal. `todoWrite` replaces the whole list (so add/remove/reorder/restatus is a rewrite) and emits a `checklist` display descriptor rendered with real checkboxes; each item's `status` is `pending`/`in_progress`/`completed`/`failed`. Kept live by the plan `beforeTurn` reminders (see [runtime/README.md](../runtime/README.md) → the dynamic plan) |
 
 Three consequences worth knowing:
 

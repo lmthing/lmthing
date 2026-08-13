@@ -184,6 +184,7 @@ Registered only in team mode `sdk/org/libs/cli/src/server/serve.ts:209-217`:
 | POST | `/api/team/dms` | member | Open (or reopen) the direct conversation with `{userId}` |
 | GET/POST | `/api/team/categories` | member / **editor** | List, or create `{name}` |
 | PATCH/DELETE | `/api/team/categories/:categoryId` | **editor** | Rename or reorder `{name?, order?}`; delete |
+| GET | `/api/team/audit` | **editor** | The attributed log of what THING did — posts, pins, channels it created, memory it rewrote — newest first, with optional `?channel=&actor=&action=&limit=` filters `sdk/org/libs/cli/src/server/routes/team-channels.ts#handleTeamAudit`. Each row is `{ts, actor, actorLabel?, channelId, action, detail?}` `sdk/org/libs/cli/src/server/team-audit.ts#AuditEntry` |
 | GET | `/api/team/directory` | member | The `@`-picker's data: members (with handles) and projects (with `hasApp`) |
 | GET/PUT | `/api/team/profile` | member | Read, or set `{handle?, displayName?}` — **409** when a handle is taken or reserved |
 
@@ -321,6 +322,21 @@ edge `sdk/org/libs/cli/src/server/routes/team-channels.ts#postThingAccessDenied`
 This gates invocation only — it is **not** a read/write permission. A viewer keeps
 every channel right they had (`VIEWER_ALLOWED`): reading, posting, opening a DM. It
 is set by an editor through the channel PATCH route above (`{thingAccess}`).
+
+### The audit log — what THING did, and who asked
+
+Every consequential thing THING does in the team — a `teamPost`, a `teamPinApp`, a
+`teamCreateChannel`, a `teamRemember` — appends one attributed row to an append-only
+log at `<lmthingRoot>/.team/audit.jsonl`
+`sdk/org/libs/cli/src/server/team-audit.ts#appendAudit`. The row records the action,
+the channel it ran in, and the **caller** who drove the turn — the same identity the
+resolver binds every team write to `sdk/org/libs/cli/src/server/team-globals.ts#createTeamResolver`,
+so "who had THING announce that" is answerable after the fact. A refused action (a
+viewer's write) never happened, so it is never logged. Auditing is best-effort: a
+logging failure never fails the action it was recording. Read it, editor-only and
+filtered, at `GET /api/team/audit` (above). `actor` is a member's userId today; it is
+a plain string so a future ambient action can record `actor: 'thing'` with no change
+to readers.
 
 The mechanism is the one the inbound-webhook dispatcher already uses: a stable
 session id per `(channel, thread)`, resolved through

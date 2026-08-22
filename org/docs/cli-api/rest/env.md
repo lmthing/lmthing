@@ -77,7 +77,7 @@ The chat project-settings drawer edits this file directly as raw text (Env tab: 
 code. Returns the decoded k8s `user-env` Secret for the caller's namespace:
 
 ```json
-{ "vars": { "SLACK_BOT_TOKEN": "xoxb-…", "LM_MODEL_M": "lmthingcloud:DeepSeek-V4-Flash" } }
+{ "vars": { "SLACK_BOT_TOKEN": "xoxb-…", "LM_MODEL_M": "lmthingcloud:DeepSeek-V4-Flash-0731" } }
 ```
 
 The secret is base64-decoded key-by-key; a missing Secret yields `{}` `cloud/gateway/src/lib/compute.ts#getEnvVars`.

@@ -34,7 +34,7 @@ The payload is a `modelId → { inputPer1K, outputPer1K }` map `sdk/org/libs/cli
 
 ```json
 {
-  "DeepSeek-V4-Flash": { "inputPer1K": 0.00019, "outputPer1K": 0.00051 },
+  "DeepSeek-V4-Flash-0731": { "inputPer1K": 0.00019, "outputPer1K": 0.00051 },
   "DeepSeek-V4-Pro":   { "inputPer1K": 0.00174, "outputPer1K": 0.00348 }
 }
 ```

@@ -8,7 +8,7 @@
 | Let the runtime call a **new LLM vendor via an API key** (Groq, Bedrock, a BYO-key path) | `resolveModel` in `sdk/org/libs/cli/src/providers/resolve.ts` | [B](#b-add-a-raw-ai-sdk-llm-provider-resolvets) |
 | Add a **web-search backend** for the agent `webSearch()` global | the `auto` chain in `webSearch.ts` | [C](#c-add-a-web-search-provider) |
 
-The runtime resolves a model from a `provider:modelId` spec (`sdk/org/libs/cli/src/providers/resolve.ts#resolveModel`). The `provider` slice selects the AI-SDK adapter; `modelId` is passed through verbatim. So `lmthingcloud:DeepSeek-V4-Flash` (A) and `groq:llama-3.3-70b` (B) both flow through the same `resolveModel` switch — the difference is which `case` handles them.
+The runtime resolves a model from a `provider:modelId` spec (`sdk/org/libs/cli/src/providers/resolve.ts#resolveModel`). The `provider` slice selects the AI-SDK adapter; `modelId` is passed through verbatim. So `lmthingcloud:DeepSeek-V4-Flash-0731` (A) and `groq:llama-3.3-70b` (B) both flow through the same `resolveModel` switch — the difference is which `case` handles them.
 
 ---
 

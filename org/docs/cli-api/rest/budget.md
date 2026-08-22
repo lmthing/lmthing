@@ -38,7 +38,7 @@ curl -s http://localhost:8080/api/prices/azure
 
 ```json
 {
-  "DeepSeek-V4-Flash": { "inputPer1K": 0.00019, "outputPer1K": 0.00051 },
+  "DeepSeek-V4-Flash-0731": { "inputPer1K": 0.00019, "outputPer1K": 0.00051 },
   "DeepSeek-V4-Pro":   { "inputPer1K": 0.00174, "outputPer1K": 0.00348 },
   "gpt-5.4-mini":      { "inputPer1K": 0.00025, "outputPer1K": 0.002 }
 }

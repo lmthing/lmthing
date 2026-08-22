@@ -504,9 +504,9 @@ async function getLiteLLMKey(p: PodPrincipal): Promise<string> {
 // A user wanting a different model keeps the escape hatch of bare LM_MODEL or
 // --model — neither lives here, so neither is clobbered.
 const MODEL_ALIAS_DEFAULTS = {
-  LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash",
-  LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash",
-  LM_MODEL_M: "lmthingcloud:DeepSeek-V4-Flash",
+  LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash-0731",
+  LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash-0731",
+  LM_MODEL_M: "lmthingcloud:DeepSeek-V4-Flash-0731",
   LM_MODEL_L: "lmthingcloud:DeepSeek-V4-Pro",
   LM_MODEL_M_R: "lmthingcloud:DeepSeek-V4-Pro",
   LM_MODEL_L_R: "lmthingcloud:Kimi-K2.6",

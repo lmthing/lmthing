@@ -19,7 +19,7 @@ export interface Plan {
 // and rpmLimit (5,000), and the same model allowlist. So the rate limit is stated once,
 // identically, on every plan rather than faked into a per-tier ladder.
 //
-// Models: all tiers get all five chat models (DeepSeek-V4-Flash, DeepSeek-V4-Pro, Kimi-K2.6,
+// Models: all tiers get all five chat models (DeepSeek-V4-Flash-0731, DeepSeek-V4-Pro, Kimi-K2.6,
 // gpt-5.5, gpt-5.4-mini) plus whisper-1 for transcription — tiers.ts ENABLED_MODELS/TIER_MODELS.
 export const plans: Plan[] = [
   {

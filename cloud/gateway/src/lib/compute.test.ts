@@ -99,8 +99,8 @@ describe("injectLiteLLMEnv — propagating a changed default model", () => {
       LMTHING_GATEWAY_URL: "http://gateway.lmthing.svc.cluster.local:3000",
       RENDER_SERVICE_URL: "http://render.lmthing.svc.cluster.local:3000",
       RENDER_SERVICE_TOKEN: process.env.RENDER_SERVICE_TOKEN ?? "",
-      LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash",
-      LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash",
+      LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash-0731",
+      LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash-0731",
       LM_MODEL_M: "lmthingcloud:gpt-5.6-luna", // ← stale default
       LM_MODEL_L: "lmthingcloud:DeepSeek-V4-Pro",
       LM_MODEL_M_R: "lmthingcloud:DeepSeek-V4-Pro",
@@ -120,7 +120,7 @@ describe("injectLiteLLMEnv — propagating a changed default model", () => {
     const put = sent("/secrets/user-env", "PUT");
     expect(put).toBeTruthy();
     expect(Buffer.from(put.body.data.LM_MODEL_M, "base64").toString()).toBe(
-      "lmthingcloud:DeepSeek-V4-Flash",
+      "lmthingcloud:DeepSeek-V4-Flash-0731",
     );
     // setEnvVars rolls the pod via a template-annotation PATCH on the deployment.
     expect(sent("/deployments/lmthing", "PATCH")).toBeTruthy();
@@ -230,7 +230,7 @@ describe("createPod — user principal (regression: unchanged shape)", () => {
       expect(Buffer.from(data[key]!, "base64").toString()).toMatch(/^lmthingcloud:/);
     }
     expect(Buffer.from(data.LM_MODEL_M!, "base64").toString()).toBe(
-      "lmthingcloud:DeepSeek-V4-Flash",
+      "lmthingcloud:DeepSeek-V4-Flash-0731",
     );
   });
 

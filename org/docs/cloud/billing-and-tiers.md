@@ -70,7 +70,7 @@ Every tier gets the same allowlist — `TIER_MODELS = [...ENABLED_MODELS, ...TRA
 
 ```ts
 export const ENABLED_MODELS = [
-  "DeepSeek-V4-Flash",
+  "DeepSeek-V4-Flash-0731",
   "DeepSeek-V4-Pro",
   "Kimi-K2.6",
   "gpt-5.5",
@@ -88,7 +88,7 @@ That is **six** chat models plus `whisper-1`, on every tier. `whisper-1` must be
 (`cloud/gateway/src/lib/tiers.ts:L17-L22`).
 
 The pod's model aliases are pinned to these names in the `user-env` secret
-(`cloud/gateway/src/lib/compute.ts#litellmEnvDefaults`): `LM_MODEL_XS/S/M → DeepSeek-V4-Flash`,
+(`cloud/gateway/src/lib/compute.ts#litellmEnvDefaults`): `LM_MODEL_XS/S/M → DeepSeek-V4-Flash-0731`,
 `LM_MODEL_M_R/L → DeepSeek-V4-Pro`, `LM_MODEL_L_R → Kimi-K2.6`,
 `LM_MODEL_VISION → gpt-5.4-mini`, `LM_TRANSCRIBE_MODEL → lmthingcloud:whisper-1`.
 
@@ -282,17 +282,17 @@ that the budget windows are measured against).
 - `MARKUP = 1.15`; `input_cost_per_token = inputPer1K / 1000 * MARKUP`
   (`cloud/scripts/generate-litellm-models.ts:L22-L23,L42-L49`).
 - Base prices: `sdk/org/libs/cli/prices/azure.json` (per-1K USD; refreshed by
-  `pnpm fetch-azure-prices` in `libs/cli`) — e.g. `DeepSeek-V4-Flash.inputPer1K = 0.00019`
+  `pnpm fetch-azure-prices` in `libs/cli`) — e.g. `DeepSeek-V4-Flash-0731.inputPer1K = 0.00019`
   (`sdk/org/libs/cli/prices/azure.json:2-5`).
 - The generator prints a `model_list:` block to paste into the ArgoCD-managed
   `devops/argocd/core/litellm.yaml`, which stays the deployed source of truth
   (`cloud/scripts/generate-litellm-models.ts:L10-L12,L63-L80`).
 
 Check the math: `0.00019 / 1000 × 1.15 = 2.185e-7` → the deployed
-`input_cost_per_token: 0.0000002185` for `DeepSeek-V4-Flash`
-(`devops/argocd/core/litellm.yaml:14-23`). `gpt-5.5` additionally carries a
+`input_cost_per_token: 0.0000002185` for `DeepSeek-V4-Flash-0731`
+(`devops/argocd/core/litellm.yaml:18-27`). `gpt-5.5` additionally carries a
 `cache_read_input_token_cost` (marked up the same way) from `cachedInputPer1K`
-(`cloud/scripts/generate-litellm-models.ts:L75-L77`; `devops/argocd/core/litellm.yaml:46-56`).
+(`cloud/scripts/generate-litellm-models.ts:L75-L77`; `devops/argocd/core/litellm.yaml:50-60`).
 
 `whisper-1` is registered **without** `model_info`, so it is billed per-minute from LiteLLM's
 built-in `azure/whisper` cost map — i.e. the 15% markup does **not** apply to transcription

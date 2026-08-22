@@ -5,7 +5,7 @@
  *  tiers differ only by their budget windows. These names match the LiteLLM
  *  `model_name`s in devops/argocd/core/litellm.yaml. */
 export const ENABLED_MODELS = [
-  "DeepSeek-V4-Flash",
+  "DeepSeek-V4-Flash-0731",
   "DeepSeek-V4-Pro",
   "Kimi-K2.6",
   "gpt-5.5",

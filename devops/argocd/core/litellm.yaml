@@ -11,9 +11,13 @@ data:
     # (base prices live in sdk/org/libs/cli/prices/azure.json, refreshed by
     #  `pnpm fetch-azure-prices` in libs/cli).
     model_list:
-      - model_name: DeepSeek-V4-Flash
+      # Default (M) model, and the XS/S cheap tier. Priced the same as the
+      # retired DeepSeek-V4-Flash pending a real Azure Retail Prices meter —
+      # bump prices/azure.json once the feed carries its own line and re-run
+      # `pnpm litellm:generate-models`.
+      - model_name: DeepSeek-V4-Flash-0731
         litellm_params:
-          model: azure/DeepSeek-V4-Flash
+          model: azure/DeepSeek-V4-Flash-0731
           api_base: os.environ/AZURE_API_BASE
           api_key: os.environ/AZURE_API_KEY
           api_version: "2024-12-01-preview"

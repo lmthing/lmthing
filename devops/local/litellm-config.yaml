@@ -5,12 +5,12 @@ model_list:
       model: openai/gpt-4o-mini
       api_key: os.environ/OPENAI_API_KEY
 
-  # The five enabled lmthing.cloud models (mirror of devops/argocd/core/litellm.yaml).
+  # The enabled lmthing.cloud models (mirror of devops/argocd/core/litellm.yaml).
   # These only resolve if AZURE_API_KEY + AZURE_API_BASE are set in .env.local; they're
   # loaded but inert otherwise, so keyless local dev still works via gpt-4o-mini.
-  - model_name: DeepSeek-V4-Flash
+  - model_name: DeepSeek-V4-Flash-0731
     litellm_params:
-      model: azure/DeepSeek-V4-Flash
+      model: azure/DeepSeek-V4-Flash-0731
       api_base: os.environ/AZURE_API_BASE
       api_key: os.environ/AZURE_API_KEY
       api_version: "2024-12-01-preview"

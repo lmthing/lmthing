@@ -26,7 +26,7 @@ Body (all fields optional) `sdk/org/libs/cli/src/server/routes/sessions.ts:20-25
   "spaceDir": "/abs/path",          // legacy/bare mode
   "agentSlug": "thing",
   "spaceRef": "curation/curator",   // project-relative space[/agent]
-  "model": "azure:DeepSeek-V4-Flash",
+  "model": "azure:DeepSeek-V4-Flash-0731",
   "projectId": "user",
   "resumeSessionId": "<uuid>",      // resume a persisted session (project mode)
   "budget": { "maxEpisodes": 0, "maxToolCalls": 0, "maxForkDepth": 0, "maxWallClockMs": 0 }

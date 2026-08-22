@@ -43,19 +43,19 @@ Envoy routes `lmthing.cloud/v1/*` → the `litellm:4000` Service in `lmthing` (`
 
 ## Model routing (`model_list`)
 
-The config's `model_list` maps a public `model_name` to an Azure deployment via `litellm_params.model: azure/<deployment>` (`devops/argocd/core/litellm.yaml:13-99`). All models share `api_base: os.environ/AZURE_API_BASE` and `api_key: os.environ/AZURE_API_KEY` — the deployment name in the `azure/…` path is the only thing that differs.
+The config's `model_list` maps a public `model_name` to an Azure deployment via `litellm_params.model: azure/<deployment>` (`devops/argocd/core/litellm.yaml:13-102`). All models share `api_base: os.environ/AZURE_API_BASE` and `api_key: os.environ/AZURE_API_KEY` — the deployment name in the `azure/…` path is the only thing that differs.
 
 | `model_name` (what pods call) | Azure deployment | api_version | Notes | Citation |
 |---|---|---|---|---|
-| `DeepSeek-V4-Flash` | `azure/DeepSeek-V4-Flash` | `2024-12-01-preview` | cheapest chat model | `litellm.yaml:14-24` |
-| `DeepSeek-V4-Pro` | `azure/DeepSeek-V4-Pro` | `2024-12-01-preview` | mid chat/reasoning | `litellm.yaml:25-35` |
-| `Kimi-K2.6` | `azure/Kimi-K2.6` | `2024-12-01-preview` | large reasoning; **Data Zone** rates — Kimi is sold only under `Azure Fireworks Models`, which publishes no Global meter | `litellm.yaml:36-48` |
-| `gpt-5.5` | `azure/gpt-5.5` | `2024-12-01-preview` | large chat; priced at the **short-context** (`ShortCo`) tier | `litellm.yaml:53-63` |
-| `gpt-5.6-luna` | `azure/gpt-5.6-luna` | `2024-12-01-preview` | default general-purpose model; priced at the **short-context** (`ShortCo`) tier | `litellm.yaml:64-74` |
-| `gpt-5.4-mini` | `azure/gpt-5.4-mini` | `2024-12-01-preview` | cheap **vision**-capable model for the `system-vision` agent | `litellm.yaml:77-87` |
-| `whisper-1` | `azure/whisper` | `2024-06-01` | audio transcription; billed per-minute (LiteLLM's built-in `azure/whisper` cost map, so no `model_info`) | `litellm.yaml:93-98` |
+| `DeepSeek-V4-Flash-0731` | `azure/DeepSeek-V4-Flash-0731` | `2024-12-01-preview` | cheapest chat model; **the default (M) model**, also the `XS`/`S` tier | `litellm.yaml:18-28` |
+| `DeepSeek-V4-Pro` | `azure/DeepSeek-V4-Pro` | `2024-12-01-preview` | mid chat/reasoning | `litellm.yaml:29-39` |
+| `Kimi-K2.6` | `azure/Kimi-K2.6` | `2024-12-01-preview` | large reasoning; **Data Zone** rates — Kimi is sold only under `Azure Fireworks Models`, which publishes no Global meter | `litellm.yaml:40-52` |
+| `gpt-5.5` | `azure/gpt-5.5` | `2024-12-01-preview` | large chat; priced at the **short-context** (`ShortCo`) tier | `litellm.yaml:57-67` |
+| `gpt-5.6-luna` | `azure/gpt-5.6-luna` | `2024-12-01-preview` | general-purpose model; priced at the **short-context** (`ShortCo`) tier | `litellm.yaml:68-78` |
+| `gpt-5.4-mini` | `azure/gpt-5.4-mini` | `2024-12-01-preview` | cheap **vision**-capable model for the `system-vision` agent | `litellm.yaml:81-91` |
+| `whisper-1` | `azure/whisper` | `2024-06-01` | audio transcription; billed per-minute (LiteLLM's built-in `azure/whisper` cost map, so no `model_info`) | `litellm.yaml:97-102` |
 
-All six chat/vision models carry a `cache_read_input_token_cost`, so prompt-cache reads bill at the (much lower) cached rate rather than the full input rate — DeepSeek-V4-Pro's cached rate is ~12× below its input rate (`litellm.yaml:33-35`).
+All six chat/vision models carry a `cache_read_input_token_cost`, so prompt-cache reads bill at the (much lower) cached rate rather than the full input rate — DeepSeek-V4-Pro's cached rate is ~12× below its input rate (`litellm.yaml:37-39`).
 
 The six chat/vision models are the canonical enabled set, mirrored in the Gateway at `cloud/gateway/src/lib/tiers.ts#ENABLED_MODELS` (`ENABLED_MODELS`); `whisper-1` is `TRANSCRIBE_MODELS` (`tiers.ts:22`). A user key's allowlist is `TIER_MODELS = [...ENABLED_MODELS, ...TRANSCRIBE_MODELS]` (`tiers.ts:25`) — a key missing `whisper-1` gets a `key_model_access_denied` 403 on `/audio/transcriptions` (`tiers.ts:17-21`).
 
@@ -125,7 +125,7 @@ case 'lmthingcloud': {
 
 Key points, all grounded in `resolve.ts:13-16, 49-57`:
 
-- **`modelId` is the LiteLLM `model_name` verbatim** — e.g. `lmthingcloud:DeepSeek-V4-Flash` calls the `DeepSeek-V4-Flash` entry, which LiteLLM forwards to `azure/DeepSeek-V4-Flash`.
+- **`modelId` is the LiteLLM `model_name` verbatim** — e.g. `lmthingcloud:DeepSeek-V4-Flash-0731` calls the `DeepSeek-V4-Flash-0731` entry, which LiteLLM forwards to `azure/DeepSeek-V4-Flash-0731`.
 - **`.chat()` pins the Chat Completions API.** AI SDK v5's default callable switched to the OpenAI *Responses* API, which the LiteLLM→Azure path rejects on older api-versions ("Responses API is enabled only for api-version 2025-03-01-preview and later" — `resolve.ts:39-43, 54-55`). The plain `openai:` provider does the same (`resolve.ts:34-43`).
 - **`LMTHINGCLOUD_API_KEY`** is the user's own virtual key (carrying their tier budget windows); **`LMTHINGCLOUD_BASE_URL`** overrides the endpoint, defaulting to the public `https://lmthing.cloud/v1`.
 
@@ -140,9 +140,9 @@ The Gateway stamps the LiteLLM wiring into the pod's `user-env` secret via `lite
 ```ts
 LMTHINGCLOUD_API_KEY:  litellmKey,   // the user's own virtual key
 LMTHINGCLOUD_BASE_URL: "http://litellm.lmthing.svc.cluster.local:4000/v1",
-LM_MODEL_XS:   "lmthingcloud:DeepSeek-V4-Flash",
-LM_MODEL_S:    "lmthingcloud:DeepSeek-V4-Flash",
-LM_MODEL_M:    "lmthingcloud:DeepSeek-V4-Flash",
+LM_MODEL_XS:   "lmthingcloud:DeepSeek-V4-Flash-0731",
+LM_MODEL_S:    "lmthingcloud:DeepSeek-V4-Flash-0731",
+LM_MODEL_M:    "lmthingcloud:DeepSeek-V4-Flash-0731",
 LM_MODEL_L:    "lmthingcloud:DeepSeek-V4-Pro",
 LM_MODEL_M_R:  "lmthingcloud:DeepSeek-V4-Pro",
 LM_MODEL_L_R:  "lmthingcloud:Kimi-K2.6",

@@ -26,25 +26,6 @@ data:
           input_cost_per_token: 0.0000002185
           output_cost_per_token: 0.0000005865
           cache_read_input_token_cost: 0.0000000322
-      # TEMPORARY compat bridge — NOT part of the enabled set (absent from
-      # ENABLED_MODELS/tiers.ts). Existing pods whose user-env Secret still
-      # carries the pre-rename `lmthingcloud:DeepSeek-V4-Flash` alias 400
-      # ("Invalid model name") until their next /ensure runs the modelStale
-      # gate and rewrites it to DeepSeek-V4-Flash-0731 (self-propagation:
-      # cloud/gateway/src/lib/compute.ts#MODEL_ALIAS_DEFAULTS). The underlying
-      # `azure/DeepSeek-V4-Flash` deployment is still live for exactly this
-      # reason. Safe to delete this entry (and the Azure deployment) once
-      # logs show no more requests naming DeepSeek-V4-Flash.
-      - model_name: DeepSeek-V4-Flash
-        litellm_params:
-          model: azure/DeepSeek-V4-Flash
-          api_base: os.environ/AZURE_API_BASE
-          api_key: os.environ/AZURE_API_KEY
-          api_version: "2024-12-01-preview"
-        model_info:
-          input_cost_per_token: 0.0000002185
-          output_cost_per_token: 0.0000005865
-          cache_read_input_token_cost: 0.0000000322
       - model_name: DeepSeek-V4-Pro
         litellm_params:
           model: azure/DeepSeek-V4-Pro

@@ -1,0 +1,6 @@
+{
+  "name": "@lmthing/space-system-knowledge-demo",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Toy space built for @lmthing/dsh-space-knowledge: a knowledge/ tree that exercises every loader branch (explicit variable/type/default, a frontmattered option, a plain-markdown option, a sibling field left out of an agent's allowlist) plus an agent that declares no knowledge at all."
+}

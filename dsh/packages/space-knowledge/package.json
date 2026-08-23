@@ -1,0 +1,23 @@
+{
+  "name": "@lmthing/dsh-space-knowledge",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Self-loading dsh plugin: given { spaceDir, agentSlug }, renders the agent's declared knowledge/ tree as an ambient system-prompt section and registers a loadKnowledge tool for fetching one leaf on demand. See dsh/packages/README.md.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@lmthing/dsh-space-format": "workspace:*"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-llm": "^0.1.1-rc.2",
+    "yaml": "^2.6.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "^0.1.1-rc.2",
+    "@deepseek-ai/dsh-system-prompt": "^0.1.1-rc.2"
+  }
+}

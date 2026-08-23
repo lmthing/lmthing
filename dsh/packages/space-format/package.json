@@ -1,0 +1,14 @@
+{
+  "name": "@lmthing/dsh-space-format",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Pure parser/validator for the LMThing space format (agents/functions/tasklists/knowledge/components) — no Cordis dependency. See dsh/packages/README.md and the plan's Phase 1 step 2.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "yaml": "^2.6.0"
+  }
+}

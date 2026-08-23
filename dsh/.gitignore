@@ -1,0 +1,10 @@
+# Local Harness home used while developing this track (DSH_HOME=dsh/.dsh-home).
+# Mirrors a real user's ~/.dsh — generated profile installs, not durable content.
+.dsh-home/
+
+node_modules/
+*.log
+
+# remember/recall runtime state (LMTHING_SPACE_DIR defaults to cwd)
+.lmthing/
+.local/

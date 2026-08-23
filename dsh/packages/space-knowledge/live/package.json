@@ -1,0 +1,12 @@
+{
+  "name": "@lmthing/dsh-knowledge-demo-llm",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Live-verification scaffolding for @lmthing/dsh-space-knowledge only: a keyless scripted LLM adapter that dumps the ASSEMBLED system prompt + visible tool names, then calls loadKnowledge on cue. Not part of the port.",
+  "main": "index.js",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-llm": "^0.1.1-rc.2"
+  }
+}

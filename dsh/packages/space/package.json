@@ -1,0 +1,20 @@
+{
+  "name": "@lmthing/dsh-space",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "THE umbrella dsh plugin: a profile mounts exactly this, once per agent, and it mounts every feature plugin (functions, persona, delegate, tasklist, knowledge, components) itself. See dsh/packages/README.md, 'Architecture pivot: one dsh plugin per feature'.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@lmthing/dsh-space-format": "workspace:*",
+    "@lmthing/dsh-space-functions": "workspace:*",
+    "@lmthing/dsh-space-persona": "workspace:*",
+    "@lmthing/dsh-space-delegate": "workspace:*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@lmthing/dsh-space-tasklist",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Ports LMThing's tasklist DAG format and compiles it to a @deepseek-ai/dsh-tool-workflow script. See dsh/packages/README.md ('Tasklist DAG -> dsh-workflow: what does not map cleanly').",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@lmthing/dsh-space-format": "workspace:*",
+    "typescript": "^5.6.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "^0.1.1-rc.2",
+    "@deepseek-ai/dsh-workflow": "^0.1.1-rc.2"
+  }
+}

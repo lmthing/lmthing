@@ -1,0 +1,6 @@
+{
+  "name": "system-tasklist-demo",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Toy space built for this port to prove the tasklist DAG -> dsh-workflow bridge end to end (see dsh/packages/space-tasklist). Same precedent as system-echo: a minimal specialist authored to prove ONE mechanism, not a trimmed real space."
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@lmthing/dsh-space-components",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Self-loading dsh plugin: given { spaceDir, agentSlug }, loads the space and exposes the agent's declared components/{view,form} as ONE `display` tool (LMThing's display() global, 1:1). Best-effort static prop-type extraction, fail-soft. See dsh/packages/README.md.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@lmthing/dsh-space-format": "workspace:*",
+    "typescript": "^5.6.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "^0.1.1-rc.2"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-llm": "^0.1.1-rc.2",
+    "yaml": "^2.6.0"
+  }
+}

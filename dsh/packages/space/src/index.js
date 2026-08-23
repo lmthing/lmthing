@@ -1,6 +1,9 @@
 import * as spaceFunctions from '@lmthing/dsh-space-functions'
 import * as spacePersona from '@lmthing/dsh-space-persona'
 import * as spaceDelegate from '@lmthing/dsh-space-delegate'
+import * as spaceTasklist from '@lmthing/dsh-space-tasklist'
+import * as spaceKnowledge from '@lmthing/dsh-space-knowledge'
+import * as spaceComponents from '@lmthing/dsh-space-components'
 
 /**
  * THE umbrella dsh plugin (see dsh/packages/README.md, "Architecture pivot:
@@ -39,6 +42,13 @@ import * as spaceDelegate from '@lmthing/dsh-space-delegate'
  * phase adds `dsh-agent-presets`, every mount of this plugin happens inside
  * a real per-agent scope and `mountPersona` can default away entirely.
  *
+ * `space-tasklist`, `space-knowledge`, and `space-components` are each
+ * no-ops (mount, find nothing declared, register nothing) for an agent that
+ * doesn't declare a tasklist-backed action, `knowledge:`, or `components:` —
+ * see each plugin's own doc comment. Mounting them unconditionally for every
+ * agent is therefore safe and does not require checking the agent's config
+ * first; the plugins do that check themselves.
+ *
  * config: { spaceDir: string, agentSlug: string, registry?: Record<string, { agent: object, spaceDir: string }>, mountPersona?: boolean }
  */
 export const name = 'lmthing-space'
@@ -51,4 +61,7 @@ export async function apply(ctx, config) {
     await ctx.plugin(spacePersona, { spaceDir, agentSlug })
   }
   await ctx.plugin(spaceDelegate, { spaceDir, agentSlug, registry: registry ?? {} })
+  await ctx.plugin(spaceTasklist, { spaceDir, agentSlug })
+  await ctx.plugin(spaceKnowledge, { spaceDir, agentSlug })
+  await ctx.plugin(spaceComponents, { spaceDir, agentSlug })
 }

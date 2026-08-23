@@ -19,6 +19,9 @@
     "@lmthing/dsh-space-functions": "workspace:*",
     "@lmthing/dsh-space-persona": "workspace:*",
     "@lmthing/dsh-space-delegate": "workspace:*",
+    "@lmthing/dsh-space-tasklist": "workspace:*",
+    "@lmthing/dsh-space-knowledge": "workspace:*",
+    "@lmthing/dsh-space-components": "workspace:*",
     "@lmthing/dsh-space": "workspace:*",
     "yaml": "^2.6.0"
   },

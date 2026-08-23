@@ -14,6 +14,9 @@ importers:
       '@lmthing/dsh-space':
         specifier: workspace:*
         version: link:packages/space
+      '@lmthing/dsh-space-components':
+        specifier: workspace:*
+        version: link:packages/space-components
       '@lmthing/dsh-space-delegate':
         specifier: workspace:*
         version: link:packages/space-delegate
@@ -23,9 +26,15 @@ importers:
       '@lmthing/dsh-space-functions':
         specifier: workspace:*
         version: link:packages/space-functions
+      '@lmthing/dsh-space-knowledge':
+        specifier: workspace:*
+        version: link:packages/space-knowledge
       '@lmthing/dsh-space-persona':
         specifier: workspace:*
         version: link:packages/space-persona
+      '@lmthing/dsh-space-tasklist':
+        specifier: workspace:*
+        version: link:packages/space-tasklist
       yaml:
         specifier: ^2.6.0
         version: 2.9.0
@@ -44,6 +53,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: ^4.0.1
         version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.6)(@deepseek-ai/cordis-plugin-loader@1.0.2)
+      '@lmthing/dsh-space-components':
+        specifier: workspace:*
+        version: link:../space-components
       '@lmthing/dsh-space-delegate':
         specifier: workspace:*
         version: link:../space-delegate
@@ -53,9 +65,15 @@ importers:
       '@lmthing/dsh-space-functions':
         specifier: workspace:*
         version: link:../space-functions
+      '@lmthing/dsh-space-knowledge':
+        specifier: workspace:*
+        version: link:../space-knowledge
       '@lmthing/dsh-space-persona':
         specifier: workspace:*
         version: link:../space-persona
+      '@lmthing/dsh-space-tasklist':
+        specifier: workspace:*
+        version: link:../space-tasklist
 
   packages/space-components:
     dependencies:

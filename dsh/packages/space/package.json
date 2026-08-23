@@ -12,7 +12,10 @@
     "@lmthing/dsh-space-format": "workspace:*",
     "@lmthing/dsh-space-functions": "workspace:*",
     "@lmthing/dsh-space-persona": "workspace:*",
-    "@lmthing/dsh-space-delegate": "workspace:*"
+    "@lmthing/dsh-space-delegate": "workspace:*",
+    "@lmthing/dsh-space-tasklist": "workspace:*",
+    "@lmthing/dsh-space-knowledge": "workspace:*",
+    "@lmthing/dsh-space-components": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1"

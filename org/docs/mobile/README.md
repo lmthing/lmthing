@@ -709,7 +709,9 @@ What the native host contributes is exactly the two things the divergence budget
   `TeamScreen` owns its rail. `ViewNavigation.navigate` hands back a route with its `[param]`s
   already filled (filling them from `$result.id` is binding resolution, and that is the renderer's
   job), so the host stores that literal path and matches it back to the spec that owns it, static
-  segments winning over parameters (`sdk/org/apps/mobile/src/app-views.ts#resolveRoute`).
+  segments winning over parameters (`sdk/org/libs/ui/src/view/app-views.ts#resolveRoute`, the shared
+  lookup this native host and the `/chat` `AppInline` both use, re-exported through
+  `sdk/org/apps/mobile/src/app-views.ts`).
 - **The platform capabilities the client leaves to its host** — `openExternal` (`Linking`), the
   clipboard, a confirmation (`Alert`). Each is one line of React Native and each would otherwise be
   a silent no-op on a device.
@@ -754,8 +756,9 @@ Opening an app full-screen from **Home** is unchanged: a personal project still 
 via the `AppScreen` cover (`sdk/org/apps/mobile/src/AppScreen.tsx#AppScreen`), which branches to the
 native `ViewRenderer` for a spec app and falls back to the WebView for a legacy TSX one (see
 [A spec app needs no WebView](#a-spec-app-needs-no-webview--a-tsx-app-still-does) above). The
-served↔authoring route grammar `AppScreen` uses for that deep link still lives in
-`sdk/org/apps/mobile/src/app-views.ts#routeForServedPath`.
+served↔authoring route grammar `AppScreen` uses for that deep link lives in the shared
+`@lmthing/ui/view` module (`sdk/org/libs/ui/src/view/app-views.ts#routeForServedPath`), re-exported
+through `sdk/org/apps/mobile/src/app-views.ts`.
 
 ## Pointing a device build somewhere other than production
 

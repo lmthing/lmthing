@@ -41,6 +41,18 @@ A project with **no app layer at all** (only `spaces/` — e.g. the synthetic `s
 
 ---
 
+## The chat-first lifecycle — app-from-birth
+
+Every project is a **served app from the moment it is created** — there is no "project without an app" state, and no separate app-launcher surface. A newborn project's app is a single full-height **chat page**, and as the conversation earns real structure the builder grows it into a multi-page app whose chat lives on as a floating dock. This is why selecting a project in `/chat` loads its app inline: at birth that app simply *is* the chat.
+
+**Birth.** Scaffolding a project writes three things beyond the space/`instructions.md` skeleton (`sdk/org/libs/cli/src/server/projects.ts#scaffoldAppFromBirthSync`): a `views/index.view.json` that is one full-height `chat` section pointed at the bare agent `thing` (`sdk/org/libs/cli/src/server/projects.ts#newbornIndexViewSpec`) — seeded with a greeting and first-run suggestion chips (`sdk/org/libs/cli/src/server/projects.ts#NEWBORN_CHAT_SUGGESTIONS`) so a blank project says what talking to it does; a `shell.view.json` of `{ assistant: false }` (`sdk/org/libs/cli/src/server/projects.ts#NEWBORN_SHELL_SPEC`), which suppresses the auto assistant dock so the full-screen chat page is not doubled by a floating one; and a per-project copy of the shipped `user-thing` space at `<project>/spaces/user-thing/`, which the running THING resolves through so it can specialize to this project (the overlay → [../runtime/spaces-loading.md](../runtime/spaces-loading.md), self-authoring → [../runtime-globals/app-authoring.md](../runtime-globals/app-authoring.md)). A legacy project created before this model adopts it idempotently on serve (`sdk/org/libs/cli/src/server/projects.ts#ensureAppFromBirthSync`).
+
+**The morph.** The `/chat` shell derives which of two surface states the project is in purely from its openable page routes — `newborn` while the only page is the chat index, `app` once a real page beyond it exists (`sdk/org/libs/ui/src/chat/app/use-app-pages.ts#deriveAppSurfaceState`, paired with the manifest fetch in `useAppSurface`). On the first real build the appbuilder REPLACES the placeholder chat index with real pages and flips the shell's `assistant` dock **on** (`sdk/org/libs/core/system-spaces/system-appbuilder/tasklists/build_live_project/15b-implement_shell.md`), so the same conversation relocates from the page into the corner dock. The one jarring beat — the full-screen chat collapsing into the dock — is named by a one-time, per-project coach-mark that fires on the `newborn → app` transition (`sdk/org/libs/ui/src/chat/app/CoachMark.tsx#useNewbornToAppCoachMark`), its entrance collapsed to nothing under `prefers-reduced-motion`.
+
+The surface itself → [../chat/README.md](../chat/README.md); the `chat` section and the assistant dock → [views.md](./views.md).
+
+---
+
 ## Boot
 
 `bootProjectApp(<root>/<projectId>)` runs three ordered steps and returns the open db, or `null` when there is nothing to boot (`sdk/org/libs/cli/src/app/boot.ts#bootProjectApp`):

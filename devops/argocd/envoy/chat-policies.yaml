@@ -17,6 +17,11 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: chat-api-proxy
+    # The in-process app render's data calls (/app/<project>/api/*) route to the same
+    # per-user pod as /api — see chat-app-proxy in chat-routes.yaml.
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: chat-app-proxy
   lua:
     - type: Inline
       inline: |
@@ -115,6 +120,10 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: chat-api-proxy
+    # Same JWT validation for the in-process app render's /app/<project>/api/* calls.
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: chat-app-proxy
   # ── CORS ──────────────────────────────────────────────────────────────────
   #
   # The desktop app is the FIRST client whose origin is not this host. `apps/web` is served from

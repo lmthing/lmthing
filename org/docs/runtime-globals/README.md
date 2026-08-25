@@ -121,15 +121,15 @@ The profile has seven boolean flags plus the parsed app grants
 `intersectAppCaps` (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`) is the read-only-fork
 gate: a `explore`/`plan` role keeps only `db:read`, `api:call`, `connections:use`,
 `store:read`, `team:read`; every mutating/authoring grant (`db:write`, `db:schema`,
-`views:write`, `api:write`, `hooks:write`, `store:install`, `events:emit`,
+`views:write`, `api:write`, `hooks:write`, `self:author`, `store:install`, `events:emit`,
 `team:post`, and `fs:scratch`) is **dropped before the profile is built**, so it can neither
 be injected nor declared — which is why a read-only fork's `scratchFs` is false.
 
-### The 14 app capabilities
+### The 15 app capabilities
 
 `CapabilityId` (`sdk/org/libs/core/src/spaces/capabilities.ts#CapabilityId`) —
 `db:read`, `db:write`, `db:schema`, `views:write`, `api:write`, `hooks:write`,
-`api:call`, `connections:use`, `knowledge:write`, `project:manage`, `store:read`,
+`api:call`, `connections:use`, `knowledge:write`, `self:author`, `project:manage`, `store:read`,
 `store:install`, `events:emit`, `fs:scratch`, plus the two **team-pod-only** ids `team:read`
 and `team:post`. Parsing is fail-loud (`parseCapabilities`,
 `sdk/org/libs/core/src/spaces/capabilities.ts#parseCapabilities`): an
@@ -152,6 +152,7 @@ globals are neither injected nor declared — see [team.md](./team.md).
 | `views:write` | bare | `writeProjectView`, `writeProjectViewLayout`, `writeProjectViewComponent`, `writeProjectViewShell` — the ONLY UI-authoring surface | [app-authoring.md](./app-authoring.md) |
 | `api:write` | bare | `writeProjectApi` | [app-authoring.md](./app-authoring.md) |
 | `hooks:write` | bare | `writeProjectHook`, `writeProjectEvent`, `writeProjectFunction` | [app-authoring.md](./app-authoring.md) |
+| `self:author` | bare | `appendSelfInstruct`, `writeSelfKnowledge`, `readSelf` — a per-project THING rewriting its OWN `spaces/user-thing/` | [app-authoring.md](./app-authoring.md) |
 | `project:manage` | bare | `createProject`, `selectProject` (live build target) | [app-authoring.md](./app-authoring.md) |
 | `store:read` | bare | `storeSearch`, `storeInspect` | [store-and-consent.md](./store-and-consent.md) |
 | `store:install` | bare | `installSpace` (**consent-marked**) | [store-and-consent.md](./store-and-consent.md) |

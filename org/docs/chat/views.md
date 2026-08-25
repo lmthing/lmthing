@@ -13,7 +13,7 @@ The `/chat` routes are a layout that mounts `PodEnsureGate` plus three leaves th
 | `ChatShell` | `app/ChatShell.tsx` | Location → store + socket; `GET /api/projects`, default-project redirect, URL↔state, then `<AppShell/>` |
 | `RoutePanes` | `app/RoutePanes.tsx` | `MissingPane` / `OpeningPane` — the URL names something absent, or still rehydrating |
 | `AppShell` | `app/AppShell.tsx` | 3-pane layout: Sidebar ∣ ChatView ∣ DevPanel (+ ProjectSettings drawer) |
-| `Sidebar` | `app/Sidebar.tsx` | Projects, the app's pages, spaces, conversation list, new/resume/delete chat, footer |
+| `Sidebar` | `app/Sidebar.tsx` | Projects, the app's pages (the nav bar), spaces, footer — **no** conversation list (history lives in the chat dock) |
 | `ChatView` | `app/ChatView.tsx` | Header (title) + grouped transcript + `StatusLine` + `Composer` + bug dialog |
 | `Message` / `AssistantTurn` | `app/Message.tsx` | One `ConvoBlock` (user / display / error / ask); assistant-turn grouping |
 | `Composer` | `app/Composer.tsx` | Textarea, `@` completions, attachments, voice, send, `BudgetWindows` |
@@ -43,15 +43,15 @@ The `/chat` routes are a layout that mounts `PodEnsureGate` plus three leaves th
 
 `onIntegrationConfigured` lives here: it echoes the resume nudge into the transcript (`noteUserMessage`) **and** pushes it to the live socket through the `window.__LM_SEND__` seam `sdk/org/libs/ui/src/chat/app/AppShell.tsx:30-34`.
 
-> `window.__LM_SEND__` is the send seam for the whole surface — `Sidebar.switchSession` publishes the live connection's `send` onto it `sdk/org/libs/ui/src/chat/app/session-control.ts#switchSession`, and `ChatView`/`Message`/`AppShell` all call it rather than holding a socket reference.
+> `window.__LM_SEND__` is the send seam for the whole surface — `switchSession` publishes the live connection's `send` onto it `sdk/org/libs/ui/src/chat/app/session-control.ts#switchSession` (invoked by `openSession` from the shell's location effect, not the sidebar), and `ChatView`/`Message`/`AppShell` all call it rather than holding a socket reference.
 
 ## Sidebar
 
-Built on the shared `AppSidebar` element, it lists projects, the pages of the project's app (when it has one — see [App pages of the selected project](#app-pages-of-the-selected-project)), the project's spaces, and the conversation list `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:264-291`. Conversations come from `GET /api/projects/:id/sessions` and are bucketed Today / Yesterday / Last 7 days / Older `sdk/org/libs/ui/src/chat/app/Sidebar.tsx#groupSessionsByRecency,200`, each row showing a relative time and per-chat cost (live store cost for the active row, persisted `totalCostUsd` otherwise) `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:216-241`. New chat → `POST /api/sessions {projectId}`, then navigate to it; clicking a listed chat only **navigates**, and the shell's location effect resumes it → `POST /api/sessions {projectId, resumeSessionId}` `sdk/org/libs/ui/src/chat/app/Sidebar.tsx#Sidebar` · `sdk/org/libs/ui/src/chat/app/session-control.ts#openSession`. Both end at `switchSession`, which closes the old socket, `resetSession()`s the store and opens `WS /api/ws?sessionId=…&access_token=…` `sdk/org/libs/ui/src/chat/app/session-control.ts#switchSession`. Deleting the open chat drops the socket and leaves the conversation with a **replacing** navigation, so Back never returns to a dead id `sdk/org/libs/ui/src/chat/app/Sidebar.tsx#Sidebar`. Clicking a space navigates to Studio via `crossAppOrigin('studio')` `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:191-194`. Pricing for live cost comes from `GET /api/prices/azure` `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:122-124`.
+The side menu is the project's **app navigation**, not a conversation list. Because every project is a served app from birth (a chat page that grows), selecting one loads its app inline and the thing the reader navigates is the app's PAGES; the conversation history moved into the assistant dock (the modal chat) the served app renders, so there is no `Conversations` section and no `New chat` button here `sdk/org/libs/ui/src/chat/app/Sidebar.tsx#Sidebar`. Built on the shared `AppSidebar` element, it lists the project switcher, the pages of the project's app (the `APP` section — see [App pages of the selected project](#app-pages-of-the-selected-project)), and the project's spaces, over a `SurfaceSwitcher` footer `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:133-162`.
+
+Selecting a project is a **navigation** (`nav.openProject`), never a state write — the shell turns the new location back into `activeProjectId`, which is why this component reads it but never sets it `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:143`. Create → `POST /api/projects {name}` then navigate to the new project; delete leaves the doomed project FIRST (a replacing redirect to the next one) and only then `DELETE`s it, so the main pane never flashes "that project isn't here" `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:102-122`. Spaces come from `GET /api/projects/:id/spaces` and a click opens Studio via `crossAppOrigin('studio')` `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:58-64,126-129`.
 
 Endpoints: [../cli-api/rest/projects.md](../cli-api/rest/projects.md) · [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md).
-
-Each row's delete (×) control is always rendered — not revealed by a mouse hover — so a session can be deleted on touch and on the native app; it shrinks back to its original size once a mouse is available (`$md`) `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:240-252`.
 
 ## ChatView — the transcript
 
@@ -91,7 +91,7 @@ The indented, expandable box of in-flight work rows that used to sit above the c
 
 A project can also BE an application ([../app/](../app/README.md)). When the selected one is, the sidebar grows an **`APP` section** listing its pages as links, above `Spaces` — the chat already knows which project is selected, so it can say where the thing THING just built actually lives, and open the *page* the reader wants rather than the index, instead of leaving Studio or a hand-typed URL as the only routes to it `sdk/org/libs/ui/src/elements/nav/app-sidebar/index.tsx#AppSidebarPage`.
 
-`Sidebar` resolves the list and hands the shared element ready-made rows (`routePath`, `label`, `href`); the element itself is presentational and renders **nothing at all** when the list is empty `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:137-148`. An absent section is the correct empty state: most projects are not applications, and a permanent "no app" row would be noise in the one place the reader scans for their conversations.
+`Sidebar` resolves the list and hands the shared element ready-made rows (`routePath`, `label`, `href`); the element itself is presentational and renders **nothing at all** when the list is empty `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:89-100`. A newborn project shows a one-entry nav (its chat home); as the builder adds real pages this fills out into the visible nav bar.
 
 The list comes from the project's app manifest, `GET /api/projects/:projectId/app`, and is empty when that answers `hasApp:false`, when the app has no `pages/`, or when the pod cannot answer `sdk/org/libs/ui/src/chat/app/use-app-pages.ts#useAppPages` ([../cli-api/rest/apps.md](../cli-api/rest/apps.md)).
 
@@ -106,7 +106,7 @@ The href is the pod's own app mount, `<origin>/app/<project>/<route>` — `origi
 
 The list is refetched when a **turn finishes**, so an app the agent has just built appears without a reload — not on every `done` flip, since `done` also goes false on send and the manifest is not a free read `sdk/org/libs/ui/src/chat/app/use-app-pages.ts:59-62`.
 
-> It used to be a chip row above the composer (`chat/app/AppPages.tsx`, deleted). Navigation belongs where the project's other navigable things already are — its spaces and its conversations — and the same links in two places on one screen is noise, not discoverability.
+> It used to be a chip row above the composer (`chat/app/AppPages.tsx`, deleted). Navigation belongs where the project's other navigable things already are — its spaces and, now, the whole app nav — and the same links in two places on one screen is noise, not discoverability.
 
 ## DevPanel (Inspect)
 

@@ -2,6 +2,8 @@
 
 `/chat` is the primary conversational surface: you talk to the **THING** agent, it streams TypeScript that runs in your compute pod's QuickJS sandbox, and the transcript shows what it did. It is a client-side route of the unified SPA (`sdk/org/apps/web`) — not a separate app — and it talks to exactly two backends: your **pod** (same-origin `/api/*` + `WS /api/ws`) and the **cloud gateway** (pod lifecycle, env vars, inbound URLs).
 
+> **Chat-first surface (in progress).** Every project is now a served app from birth whose first page is the chat (see [../format/project/README.md](../format/project/README.md)), and the app launcher opens a project **inside** the chat surface (`/chat/<project>`) rather than the pod-served bundle in a separate tab (`sdk/org/apps/web/src/routes/apps/index.tsx#AppLauncher`). The shell derives a `newborn` vs `app` surface state from the project's openable pages (`sdk/org/libs/ui/src/chat/app/use-app-pages.ts#deriveAppSurfaceState`) — the keystone the nav rail and the chat-to-dock demotion key on as a project grows.
+
 | | |
 |---|---|
 | Route files | `sdk/org/apps/web/src/routes/chat/` — a layout (`route.tsx`) and three leaves: `index.tsx`, `$projectId/index.tsx`, `$projectId/$sessionId.tsx`, all rendering the same `-shell.tsx` |

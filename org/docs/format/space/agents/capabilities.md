@@ -15,6 +15,7 @@ There are 14 recognized capability ids, enumerated in `CapabilityId` / `CAPABILI
 | `api:write` | `writeProjectApi` | bare |
 | `hooks:write` | `writeProjectHook`/`Event`/`Function` | bare |
 | `knowledge:write` | `writeKnowledge` (own space only) | optional `{ spaces: [...] }` |
+| `self:author` | `appendSelfInstruct`, `writeSelfKnowledge`, `readSelf` — the per-project THING rewriting its OWN space | bare |
 | `project:manage` | `createProject`, `selectProject` (live-project create/select) | bare |
 | `api:call` | `apiCall(name, input)` | required `{ allow: [...] }` |
 | `connections:use` | `callConnection(provider, req)` | required `{ providers: [...] }` |
@@ -23,6 +24,8 @@ There are 14 recognized capability ids, enumerated in `CapabilityId` / `CAPABILI
 | `events:emit` | `emitEvent` | bare |
 
 `knowledge:write` earns the SYNCHRONOUS `writeKnowledge(domain, field, option, markdown, opts?)` global (`sdk/org/libs/core/src/globals/write-knowledge.ts#createWriteKnowledgeGlobal`), injected in `createChildVM` on the grant and scoped — like `loadKnowledge` — to the running agent's own `knowledge/` dir, so it can only author its OWN space (there is no `space` parameter to spoof) (`sdk/org/libs/core/src/exec/bootstrap.ts:191-197`). The optional `{ spaces: [...] }` allow-list is parsed for a future cross-space grant but not yet enforced (`sdk/org/libs/core/src/spaces/capabilities.ts#parseKnowledgeWriteConfig`). `opts.source` (`'user'|'researched'|'agent'`) prepends a provenance blockquote used by conflict resolution.
+
+`self:author` earns three SYNCHRONOUS globals — `appendSelfInstruct(text)`, `writeSelfKnowledge(field, aspect, markdown)` and `readSelf(path?)` — injected on the grant (`sdk/org/libs/core/src/exec/app-globals.ts#injectAppGlobals`) with the DTS at `sdk/org/libs/core/src/typecheck/library-dts.ts#SELF_AUTHOR_DTS`. They let a PER-PROJECT THING rewrite its OWN copy of the `user-thing` space (`<projectRoot>/spaces/user-thing/`, the overlay the running THING resolves through — see [../../../runtime/spaces-loading.md](../../../runtime/spaces-loading.md)). The host impls are bound to that dir by `sdk/org/libs/cli/src/app/authoring/globals.ts#createSelfAuthoringGlobals`, and `appendSelfInstruct` is **additive by construction** — it appends a section to the END of `agents/thing/instruct.md` and re-parses the file, so a self-edit accumulates learned project context but can never strip the base persona. The edit takes effect on the NEXT session, when the merged space reloads. Only `user-thing/thing` holds it today (`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:12-20`).
 
 Any `db:*` grant ALSO earns the project-rooted introspection reads `listProjectDir`/`readProjectFile`, but only in a project-rooted session — they are gated on `projectRoot` + any db grant, exactly like `db` itself (`sdk/org/libs/core/src/exec/app-globals.ts:230-233`, DTS at `sdk/org/libs/core/src/exec/bootstrap.ts#AmbientDtsOpts`).
 
@@ -66,7 +69,7 @@ Each `db:*` grant carries an optional `{ tables?: string[] }` narrowing (`sdk/or
 
 ## Read-only fork roles intersect grants
 
-Read-only fork roles (`explore`/`plan`) can never receive a mutating/authoring grant: `intersectAppCaps(app, allowWrite)` drops every write grant (including `knowledge:write`), keeping only `db:read`, `api:call`, `connections:use`, and `store:read` (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`). This carries into `forkCapabilities`, where the intersected caps become `CapabilityProfile.app` (`sdk/org/libs/core/src/exec/capability.ts#forkCapabilities`) — so a knowledge-writing tasklist node must run `role: general`.
+Read-only fork roles (`explore`/`plan`) can never receive a mutating/authoring grant: `intersectAppCaps(app, allowWrite)` drops every write grant (including `knowledge:write` and `self:author`), keeping only `db:read`, `api:call`, `connections:use`, and `store:read` (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`). This carries into `forkCapabilities`, where the intersected caps become `CapabilityProfile.app` (`sdk/org/libs/core/src/exec/capability.ts#forkCapabilities`) — so a knowledge-writing tasklist node must run `role: general`.
 
 A tasklist node may further NARROW its inherited grants to a per-node subset via the node's `capabilities:` frontmatter — `narrowAppCaps(app, allow)` selects only the intersection of the requested ids with what the agent declared, never widening (`sdk/org/libs/core/src/exec/capability.ts#narrowAppCaps`). See [../tasklists/step-file.md](../tasklists/step-file.md).
 

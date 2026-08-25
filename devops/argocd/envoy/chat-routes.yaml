@@ -60,6 +60,55 @@ spec:
           weight: 1
 
 ---
+# /app/* -> the user's pod (JWT-authenticated, Lua-routed), same as /api above.
+# The /chat surface now renders a selected project's app IN-PROCESS (no iframe): the
+# shared ViewRenderer draws the pages, and their data calls go to the pod's app mount
+# at /app/<project>/api/*. lmthing.chat previously had no /app route (apps were reached
+# only via lmthing.app), so those same-origin fetches fell through to the static SPA and
+# 200'd index.html instead of the pod. This routes them to the caller's pod exactly as
+# lmthing.app's app-pages-proxy does. Matched before /* (PathPrefix /app is more specific,
+# and is segment-wise so it does NOT capture the SPA's /apps route). Every call carries a
+# Bearer token (the SPA's fetches), so the same chat-jwt + chat-lua-routing bound to
+# /api applies here — see chat-policies.yaml.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: chat-app-proxy
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: chat-https
+  hostnames:
+    - lmthing.chat
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /app
+      filters:
+        # No path rewrite: the pod serves the app mount UNDER /app/<project>/…, so the
+        # prefix must be kept (same as /api above).
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: HTTPRouteFilter
+            name: rewrite-host-from-header
+      # The first app data call after a pod (re)start can trigger a cold esbuild of the
+      # app runtime; raise the timeout so Envoy does not 504 before it lands. Mirrors
+      # app-pages-proxy on lmthing.app.
+      timeouts:
+        request: "300s"
+        backendRequest: "300s"
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: dynamic-user-backend
+          weight: 1
+
+---
 # /* -> Static unified web app (JWT-free). Serves the document + /assets/*; the
 # app self-authenticates (@lmthing/auth) and calls /api/* with a Bearer token.
 # Surface is chosen client-side by hostname (/chat on lmthing.chat).

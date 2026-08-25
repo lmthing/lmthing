@@ -29,6 +29,7 @@ A capability that is not granted is **not injected AND not declared** — a stra
 | `hooks:write` | `writeProjectHook(slug, src)` | `hooks/<slug>.ts` | [hooks/](../format/project/hooks/README.md) |
 | `hooks:write` | `writeProjectEvent(name, src)` | `events/<name>.ts` | [events/](../format/project/events/README.md) |
 | `hooks:write` | `writeProjectFunction(name, src)` | `functions/<name>.ts` | [project format](../format/project/README.md) |
+| `self:author` | `appendSelfInstruct(text)`, `writeSelfKnowledge(field, aspect, md)`, `readSelf(path?)` | `<projectRoot>/spaces/user-thing/…` | [capabilities](../format/space/agents/capabilities.md) |
 | `api:call` | `apiCall(name, input?)` — **yields** | — (calls, does not write) | [api/](../format/project/api/README.md) |
 
 **`views:write` is the only UI-authoring capability there is.** There is no `pages:write` — the model-facing freehand-TSX writers (`writeProjectPage`, `writeProjectComponent`) and their capability id were removed from the codebase, along with the model-facing `buildApp()` global that used to ride that id. A page or a component is a validated **spec** or it does not get authored at all; see [pages/README.md](../format/project/pages/README.md) and [pages/view-spec.md](../format/project/pages/view-spec.md).
@@ -235,6 +236,16 @@ The app check's three phases prove *compile*-cleanliness, not *runtime*-correctn
 Everything folds into the SAME per-artifact `offending` list, so a finding of any kind routes to the same `fix` fork, and the `onFail` loop re-runs every check after each fix round. The repair guidance lives in `17-fix.md`; `18-finalize.md` carries any residue rather than re-implementing the checks.
 
 ---
+
+## Self-authoring — `appendSelfInstruct` · `writeSelfKnowledge` · `readSelf` — `self:author`
+
+The `self:author` grant earns three SYNCHRONOUS globals that let a **per-project THING rewrite its OWN space** — its copy of `user-thing` at `<projectRoot>/spaces/user-thing/`, which the running THING resolves through (the overlay in [../runtime/spaces-loading.md](../runtime/spaces-loading.md)). Injected on the grant in `sdk/org/libs/core/src/exec/app-globals.ts#injectAppGlobals`; DTS at `sdk/org/libs/core/src/typecheck/library-dts.ts#SELF_AUTHOR_DTS`; host impls bound to the space dir by `sdk/org/libs/cli/src/app/authoring/globals.ts#createSelfAuthoringGlobals`, and wired into the session's `appGlobals` only when the project actually has a `user-thing` copy (`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.getProjectAppGlobals`).
+
+- **`appendSelfInstruct(text) → { ok, error? }`** — APPENDS a `## Learned about this project` section to the END of `agents/thing/instruct.md`, then re-parses the file to prove it still splits into `{ frontmatter, body }`. It is **append-only by construction**: a self-edit accumulates learned project context (a currency, a naming convention, a recurring person, a standing preference) and can never strip the shipped persona.
+- **`writeSelfKnowledge(field, aspect, markdown) → { ok, error? }`** — writes a plain-body aspect at `knowledge/self/<field>/<aspect>.md` (a leading `# <aspect>` header keeps it from being mistaken for frontmatter), for heavier reference material.
+- **`readSelf(path?) → { ok, content, error? }`** — reads a space file back (default `agents/thing/instruct.md`) for iterative edits.
+
+Every write stays inside the space root via `safeResolve`, and a rejected write returns `{ ok:false, error }` — nothing lands. The edit takes effect on the **next** session, when the merged space reloads (the instruct body is injected at session start). Only `user-thing/thing` holds `self:author` today.
 
 ## Who holds these capabilities
 

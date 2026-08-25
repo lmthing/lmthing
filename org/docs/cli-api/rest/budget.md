@@ -68,7 +68,7 @@ is 15% higher.
 |---|---|
 | Pod `SessionManager` | loads the table once at construction (`loadAzurePrices()`) `sdk/org/libs/cli/src/server/session-manager.ts:267-268` and accumulates `entry.totalCostUsd` per `llm_response` trace event `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.wireTracer` |
 | Pod `SessionLedger` | same table, same formula — per-session and per-delegate token/cost attribution `sdk/org/libs/cli/src/server/session-ledger.ts:178-190` (surfaced by `GET /api/session-ledger`, see [`./sessions.md`](./sessions.md)) |
-| Chat sidebar | `GET /api/prices/azure` → `store.prices` → live per-token session cost `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:124-127`; client-side formula mirrors the server one `sdk/org/libs/ui/src/chat/store/pricing-slice.ts#computeEventCost` |
+| Chat top bar | `GET /api/prices/azure` → `store.prices` → live per-token session cost `sdk/org/libs/ui/src/chat/app/TopBar.tsx:44-48`; client-side formula mirrors the server one `sdk/org/libs/ui/src/chat/store/pricing-slice.ts#computeEventCost` |
 | Settings → Models | uses the table's keys as the selectable model list `sdk/org/libs/ui/src/elements/settings/models/index.tsx:73,80` |
 
 The cost formula is one line, shared by both sides — a `provider:modelId` spec is reduced to its

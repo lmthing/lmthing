@@ -228,6 +228,18 @@ HTTPRoute whose `PathPrefix: /api` rule (longer than the SPA route's `/`, so it 
 (`type: DynamicResolver`) — both cluster singletons declared once in
 `devops/argocd/envoy/computer-policies.yaml:1-21` and referenced by name from every such route.
 
+Two of those domains additionally proxy **`/app/*`** into the same pod. `lmthing.app` has always
+served project apps there (`devops/argocd/envoy/app-routes.yaml`), and **`lmthing.chat` now does
+too**: a `chat-app-proxy` HTTPRoute with a `PathPrefix: /app` rule (segment-wise, so it matches
+`/app/*` without capturing the SPA's own `/apps` route) carrying the same `rewrite-host-from-header`
+filter and `dynamic-user-backend` `Backend` `devops/argocd/envoy/chat-routes.yaml`. This is what
+lets the `/chat` in-process app render (`AppInline`) reach its `/app/<project>/api/*` data calls
+**same-origin**; previously ONLY `/api/*` was proxied on the chat host, which is why the old iframe
+had to load the separate `lmthing.app` host. Both chat-host policies — the `chat-jwt`
+`SecurityPolicy` and the `chat-lua-routing` `EnvoyExtensionPolicy` — `targetRef` `chat-app-proxy` as
+well as `chat-api-proxy` `devops/argocd/envoy/chat-policies.yaml`, so an `/app/*` call is
+JWT-validated and Lua-routed to the caller's pod exactly like an `/api/*` call.
+
 Two policies decide *which* pod:
 
 1. A `SecurityPolicy` validates the gateway-issued HS256 JWT against the local JWKS in the

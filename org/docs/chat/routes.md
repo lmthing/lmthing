@@ -105,7 +105,7 @@ Because it is the **layout**, it wraps all three leaves: a pasted conversation l
 
 The web host is `ChatRouteShell`, which maps a `ChatLocation` onto one of the three routes `sdk/org/apps/web/src/routes/chat/-shell.tsx#ChatRouteShell`.
 
-Flow is **one-way — location → state**. `ChatShell` is the only place that writes `activeProjectId`/`activeSessionId` or touches the socket, and it does so from the location `sdk/org/libs/ui/src/chat/app/ChatShell.tsx#ChatShell`. Nothing else in the surface sets those fields; components navigate instead (`Sidebar`'s project picker and conversation rows `sdk/org/libs/ui/src/chat/app/Sidebar.tsx#Sidebar`, `NoSessionPane`'s New chat `sdk/org/libs/ui/src/chat/app/NoSessionPane.tsx#NoSessionPane`, `AppShell`'s `Alt+N` `sdk/org/libs/ui/src/chat/app/AppShell.tsx#AppShell`). A click that wrote state and let the URL trail behind it is precisely what makes a back button misbehave.
+Flow is **one-way — location → state**. `ChatShell` is the only place that writes `activeProjectId`/`activeSessionId` or touches the socket, and it does so from the location `sdk/org/libs/ui/src/chat/app/ChatShell.tsx#ChatShell`. Nothing else in the surface sets those fields; components navigate instead (the `TopBar`'s project switcher `sdk/org/libs/ui/src/chat/app/TopBar.tsx#TopBar`, `NoSessionPane`'s New chat `sdk/org/libs/ui/src/chat/app/NoSessionPane.tsx#NoSessionPane`, `AppShell`'s `Alt+N` `sdk/org/libs/ui/src/chat/app/AppShell.tsx#AppShell`). A click that wrote state and let the URL trail behind it is precisely what makes a back button misbehave.
 
 ### Push or replace
 
@@ -116,7 +116,7 @@ Flow is **one-way — location → state**. `ChatShell` is the only place that w
 | Leaving a conversation that was just deleted | **replace** | the entry would point at a dead id |
 | Leaving a project that was just deleted | **replace** | same |
 
-`replace` is a required field on `ChatNavHost.navigate`, and the verbs on `ChatNav` each fix it — `openProject`/`openSession` push, `closeSession`/`redirect` replace `sdk/org/libs/ui/src/chat/app/chat-nav.tsx#ChatNav`. Both deletes navigate **before** the DELETE lands, so the surface never renders "that project isn't here" for something the user removed on purpose `sdk/org/libs/ui/src/chat/app/Sidebar.tsx#Sidebar`.
+`replace` is a required field on `ChatNavHost.navigate`, and the verbs on `ChatNav` each fix it — `openProject`/`openSession` push, `closeSession`/`redirect` replace `sdk/org/libs/ui/src/chat/app/chat-nav.tsx#ChatNav`. A project delete navigates **before** the DELETE lands, so the surface never renders "that project isn't here" for something the user removed on purpose `sdk/org/libs/ui/src/chat/app/TopBar.tsx#TopBar`.
 
 ### Reaching a conversation
 
@@ -129,7 +129,7 @@ Two panes exist only because the location can be wrong or slow `sdk/org/libs/ui/
 - **opening** — a cold deep link rehydrating from a snapshot `sdk/org/libs/ui/src/chat/app/RoutePanes.tsx#OpeningPane`
 - **not here** — the project or conversation the URL names does not exist (deleted, mistyped, another account)
 
-Both render **inside** the shell, next to the sidebar, so the conversation list and project switcher stay on screen; a full-page error would be correct and impossible to leave `sdk/org/libs/ui/src/chat/app/AppShell.tsx#AppShell`.
+Both render **inside** the shell, as the main pane below the `TopBar`, so the project switcher stays on screen; a full-page error would be correct and impossible to leave `sdk/org/libs/ui/src/chat/app/AppShell.tsx#AppShell`.
 
 ### The querystring: a view of the open conversation
 
@@ -150,11 +150,7 @@ The open conversation's title is the tab's title, prefixed by run state (`⟳ 2 
 
 ### Leaving the surface
 
-The only cross-surface navigation from chat is a hard hop to Studio when a space is clicked in the sidebar `sdk/org/libs/ui/src/chat/app/Sidebar.tsx#Sidebar`:
-
-```ts
-openUrl(`${crossAppOrigin('studio')}/studio/${encodeURIComponent(activeProjectId)}/${encodeURIComponent(spaceId)}`);
-```
+The only cross-surface navigation from chat is the `SurfaceSwitcher` at the right of the `TopBar` — Home / Chat / Teams `sdk/org/libs/ui/src/chat/app/TopBar.tsx#TopBar`. With no `onSwitch` host handler (the web case) it hyperlinks to the other surface through `crossAppOrigin` rather than switching a pane in place `sdk/org/libs/ui/src/elements/nav/surface-switcher/index.tsx#SurfaceSwitcher`.
 
 ---
 

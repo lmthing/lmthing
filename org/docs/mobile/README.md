@@ -739,27 +739,23 @@ rail is full-width anyway, so what actually differs is the back affordance, and 
 its own. The probe's answer is handed to `AppScreen` rather than re-asked, since the team surface
 had to ask before it could choose.
 
-#### Opening a page from the chat sidebar
+#### The chat surface renders the app in-process — no sidebar
 
-The chat sidebar's `APP` section lists a project's openable pages the same on a phone as on the web
-(one shared `AppSidebar`, driven by `GET /api/projects/:id/app` —
-[chat/features.md](../chat/features.md)). On the web a row is an anchor that opens the pod's
-`/app/<project>/…` mount in a new tab; on a phone that would be a browser, which is the whole thing
-the spec pipeline exists to avoid. So the mobile host passes `onOpenAppPage`
-(`sdk/org/libs/ui/src/chat/app/ChatShell.tsx#ChatShellProps` → `AppSidebar`), and the row becomes a
-`Pressable` that hands back the project and the **served** route rather than a link
-(`sdk/org/libs/ui/src/elements/nav/app-sidebar/index.tsx#AppSidebarProps`). `HomeShell` covers the
-tabs with `AppScreen` on that page (`sdk/org/apps/mobile/App.tsx#HomeShell`) — the same full-screen
-cover Home uses, so the live chat socket underneath is not torn down to look at the app.
+The `/chat` surface no longer has a left sidebar with an `APP` page list. Selecting a project now
+renders its app **in-process** as the main pane: the shared `ChatShell` picks `AppInline`, which
+draws the app's view specs with `ViewRenderer`
+(`sdk/org/libs/ui/src/chat/app/AppInline.tsx#AppInline`) — the same renderer this native target uses,
+so there is no WebView. The mobile chat surface inherits that render for free, because it imports the
+same `ChatShell` (`sdk/org/apps/mobile/App.tsx`); there is no phone-specific "open a page from the
+sidebar" flow and no `onOpenAppPage` hook to pass any more — the reader navigates the app's own
+`ViewShell` nav (`sdk/org/libs/ui/src/view/shell.tsx#ViewShell`) inside that pane.
 
-The one seam this crosses is a **grammar** one. The sidebar speaks the served route pattern (`/`,
-`/settings/profile`) — the manifest's mapping — while the native host holds **authoring** routes
-(`index`, `settings/profile`, `ViewSpec.route`). `AppScreen` translates the tapped served route back
-to the authoring route that owns it, mirroring the pod's `viewRoutePath`, and lands the renderer
-there; a route no view owns (a stale manifest, a legacy page) falls back to the app's landing page
-(`sdk/org/apps/mobile/src/app-views.ts#routeForServedPath`). A legacy TSX app resolves to the
-WebView as always, but now deep-linked to the tapped page instead of its index
-(`sdk/org/apps/mobile/src/hosts.ts#appUrl`).
+Opening an app full-screen from **Home** is unchanged: a personal project still opens over the tabs
+via the `AppScreen` cover (`sdk/org/apps/mobile/src/AppScreen.tsx#AppScreen`), which branches to the
+native `ViewRenderer` for a spec app and falls back to the WebView for a legacy TSX one (see
+[A spec app needs no WebView](#a-spec-app-needs-no-webview--a-tsx-app-still-does) above). The
+served↔authoring route grammar `AppScreen` uses for that deep link still lives in
+`sdk/org/apps/mobile/src/app-views.ts#routeForServedPath`.
 
 ## Pointing a device build somewhere other than production
 

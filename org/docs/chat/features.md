@@ -32,30 +32,30 @@ Because the gate has already confirmed the edge is serving, `ChatShell`'s boot f
 
 ### Boot and project selection
 
-`ChatShell` fetches `GET /api/projects` and stores them. When the location names no project (`/chat`), it **redirects** — replacing the history entry, not pushing one — to the project with id `user` (else `projects[0]`), then applies/syncs the `?node=&tab=&follow=` view state (`sdk/org/libs/ui/src/chat/app/ChatShell.tsx#ChatShell`). The sidebar repeats the fetch to keep the list fresh, but no longer picks a default of its own: that would leave the URL saying `/chat` while the app showed a project (`sdk/org/libs/ui/src/chat/app/Sidebar.tsx#Sidebar`). Which project is open is a **route param** — see [routes.md](./routes.md) §3.
+`ChatShell` fetches `GET /api/projects` and stores them. When the location names no project (`/chat`), it **redirects** — replacing the history entry, not pushing one — to the project with id `user` (else `projects[0]`), then applies/syncs the `?node=&tab=&follow=` view state (`sdk/org/libs/ui/src/chat/app/ChatShell.tsx#ChatShell`). The `TopBar` repeats the fetch to keep the list fresh, but no longer picks a default of its own: that would leave the URL saying `/chat` while the app showed a project (`sdk/org/libs/ui/src/chat/app/TopBar.tsx#TopBar`). Which project is open is a **route param** — see [routes.md](./routes.md) §3.
 
-### Sidebar — projects, app pages, spaces (the app nav)
+### Top bar — projects, prices, surface switch
 
-The side menu is the project's **app navigation**, not a conversation list — conversation history moved into the chat dock (below). `Sidebar` drives (all pod, same-origin):
+There is **no left sidebar**. The project switcher, project create/delete, and the prices fetch move into a slim `TopBar` above the main pane; the app's own navigation is the inline app's `ViewShell` sidebar (below), and conversation history moved into the chat dock the served app renders. `TopBar` drives (all pod, same-origin):
 
 | Action | Endpoint | Code |
 |---|---|---|
-| list projects | `GET /api/projects` | `Sidebar.tsx:66-73` |
-| create project | `POST /api/projects {name}` | `Sidebar.tsx:102-108` |
-| delete project | `DELETE /api/projects/:id` | `Sidebar.tsx:110-122` |
-| spaces list | `GET /api/projects/:id/spaces` | `Sidebar.tsx:58-64` |
-| app pages (the `APP` section = the nav bar) | `GET /api/projects/:id/app` | `use-app-pages.ts#useAppPages` |
-| per-token pricing | `GET /api/prices/azure` | `Sidebar.tsx:75-78` |
+| list projects | `GET /api/projects` | `TopBar.tsx:36-40` |
+| create project | `POST /api/projects {name}` | `TopBar.tsx:50-56` |
+| delete project | `DELETE /api/projects/:id` | `TopBar.tsx:58-67` |
+| per-token pricing | `GET /api/prices/azure` | `TopBar.tsx:44-48` |
 
-Selecting a project is a **navigation** (`nav.openProject`), never a state write — the shell turns the location back into `activeProjectId` (`Sidebar.tsx:143`). Clicking a **space** navigates out to Studio (`crossAppOrigin('studio')` + `/studio/<projectId>/<spaceId>`, `Sidebar.tsx:126-129`). The footer is the shared `SurfaceSwitcher` (`Sidebar.tsx:131`).
+The switcher itself is the shared `ProjectDropdown` element (`sdk/org/libs/ui/src/elements/nav/app-sidebar/index.tsx#ProjectDropdown`). Selecting a project is a **navigation** (`nav.openProject`), never a state write — the shell turns the location back into `activeProjectId` (`sdk/org/libs/ui/src/chat/app/TopBar.tsx#TopBar`). The right end is the shared `SurfaceSwitcher` (`TopBar.tsx:110`).
 
-Conversation history is no longer here: the past sessions of a project (`GET /api/projects/:id/sessions`) are listed and switched **inside the chat dock** the served app renders, via the `<Chat>` widget's own history control (`sdk/org/libs/cli/src/app/runtime/chat-protocol.ts#listChatSessions`; the session-body shape → `sdk/org/libs/cli/src/app/runtime/chat-protocol.ts#sessionCreateBody`) — see [../app/views.md](../app/views.md).
+Conversation history is no longer a sidebar list: the past sessions of a project (`GET /api/projects/:id/sessions`) are listed and switched **inside the chat dock** the served app renders, via the `<Chat>` widget's own history control (`sdk/org/libs/cli/src/app/runtime/chat-protocol.ts#listChatSessions`; the session-body shape → `sdk/org/libs/cli/src/app/runtime/chat-protocol.ts#sessionCreateBody`) — see [../app/views.md](../app/views.md).
 
-An **app page** row opens the pod's `/app/<project>/<route>` mount in a new tab (`target="_blank"`), because the app is another mount and opening it must not take the live chat with it (`sdk/org/libs/ui/src/elements/nav/app-sidebar/index.tsx#AppSidebarProps`). The `APP` section lists a **spec (viewbuilder) app's** pages too, not only legacy TSX ones — the manifest sources them from `views/` (see [cli-api/rest/apps.md](../cli-api/rest/apps.md)). A host that can render those pages **natively** passes `onOpenAppPage`, and the row calls it with the project + served route instead of linking — the mobile app does this to render the page through `@lmthing/ui/view` with no WebView (see [mobile/README.md](../mobile/README.md#opening-a-page-from-the-chat-sidebar)).
+### The app's navigation lives in the inline app
+
+A project's page navigation is no longer a chat control at all. When a project is selected and no conversation is open, `AppInline` renders the app in-process (`GET /api/apps/:id/views` → `ViewRenderer`), and the app's **own** `ViewShell` supplies its sidebar nav — a left rail once the app has real pages, nothing while it is a newborn chat-only app (`sdk/org/libs/ui/src/chat/app/AppInline.tsx#AppInline` · `sdk/org/libs/ui/src/view/shell.tsx#ViewShell`) — see [views.md](./views.md#the-inline-app-appinline). A row's page-switch is local state inside `AppInline`, not a link or a `/chat` navigation.
 
 Opening, switching and ending the live session is `sdk/org/libs/ui/src/chat/app/session-control.ts` — one module owns the socket, so more than one surface can start a chat through it (the shell's no-session pane calls the same `startSession`, see [Mobile: the chat surface with no conversation open](../mobile/README.md#the-chat-surface-with-no-conversation-open)).
 
-A project delete navigates away *before* the DELETE lands, so the surface never flashes "that project isn't here" for something the user removed on purpose (`sdk/org/libs/ui/src/chat/app/Sidebar.tsx:110-122`).
+A project delete navigates away *before* the DELETE lands, so the surface never flashes "that project isn't here" for something the user removed on purpose (`sdk/org/libs/ui/src/chat/app/TopBar.tsx:58-67`).
 
 Both create and resume go through the same pod route — `POST /api/sessions` accepts `{spaceDir?, agentSlug?, spaceRef?, model?, projectId?, resumeSessionId?, budget?}` and answers `201 {sessionId}`; under memory pressure it answers `503` + `Retry-After: 5` (`sdk/org/libs/cli/src/server/routes/sessions.ts#handleCreateSession`) → [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md).
 
@@ -96,7 +96,7 @@ A **consent-marked** call (today `installSpace`, or any space function tagged `@
 
 ### Cost and budget
 
-Per-token pricing comes from `GET /api/prices/azure` (`Sidebar.tsx:75-78`); in-flight LLM cost is accumulated from `llm_request`/`llm_progress`/`llm_response` trace events in the session slice, and the header shows `sessionCostUsd + sessionCostInflight` (`ChatView.tsx:112`).
+Per-token pricing comes from `GET /api/prices/azure` (`TopBar.tsx:44-48`); in-flight LLM cost is accumulated from `llm_request`/`llm_progress`/`llm_response` trace events in the session slice, and the header shows `sessionCostUsd + sessionCostInflight` (`ChatView.tsx:112`).
 
 `BudgetWindows` renders one muted line under the composer from same-origin `GET /api/budget` — Today / Week / Month remaining %, refreshed every 30 s and after every cost change; red under 15 % (`sdk/org/libs/ui/src/chat/app/BudgetWindows.tsx#POLL_MS,36-59,66-79`) → [../cli-api/rest/budget.md](../cli-api/rest/budget.md). A window at exactly **0 %** sets `store.budgetBlocked`, which hard-disables the composer (LiteLLM would 429 the turn anyway) (`BudgetWindows.tsx:29-34`, consumed at `ChatView.tsx:118-119` and `Composer.tsx:66`). The endpoint 404s off lmthing.cloud, and the line then renders nothing (`BudgetWindows.tsx:39-42`).
 
@@ -186,7 +186,7 @@ Failure handling is explicit rather than silent: an in-flight `Set` guards doubl
 
 ## The shared settings dialog
 
-The `/chat` sidebar's footer is the `SurfaceSwitcher` (`sdk/org/libs/ui/src/chat/app/Sidebar.tsx:131`) — the app-nav sidebar no longer carries the account/settings footer. The shared `SettingsDialog` documented here is reached from the **studio** sidebar's `SidebarFooter` account row (`sdk/org/libs/ui/src/studio/shell/studio-app-sidebar/index.tsx:43`), which opens it with no `initialTab` so it always lands on **Account** (`sdk/org/libs/ui/src/elements/nav/sidebar-footer/index.tsx:53`; default `initialTab = 'account'`, `sdk/org/libs/ui/src/elements/nav/settings-dialog/index.tsx#SettingsDialog`). It is the same component both surfaces share.
+The `/chat` surface's `SurfaceSwitcher` lives at the right of the `TopBar` (`sdk/org/libs/ui/src/chat/app/TopBar.tsx:110`) — the chat surface carries no account/settings footer of its own. The shared `SettingsDialog` documented here is reached from the **studio** sidebar's `SidebarFooter` account row (`sdk/org/libs/ui/src/studio/shell/studio-app-sidebar/index.tsx:43`), which opens it with no `initialTab` so it always lands on **Account** (`sdk/org/libs/ui/src/elements/nav/sidebar-footer/index.tsx:53`; default `initialTab = 'account'`, `sdk/org/libs/ui/src/elements/nav/settings-dialog/index.tsx#SettingsDialog`). It is the same component both surfaces share.
 
 It is side-tabbed with **eight** tabs, declared in one `TABS` array (`settings-dialog/index.tsx:32-94`); the active tab's `render()` is the only panel mounted (`settings-dialog/index.tsx:121,157-163`). Each tab is a component under `sdk/org/libs/ui/src/elements/settings/`:
 

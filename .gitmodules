@@ -1,3 +1,4 @@
 [submodule "sdk/org"]
 	path = sdk/org
 	url = https://github.com/lmthing/org.git
+	branch = main

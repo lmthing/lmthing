@@ -1,0 +1,63 @@
+name: Bump sdk/org submodule
+
+# Re-pin the `sdk/org` submodule to the head of its tracked branch (`main`, per
+# `.gitmodules`) and commit that pointer straight to this repo's `main`. Fired by the
+# org repo's `bump-superproject.yml` on every push to org main (i.e. every merged PR),
+# and runnable by hand from the Actions tab.
+#
+# Requires a repo secret `SUBMODULE_BUMP_TOKEN`: a token (fine-grained PAT or GitHub App
+# installation token) with Contents: write on THIS repo (to push to main) and read on
+# `lmthing/org` (to fetch the submodule if it is private). It is used instead of the
+# default `GITHUB_TOKEN` for two reasons: the default token's push does not re-trigger
+# other workflows, and we WANT the resulting `sdk/org` pointer change to re-run
+# `docs-sync.yml` against the new code.
+
+on:
+  repository_dispatch:
+    types: [org-main-updated]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+# Never let two bumps race — they would fight over the same pointer on main.
+concurrency:
+  group: bump-org-submodule
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.SUBMODULE_BUMP_TOKEN }}
+          # The pointer is bumped below with an explicit `submodule update --remote`, so
+          # there is no need to clone the submodule's full tree during checkout.
+          submodules: false
+
+      - name: Bump sdk/org to the head of its tracked branch
+        env:
+          GH_TOKEN: ${{ secrets.SUBMODULE_BUMP_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "lmthing-bot"
+          git config user.email "bot@users.noreply.github.com"
+
+          # Pick up the `branch = main` from .gitmodules, then fast-forward the pointer to
+          # that branch's current head. The insteadOf rewrite injects the token so a
+          # private org repo is still fetchable.
+          git submodule sync sdk/org
+          git -c "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf=https://github.com/" \
+            submodule update --init --remote sdk/org
+
+          if git diff --quiet -- sdk/org; then
+            echo "sdk/org already at the tracked head — nothing to bump."
+            exit 0
+          fi
+
+          NEW_SHA="$(git -C sdk/org rev-parse HEAD)"
+          git add sdk/org
+          git commit -m "chore(submodule): bump sdk/org to ${NEW_SHA:0:12} (org main)"
+          git push origin HEAD:main

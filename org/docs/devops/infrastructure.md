@@ -233,7 +233,7 @@ served project apps there (`devops/argocd/envoy/app-routes.yaml`), and **`lmthin
 too**: a `chat-app-proxy` HTTPRoute with a `PathPrefix: /app` rule (segment-wise, so it matches
 `/app/*` without capturing the SPA's own `/apps` route) carrying the same `rewrite-host-from-header`
 filter and `dynamic-user-backend` `Backend` `devops/argocd/envoy/chat-routes.yaml`. This is what
-lets the `/chat` in-process app render (`AppInline`) reach its `/app/<project>/api/*` data calls
+lets a same-origin `/app/<project>/…` request on the chat host reach the caller's pod
 **same-origin**; previously ONLY `/api/*` was proxied on the chat host, which is why the old iframe
 had to load the separate `lmthing.app` host. Both chat-host policies — the `chat-jwt`
 `SecurityPolicy` and the `chat-lua-routing` `EnvoyExtensionPolicy` — `targetRef` `chat-app-proxy` as

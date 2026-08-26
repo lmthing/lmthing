@@ -710,7 +710,7 @@ What the native host contributes is exactly the two things the divergence budget
   already filled (filling them from `$result.id` is binding resolution, and that is the renderer's
   job), so the host stores that literal path and matches it back to the spec that owns it, static
   segments winning over parameters (`sdk/org/libs/ui/src/view/app-views.ts#resolveRoute`, the shared
-  lookup this native host and the `/chat` `AppInline` both use, re-exported through
+  lookup the served-app renderers use, re-exported through
   `sdk/org/apps/mobile/src/app-views.ts`).
 - **The platform capabilities the client leaves to its host** — `openExternal` (`Linking`), the
   clipboard, a confirmation (`Alert`). Each is one line of React Native and each would otherwise be
@@ -741,16 +741,16 @@ rail is full-width anyway, so what actually differs is the back affordance, and 
 its own. The probe's answer is handed to `AppScreen` rather than re-asked, since the team surface
 had to ask before it could choose.
 
-#### The chat surface renders the app in-process — no sidebar
+#### The chat surface opens the project's chat — no sidebar
 
-The `/chat` surface no longer has a left sidebar with an `APP` page list. Selecting a project now
-renders its app **in-process** as the main pane: the shared `ChatShell` picks `AppInline`, which
-draws the app's view specs with `ViewRenderer`
-(`sdk/org/libs/ui/src/chat/app/AppInline.tsx#AppInline`) — the same renderer this native target uses,
-so there is no WebView. The mobile chat surface inherits that render for free, because it imports the
-same `ChatShell` (`sdk/org/apps/mobile/App.tsx`); there is no phone-specific "open a page from the
-sidebar" flow and no `onOpenAppPage` hook to pass any more — the reader navigates the app's own
-`ViewShell` nav (`sdk/org/libs/ui/src/view/shell.tsx#ViewShell`) inside that pane.
+The `/chat` surface no longer has a left sidebar with an `APP` page list. A project's main surface is
+its chat: selecting a project resolves its most-recent conversation (or starts a fresh one) and shows
+the full `ChatView` transcript as the main pane (`sdk/org/libs/ui/src/chat/app/session-control.ts#resolveProjectChat`).
+The mobile chat surface inherits that for free, because it imports the same `ChatShell`
+(`sdk/org/apps/mobile/App.tsx`); there is no phone-specific "open a page from the sidebar" flow and no
+`onOpenAppPage` hook to pass any more. Opening a project's **app pages** on native is a separate flow —
+the Home cover's `AppScreen`, which draws the app's view specs with `ViewRenderer`
+(`sdk/org/apps/mobile/src/AppScreen.tsx`) — the same renderer, so there is no WebView.
 
 Opening an app full-screen from **Home** is unchanged: a personal project still opens over the tabs
 via the `AppScreen` cover (`sdk/org/apps/mobile/src/AppScreen.tsx#AppScreen`), which branches to the

@@ -90,6 +90,8 @@ A **`navigate` target that is not yet a route is a warning at save time and an e
 
 `chat.agent` resolves only when the section also names a `space`, since a bare slug is the project's own top-level agent — dispatched as `agentSlug`, not `spaceRef` `sdk/org/libs/ui/src/view/sections/chat.tsx#sessionBody` — and nothing on disk enumerates those. A project with no `spaces/` dir skips the check rather than failing it.
 
+At render time the section both creates the session AND opens its socket against the **pod origin** — `podOrigin(client.baseUrl)`, which strips the `…/app/<project>` suffix off the client's app base `sdk/org/libs/ui/src/view/sections/chat.tsx#ChatSectionView` · `sdk/org/libs/ui/src/view/client.ts#podOrigin`. The socket URL had used the raw app base, resolving the non-existent `…/app/<project>/api/ws`, so the dock hung on "Connecting…"; and a transport error is kept off the wire-error channel so a failed handshake no longer renders as a literal "undefined" `sdk/org/libs/ui/src/chat/client/rpc-client.ts#ReplRpcClient`.
+
 Field resolution is deliberately a **union** of the endpoint's top-level and row fields rather than an exact scope resolution `sdk/org/libs/cli/src/app/view-spec/validate.ts#outputFieldUniverse`. Being exact would need a type checker over JSON Schema, and the failure mode of getting it wrong is rejecting a spec that would have worked — the one outcome a save-time gate must never produce. An endpoint whose Output cannot be read yields `undefined` fields, which means *skip*, never *reject*.
 
 Three consequences of that rule, each one a measured false rejection:

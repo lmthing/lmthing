@@ -506,7 +506,7 @@ async function getLiteLLMKey(p: PodPrincipal): Promise<string> {
 const MODEL_ALIAS_DEFAULTS = {
   LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash-0731",
   LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash-0731",
-  LM_MODEL_M: "lmthingcloud:DeepSeek-V4-Flash-0731",
+  LM_MODEL_M: "lmthingcloud:DeepSeek-V4-Pro",
   LM_MODEL_L: "lmthingcloud:DeepSeek-V4-Pro",
   LM_MODEL_M_R: "lmthingcloud:DeepSeek-V4-Pro",
   LM_MODEL_L_R: "lmthingcloud:Kimi-K2.6",

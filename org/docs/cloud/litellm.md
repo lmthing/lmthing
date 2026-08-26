@@ -47,8 +47,8 @@ The config's `model_list` maps a public `model_name` to an Azure deployment via 
 
 | `model_name` (what pods call) | Azure deployment | api_version | Notes | Citation |
 |---|---|---|---|---|
-| `DeepSeek-V4-Flash-0731` | `azure/DeepSeek-V4-Flash-0731` | `2024-12-01-preview` | cheapest chat model; **the default (M) model**, also the `XS`/`S` tier | `litellm.yaml:18-28` |
-| `DeepSeek-V4-Pro` | `azure/DeepSeek-V4-Pro` | `2024-12-01-preview` | mid chat/reasoning | `litellm.yaml:29-39` |
+| `DeepSeek-V4-Flash-0731` | `azure/DeepSeek-V4-Flash-0731` | `2024-12-01-preview` | cheapest chat model; the `XS`/`S` tier | `litellm.yaml:18-28` |
+| `DeepSeek-V4-Pro` | `azure/DeepSeek-V4-Pro` | `2024-12-01-preview` | mid chat/reasoning; **the default (M) model**, also `L`/`M_R` | `litellm.yaml:29-39` |
 | `Kimi-K2.6` | `azure/Kimi-K2.6` | `2024-12-01-preview` | large reasoning; **Data Zone** rates — Kimi is sold only under `Azure Fireworks Models`, which publishes no Global meter | `litellm.yaml:40-52` |
 | `gpt-5.5` | `azure/gpt-5.5` | `2024-12-01-preview` | large chat; priced at the **short-context** (`ShortCo`) tier | `litellm.yaml:57-67` |
 | `gpt-5.6-luna` | `azure/gpt-5.6-luna` | `2024-12-01-preview` | general-purpose model; priced at the **short-context** (`ShortCo`) tier | `litellm.yaml:68-78` |
@@ -142,7 +142,7 @@ LMTHINGCLOUD_API_KEY:  litellmKey,   // the user's own virtual key
 LMTHINGCLOUD_BASE_URL: "http://litellm.lmthing.svc.cluster.local:4000/v1",
 LM_MODEL_XS:   "lmthingcloud:DeepSeek-V4-Flash-0731",
 LM_MODEL_S:    "lmthingcloud:DeepSeek-V4-Flash-0731",
-LM_MODEL_M:    "lmthingcloud:DeepSeek-V4-Flash-0731",
+LM_MODEL_M:    "lmthingcloud:DeepSeek-V4-Pro",
 LM_MODEL_L:    "lmthingcloud:DeepSeek-V4-Pro",
 LM_MODEL_M_R:  "lmthingcloud:DeepSeek-V4-Pro",
 LM_MODEL_L_R:  "lmthingcloud:Kimi-K2.6",

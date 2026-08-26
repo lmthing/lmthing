@@ -36,7 +36,7 @@ Because the gate has already confirmed the edge is serving, `ChatShell`'s boot f
 
 ### Top bar — projects, prices, surface switch
 
-There is **no left sidebar**. The project switcher, project create/delete, and the prices fetch move into a slim `TopBar` above the main pane; the app's own navigation is the inline app's `ViewShell` sidebar (below), and conversation history moved into the chat dock the served app renders. `TopBar` drives (all pod, same-origin):
+There is **no left sidebar**. The project switcher, project create/delete, and the prices fetch move into a slim `TopBar` above the transcript. `TopBar` drives (all pod, same-origin):
 
 | Action | Endpoint | Code |
 |---|---|---|
@@ -47,13 +47,11 @@ There is **no left sidebar**. The project switcher, project create/delete, and t
 
 The switcher itself is the shared `ProjectDropdown` element (`sdk/org/libs/ui/src/elements/nav/app-sidebar/index.tsx#ProjectDropdown`). Selecting a project is a **navigation** (`nav.openProject`), never a state write — the shell turns the location back into `activeProjectId` (`sdk/org/libs/ui/src/chat/app/TopBar.tsx#TopBar`). The right end is the shared `SurfaceSwitcher` (`TopBar.tsx:110`).
 
-Conversation history is no longer a sidebar list: the past sessions of a project (`GET /api/projects/:id/sessions`) are listed and switched **inside the chat dock** the served app renders, via the `<Chat>` widget's own history control (`sdk/org/libs/cli/src/app/runtime/chat-protocol.ts#listChatSessions`; the session-body shape → `sdk/org/libs/cli/src/app/runtime/chat-protocol.ts#sessionCreateBody`) — see [../app/views.md](../app/views.md).
+### The project's chat
 
-### The app's navigation lives in the inline app
+A project's main surface is its chat. Landing on a bare `/chat/<project>` resolves the project's most-recent conversation from `GET /api/projects/:id/sessions` (the list is newest-first), or starts a fresh one when the project has none, and **redirects** to `/chat/<project>/<conversation>` — so the full `ChatView` transcript renders and the location is shareable (`sdk/org/libs/ui/src/chat/app/session-control.ts#resolveProjectChat`). The redirect *replaces* the bare-project entry, so Back does not resolve-and-bounce; while it is in flight the main pane shows the opening pane (`sdk/org/libs/ui/src/chat/app/ChatShell.tsx#ChatShell`).
 
-A project's page navigation is no longer a chat control at all. When a project is selected and no conversation is open, `AppInline` renders the app in-process (`GET /api/apps/:id/views` → `ViewRenderer`), and the app's **own** `ViewShell` supplies its sidebar nav — a left rail once the app has real pages, nothing while it is a newborn chat-only app (`sdk/org/libs/ui/src/chat/app/AppInline.tsx#AppInline` · `sdk/org/libs/ui/src/view/shell.tsx#ViewShell`) — see [views.md](./views.md#the-inline-app-appinline). A row's page-switch is local state inside `AppInline`, not a link or a `/chat` navigation.
-
-Opening, switching and ending the live session is `sdk/org/libs/ui/src/chat/app/session-control.ts` — one module owns the socket, so more than one surface can start a chat through it (the shell's no-session pane calls the same `startSession`, see [Mobile: the chat surface with no conversation open](../mobile/README.md#the-chat-surface-with-no-conversation-open)).
+Opening, switching and ending the live session is `sdk/org/libs/ui/src/chat/app/session-control.ts` — one module owns the socket, so more than one surface can start a chat through it (the shell's no-session pane calls the same `startSession`, see [Mobile: the chat surface with no conversation open](../mobile/README.md#the-chat-surface-with-no-conversation-open)). `resolveProjectChat` hands the resumed id back for the shell's location effect to open, so a cold-pod `503` or a deleted snapshot flows through the same "opening / gone / unavailable" panes as a pasted conversation link; the empty-project branch is the one that both creates and connects a fresh session itself.
 
 A project delete navigates away *before* the DELETE lands, so the surface never flashes "that project isn't here" for something the user removed on purpose (`sdk/org/libs/ui/src/chat/app/TopBar.tsx:58-67`).
 

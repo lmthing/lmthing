@@ -343,13 +343,17 @@ already listening, so the K8s startup probe (`GET /api/health`) is never blocked
   a pod restart `sdk/org/libs/cli/src/server/session-manager.ts:570-582` ·
   `sdk/org/libs/cli/src/app/hooks/runtime.ts:104-113`.
 
-### The page build
+### There is no per-project page build
 
-`buildProjectPages` is content-hash cached over the project's own files plus a `BUILDER_VERSION`
-constant — currently `'4'` — which is the **only** way a runtime-only fix reaches an already-cached
-pod `sdk/org/libs/cli/src/app/build/pages.ts:76-89,122-147`. It runs on boot / save / install, never
-per request. Each build peaks ~100 MB, so builds are serialized process-wide and wait (bounded 30 s)
-for memory-pressure headroom `sdk/org/libs/cli/src/app/build/pages.ts:97-116`.
+A project's pages are `.view.json` specs, read straight off disk at request time by
+`GET /api/apps/:id/views` (`sdk/org/libs/cli/src/server/routes/app-views.ts#handleAppViews`) — no
+compilation, no bundler, no per-project build artifact. What still runs on boot / save / install is
+the **contracts + types** step: `generateProjectContracts` reads `api/`, derives each endpoint's
+Input/Output JSON Schema, and writes `types/generated.d.ts` via `generateAppTypes`
+`sdk/org/libs/cli/src/app/build/contracts.ts#generateProjectContracts`,
+`sdk/org/libs/cli/src/app/build/schema.ts#generateAppTypes` — cheap and typed, not bundled. The
+artifact these specs are rendered ON is the prebuilt `AppHost` shell, built ONCE and shared by every
+project (`sdk/org/apps/app-shell`), not rebuilt per project; see [routes.md](./routes.md).
 
 ---
 

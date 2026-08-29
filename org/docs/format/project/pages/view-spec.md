@@ -1,8 +1,8 @@
 # View specs — a page as data
 
-A project page exists in **two media**. The one described in [README.md](./README.md) is a React `.tsx` file. This page describes the other — and the only one that has an author at all: a **view spec** — a plain object, validated against the project's own endpoint contracts at save time and rendered by a shared `ViewRenderer` on the web bundle **and** natively in the mobile app.
+A project page is a **view spec** — a plain object, validated against the project's own endpoint contracts at save time and rendered by a shared `ViewRenderer` on the web bundle **and** natively in the mobile app. There is no other authored page medium; the earlier hand-written-TSX `pages/` format and its serving pipeline have been removed from the codebase entirely.
 
-**`views:write` is the ONE UI-authoring capability, and it is the mechanism, not a policy.** It earns the spec writers (`writeProjectView`, `writeProjectViewLayout`, `writeProjectViewComponent`, `writeProjectViewShell`) `sdk/org/libs/core/src/typecheck/library-dts.ts#CAPABILITY_DTS_FRAGMENTS`. There is no freehand-TSX writer left to grant instead — the model-facing global and its capability id were removed from the codebase entirely, so "author a page" has exactly one shape now, for every agent, not a rule `system-appbuilder` happens to follow `sdk/org/libs/core/src/exec/app-globals.ts#injectAppGlobals`. TSX pages are still SERVED — the store catalog ships them (`store/projects/blog/pages/index.tsx`) through the legacy per-project build — but a view spec is never compiled to TSX; it is rendered at runtime by the shared `ViewRenderer`, and nothing writes a new hand-authored page.
+**`views:write` is the ONE UI-authoring capability, and it is the mechanism, not a policy.** It earns the spec writers (`writeProjectView`, `writeProjectViewLayout`, `writeProjectViewComponent`, `writeProjectViewShell`) `sdk/org/libs/core/src/typecheck/library-dts.ts#CAPABILITY_DTS_FRAGMENTS`. There is no freehand-TSX writer to grant instead — the model-facing global and its capability id were removed from the codebase entirely, so "author a page" has exactly one shape now, for every agent, not a rule `system-appbuilder` happens to follow `sdk/org/libs/core/src/exec/app-globals.ts#injectAppGlobals`. A view spec is never compiled; it is rendered at runtime by the shared `ViewRenderer`.
 
 The writers themselves → [../../../runtime-globals/app-authoring.md](../../../runtime-globals/app-authoring.md).
 
@@ -16,8 +16,6 @@ The writers themselves → [../../../runtime-globals/app-authoring.md](../../../
 | `views/<prefix>/_layout.view.json` | a nested layout frame `sdk/org/libs/cli/src/app/view-spec/files.ts#viewLayoutPath` |
 | `components/<Name>.view.json` | a reusable element composition `sdk/org/libs/cli/src/app/view-spec/files.ts#viewComponentPath` |
 | `shell.view.json` | the app shell (nav, brand, assistant dock) `sdk/org/libs/cli/src/app/view-spec/files.ts#SHELL_SPEC_PATH` |
-
-The v1 layout (`pages/**/*.view.json`, `pages/components/`, `pages/_shell.view.json`) is still read for existing projects `sdk/org/libs/cli/src/app/view-spec/files.ts#loadProjectViews`.
 
 **A spec is never compiled — it is fetched and rendered at runtime.** Both hosts read the specs from the same transport, `GET /api/apps/:id/views` (`sdk/org/libs/cli/src/server/routes/app-views.ts#handleAppViews`): the web AppHost (`sdk/org/apps/app-shell/src/app-host.tsx#AppHost`) and the native mobile app (`sdk/org/apps/mobile/src/app-views.ts`). There is no per-page `.tsx` and no per-project bundle, so a write of a view, component, shell or layout lands exactly one artifact — the next fetch composes the whole app afresh.
 

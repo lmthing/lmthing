@@ -47,7 +47,7 @@ There is **no left sidebar**. The project switcher, project create/delete, and t
 
 The switcher itself is the shared `ProjectDropdown` element (`sdk/org/libs/ui/src/elements/nav/app-sidebar/index.tsx#ProjectDropdown`). Selecting a project is a **navigation** (`nav.openProject`), never a state write — the shell turns the location back into `activeProjectId` (`sdk/org/libs/ui/src/chat/app/TopBar.tsx#TopBar`). The right end is the shared `SurfaceSwitcher` (`TopBar.tsx:110`).
 
-Conversation history is no longer a sidebar list: the past sessions of a project (`GET /api/projects/:id/sessions`) are listed and switched **inside the chat dock** the served app renders, via the `<Chat>` widget's own history control (`sdk/org/libs/cli/src/app/runtime/chat-protocol.ts#listChatSessions`; the session-body shape → `sdk/org/libs/cli/src/app/runtime/chat-protocol.ts#sessionCreateBody`) — see [../app/views.md](../app/views.md).
+Conversation history is no longer a sidebar list here: for the `/chat` surface itself, past sessions are reached through the surface's own session controls, not a persistent sidebar. A served project-app's embedded assistant dock (the `chat` view-spec section, [../app/views.md](../app/views.md)) has no history switcher of its own — that control existed only on the retired TSX `<Chat>` widget and was not carried over when the view-spec renderer replaced it.
 
 ### The app's navigation lives in the inline app
 

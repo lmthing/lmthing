@@ -1,8 +1,8 @@
 # `app/` — the served project-application
 
-A **project-application** is what a project's on-disk app layer becomes at runtime: a project-rooted SQLite database, a set of worker-isolated Node API handlers, a client-side React bundle, and in-process hooks — all hosted by the *same* pod process that runs the agent sandbox and the REST API. There is no separate app server.
+A **project-application** is what a project's on-disk app layer becomes at runtime: a project-rooted SQLite database, a set of worker-isolated Node API handlers, a set of fetched-and-rendered view specs, and in-process hooks — all hosted by the *same* pod process that runs the agent sandbox and the REST API. There is no separate app server.
 
-- The **on-disk format** you author (`database/ api/ pages/ components/ hooks/ events/ spaces/`) → [../format/project/README.md](../format/project/README.md).
+- The **on-disk format** you author (`database/ api/ views/ components/ hooks/ events/ spaces/`) → [../format/project/README.md](../format/project/README.md).
 - **This** section describes what the pod does with those files: how it boots them, builds them, serves them, and what code inside a page or handler may call.
 
 | Page | Covers |
@@ -32,7 +32,7 @@ flowchart LR
 
 - **The database** — `database/*.json` schemas are turned into real `CREATE TABLE` statements in `<project>/.data/app.db` by the one `better-sqlite3`-backed store, opened with `PRAGMA journal_mode=WAL` and `PRAGMA foreign_keys=ON` (`sdk/org/libs/cli/src/app/store.ts#openProjectDb`). The same handle exposes **two** surfaces: a synchronous `DbApi` for the agent sandbox and a `Promise`-returning `AsyncDbApi` for Node code (`sdk/org/libs/cli/src/app/store.ts#ProjectDb`, `ProjectDb`).
 - **The api runtime** — endpoints are discovered from the file tree, the handler is transpiled with esbuild and run in a fresh `worker_threads` Worker; its `db`/`apiCall`/`spawn` are `postMessage` proxies serviced by the main process, so *every db write executes main-side* — the worker is a crash boundary, not a data path (`sdk/org/libs/cli/src/app/api/runtime.ts:L1-L21`, `createApiRuntime`).
-- **The pages bundle** — `pages/` is esbuild-bundled per project into `<project>/.data/pages-dist/` with hashed assets. The build itself is **never run per request**: it short-circuits on a content hash of `pages/`/`components/`/`lib/`/`package.json` (`sdk/org/libs/cli/src/app/build/pages.ts#buildProjectPages`), and the server calls it on boot/install/first-request and then caches the result for its lifetime (see [Boot](#boot)).
+- **Pages** — a page is a validated view spec (`views/<route>.view.json`), never compiled: both the web bundle and the native app fetch specs from `GET /api/apps/:id/views` and draw them through the shared `ViewRenderer` (`sdk/org/libs/cli/src/server/routes/app-views.ts#handleAppViews`, `sdk/org/libs/cli/src/app/view-spec/files.ts#loadProjectViews`). There is no per-project page bundle to build or cache.
 - **Generated types** — `database/*.json` + the api handlers' `export interface Input/Output` are compiled into `<project>/types/generated.d.ts`, a git-ignored build artifact (`sdk/org/libs/cli/src/app/build/schema.ts:L341-L359`, `generateAppTypes`).
 - **Hooks** — a committed db write fires the store's `onWrite` listener, which the project's hook runtime turns into a synthetic `project/db.<table>.<insert|update|remove>` event whose payload *is* the row (`sdk/org/libs/cli/src/app/hooks/runtime.ts:L46-L48,L124-L136`, `ProjectHookRuntime.onDbWrite`).
 - **Project spaces** — `<project>/spaces/*` are ordinary spaces whose agents hold `db:*` capabilities over the same db → [../format/project/README.md](../format/project/README.md#capabilities-gate-who-may-author-and-touch-each-pillar).
@@ -117,23 +117,27 @@ Hence one endpoint, two addresses — the browser addresses it by route, the age
 
 **Input is one object.** Where each field travels is derived from the method, not declared per-field: path params always merge in and win on a key clash; `GET`/`DELETE` take the rest from the query string, `POST`/`PATCH`/`PUT` from the JSON body (`sdk/org/libs/cli/src/app/api/input.ts:L1-L17,L40-L53`). The assembled object is then ajv-validated with `coerceTypes` on, so a query-string `"true"` becomes a boolean (`sdk/org/libs/cli/src/app/api/runtime.ts:L200-L217`).
 
-**One error shape, everywhere.** A handler throws `new HttpError(status, message, details?)` → that status with body `{ error: { status, message, details? } }`; any other throw → a generic `500` (the real message is logged pod-side, never leaked); an ajv mismatch → `400 { error: { status: 400, message: 'invalid input', details } }` (`sdk/org/libs/cli/src/app/api/errors.ts:L1-L16,L94-L111`). Because handlers run in a worker, an `HttpError` is serialized across the thread boundary and reconstructed main-side — `postMessage` structured-clone drops the prototype (`sdk/org/libs/cli/src/app/api/errors.ts:L63-L83`). The browser client throws the *same* shape (`sdk/org/libs/cli/src/app/runtime/client.ts:L40-L56`).
+**One error shape, everywhere.** A handler throws `new HttpError(status, message, details?)` → that status with body `{ error: { status, message, details? } }`; any other throw → a generic `500` (the real message is logged pod-side, never leaked); an ajv mismatch → `400 { error: { status: 400, message: 'invalid input', details } }` (`sdk/org/libs/cli/src/app/api/errors.ts:L1-L16,L94-L111`). Because handlers run in a worker, an `HttpError` is serialized across the thread boundary and reconstructed main-side — `postMessage` structured-clone drops the prototype (`sdk/org/libs/cli/src/app/api/errors.ts:L63-L83`). The view-spec client throws the *same* shape, as `ViewHttpError` (`sdk/org/libs/ui/src/view/client.ts#ViewHttpError`).
 
 ---
 
-## `@app/runtime` — what page code may import
+## The view-spec client — `createViewClient`
 
-`@app/runtime` is not an npm package: the page build **aliases** it to this module's source (`sdk/org/libs/cli/src/app/build/pages.ts#resolveEnv`), and `@app/types` to the project's generated `types/generated.d.ts` (`:L249-L250`); both are fed to esbuild as `alias` (`:L270`). Its full surface (`sdk/org/libs/cli/src/app/runtime/index.ts:L13-L35`):
+A page is a validated **view spec**, never hand-authored code, so there is no page-facing runtime
+library to import at all — the shared `ViewRenderer` is the one thing that talks to the pod, through
+`createViewClient` (`sdk/org/libs/ui/src/view/client.ts#createViewClient`):
 
 | Export | Purpose |
 |---|---|
-| `useApi(name, input?)` · `useApiMutation(name, {invalidates})` · `apiCall(name, input?)` | typed data access by endpoint **name** |
-| `HttpError` | the shared error type |
-| `useParams` · `Link` · `navigate` | the tiny file-based client router |
-| `Chat` | a page-droppable, self-floating `<Chat agent="space/agent" />`, or `agent="thing"` for the project’s own authoring agent — needs no wrapping dock |
-| `mountApp` · `AppRoot` · `matchRoutes` · `resolveAppBase` · `buildRequest` | used by the **generated** entry, not by page authors |
+| `createViewClient(config)` | builds a data client from `{ baseUrl, getToken?, endpoints }` |
+| `ViewHttpError` | the shared error type, thrown on a non-2xx response |
+| `buildViewRequest` | pure request builder — `:param` fill, method-aware query/body split |
+| `podOrigin` | derives the pod's absolute origin from the client's `baseUrl` |
 
-The name→route bridge is `window.__APP_ENDPOINTS__`: the build projects the endpoint contracts down to a `name → { method, routePath }` manifest (`sdk/org/libs/cli/src/app/build/pages.ts#endpointManifest`) and bakes it into the generated entry's `mountApp({ manifest, … })` call (`:L335-L336`), `mountApp` assigns it to the global (`sdk/org/libs/cli/src/app/runtime/router.tsx#mountApp`), and `apiCall` reads it (`sdk/org/libs/cli/src/app/runtime/client.ts:L1-L22,L58-L63`). Detail → [views.md](./views.md).
+Both targets (the prebuilt web `AppHost` and the mobile app) construct one of these from the same
+`GET /api/apps/:id/views` payload, so there is exactly one client implementation to reason about.
+There is no separate ambient `@app/runtime` module for a spec app to typecheck against — that
+existed only for the retired TSX page-authoring format. Detail → [views.md](./views.md).
 
 ---
 
@@ -145,12 +149,10 @@ TS types + JSDoc in `database/*.json` and the api handlers are the single source
 |---|---|
 | the api runtime | ajv `validators` (method-aware request validation) |
 | the agent sandbox | `apiCallDts` — string-literal `apiCall` overloads (a wrong endpoint name or input type is a **typecheck** error, not a runtime one) |
-| pages | `generatedDts` → `types/generated.d.ts` (row types + `<Name>Input`/`<Name>Output`) |
+| the whole-app typecheck | `generatedDts` → `types/generated.d.ts` (row types + `<Name>Input`/`<Name>Output`) |
 | the browser client | the `name → { method, routePath }` endpoint manifest |
 
 A live authoring write (`writeProjectApi` / `writeProjectView`) invalidates the cached contracts *and* disposes the project's api runtime, so the next call re-derives from the new files; page **compilation** is deliberately not done on write — the caller POSTs a rebuild (`sdk/org/libs/cli/src/server/session-manager.ts:L648-L666`, `onAppWrite`). The authoring globals → [../runtime-globals/app-authoring.md](../runtime-globals/app-authoring.md).
-
-> The builder has its own cache-busting knob: the page build's content hash covers only the *project's* files, so a change to `@app/runtime` itself needs `BUILDER_VERSION` bumped or already-built pods keep serving the old bundle (`sdk/org/libs/cli/src/app/build/pages.ts#BUILDER_VERSION`).
 
 ---
 

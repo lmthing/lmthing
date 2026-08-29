@@ -72,70 +72,48 @@ curl -X PATCH http://localhost:8080/app/blog/api/collections/c-1 \
 
 Error contract (`{ error: { status, message, details? } }`), validation and worker isolation → [`../format/project/api/README.md`](../format/project/api/README.md).
 
-## Page routes — file → URL
+## Page routes — specs, not files
 
-Route discovery walks `pages/`; every non-`_`-prefixed `.tsx`/`.jsx` file is a route. An `index` basename collapses to its directory's path and a `[id]` segment becomes `:id` `sdk/org/libs/cli/src/app/build/pages.ts:155-194`. Directories named `components/` or `lib/` under `pages/` (and any `_`-prefixed dir) hold shared code and are skipped `sdk/org/libs/cli/src/app/build/pages.ts#walkPages`. `_app.tsx` and `_layout.tsx` are wrappers, not routes `sdk/org/libs/cli/src/app/build/pages.ts#WRAPPERS`, `sdk/org/libs/cli/src/app/build/pages.ts#findWrappers`.
+There is no per-project page build anymore. A project's pages are `.view.json` **specs**
+(`sdk/org/libs/cli/src/app/view-spec/schema.ts#ViewSpec`) under `views/`, fetched whole over
+`GET /api/apps/:id/views` and rendered by the shared `ViewRenderer` — one prebuilt SPA,
+**AppHost**, serves every project's specs; there is no per-project bundle to build or cache.
+Route/file conventions for the spec format → [`./views.md`](./views.md) ·
+[`../format/project/pages/view-spec.md`](../format/project/pages/view-spec.md).
 
-Real pages from the shipped `blog` app:
+## How pages are served — the shared app-shell
 
-```
-store/projects/blog/pages/index.tsx                     →  /app/blog/
-store/projects/blog/pages/discover.tsx                  →  /app/blog/discover
-store/projects/blog/pages/briefings/index.tsx           →  /app/blog/briefings
-store/projects/blog/pages/briefings/[briefingId].tsx    →  /app/blog/briefings/:briefingId
-store/projects/blog/pages/feed/[articleId].tsx          →  /app/blog/feed/:articleId
-store/projects/blog/pages/feed/[articleId]/research.tsx →  /app/blog/feed/:articleId/research
-store/projects/blog/pages/_app.tsx                      →  (wrapper — not a route)
-store/projects/blog/pages/_layout.tsx                   →  (wrapper — not a route)
-```
+The prebuilt `@lmthing/app-shell` dist is resolved **once at boot**, not per project
+`sdk/org/libs/cli/src/server/serve.ts:149-169`. `LM_APP_SHELL=0` disables it; an invalid or
+absent dist leaves every project unserveable (there is no per-project bundle left to fall back
+to) `sdk/org/libs/cli/src/server/serve.ts:154-169`.
 
-The same patterns are matched **client-side** at runtime: `matchRoutes` splits pattern and path into segments and captures `:param`s `sdk/org/libs/cli/src/app/runtime/router.tsx#matchRoutes`; the matched page renders inside `_layout` inside `_app` `sdk/org/libs/cli/src/app/runtime/router.tsx#AppRoot`; an unmatched path renders a minimal `No page for <path>` `sdk/org/libs/cli/src/app/runtime/router.tsx#NotFound`. There is no pod-side page routing beyond the SPA fallback below.
+`createPageServeHandler(getOutDirForProject, mountPrefix)` serves that ONE dist under either
+mount, keyed by whether the project actually has view specs (`branchAppShell`, the same
+discriminator native uses — `views.length > 0`) `sdk/org/libs/cli/src/server/serve.ts:399-419`, `sdk/org/libs/cli/src/app/pages-serve.ts#createPageServeHandler`:
 
-A route is NEVER mounted under `/pages/…` — route paths are derived relative to the `pages/` dir, which is stripped. But the on-disk folder is literally `pages/`, so an author (typically the app-builder) routinely links a sibling page as `/pages/park-fees` instead of the route `/park-fees`. As a fallback — after the literal match pass fails, so a genuine route always wins — `matchRoutes` retries with the stray `/pages` prefix removed, and `toHref` normalizes it out of a pushed link so the URL bar stays clean `sdk/org/libs/ui/src/view/router.ts#stripPagesPrefix`.
+- **No specs, or the shell dist is unavailable** → `404 project "<id>" has no page app` (plain text) on the reserved mount, or falls through to the pod's own SPA on the root mount `sdk/org/libs/cli/src/app/pages-serve.ts:98-113`.
+- **Path-traversal guard** — the sub-path must resolve inside the shell's `outDir`, else `400 bad request` `sdk/org/libs/cli/src/app/pages-serve.ts:128-135`.
+- **Asset-manifest match** (not filesystem probing) — a sub-path present in the manifest is served as a static file; anything else falls back to `index.html`. Matching on the manifest is what lets a dynamic param containing a `.` (e.g. `/items/my.v2.id`) route client-side instead of 404-ing as a missing asset `sdk/org/libs/cli/src/app/pages-serve.ts:136-158`.
+- **A missing ASSET is a 404, not the shell.** A sub-path whose extension is one this server serves (`.js`, `.css`, `.ico`, … — the `MIME` table, `.html` excepted) but which is *not* in the manifest returns `404`, rather than 200 + `index.html` `sdk/org/libs/cli/src/app/pages-serve.ts#isAssetRequest`. Answering an asset request with HTML is how a stale bundle becomes `Unexpected token '<'` (the browser executes `index.html` as a module) and why a served app can log a CSP console error for its favicon — it asked for an icon and got the SPA shell. A dot in a *route param* still reaches the client router, because `.id` is not an extension we serve.
+- **Caching** — hashed assets are `public, max-age=31536000, immutable`; `index.html` is `no-cache` `sdk/org/libs/cli/src/app/pages-serve.ts:150-157`. An in-manifest file missing on disk degrades to the SPA fallback rather than erroring `sdk/org/libs/cli/src/app/pages-serve.ts:141-147`.
 
-### Base resolution (why the same bundle works on both mounts)
-
-The route table is authored base-agnostically (`/`, `/discover`, `/feed/:articleId`). The client computes the app's server root at call time: `resolveAppBase(pathname)` returns the first `…/app/<project>` prefix in the pathname, unless `window.__APP_BASE__` overrides it (the `/app`-stripped root mount, where the prefix is not in the path at all) `sdk/org/libs/cli/src/app/runtime/client.ts:70-83`. `clientPath()` strips that base before matching `sdk/org/libs/cli/src/app/runtime/router.tsx#clientPath`, and `toHref()` re-applies it on `navigate` `sdk/org/libs/cli/src/app/runtime/router.tsx#toHref` and on `Link` `sdk/org/libs/cli/src/app/runtime/router.tsx#Link`, so an in-app link never escapes to the origin root.
-
-API URLs are built the same way: `apiCall(name, input)` looks the name up in the injected manifest, fills `:param` segments from `input`, and fetches `<base>/api<routePath>` — query string for `GET`/`DELETE`, JSON body otherwise `sdk/org/libs/cli/src/app/runtime/client.ts:119-161`. The manifest (`name → { method, routePath }`) is put on `window.__APP_ENDPOINTS__` by `mountApp` `sdk/org/libs/cli/src/app/runtime/router.tsx#mountApp`, projected at build time from the typed endpoint contracts (`routePath` is exactly the loader's `pattern`) `sdk/org/libs/cli/src/app/build/pages.ts:203-208`, `sdk/org/libs/cli/src/app/build/schema.ts#buildContract`.
-
-## How pages are built
-
-`buildProjectPages(projectRoot)` runs **on save / boot / install, never per request** `sdk/org/libs/cli/src/app/build/pages.ts:1-10`:
-
-1. No `pages/` dir → `{ built:false, routes:[], assetManifest:[] }` (a db/api-only project has no page surface) `sdk/org/libs/cli/src/app/build/pages.ts#buildProjectPages`.
-2. Discover routes, hash the project's sources, and short-circuit on a cache hit (`.data/pages-cache.json` + an existing `index.html`) `sdk/org/libs/cli/src/app/build/pages.ts#buildProjectPages`.
-3. Generate an entry in `<projectRoot>/.data/pages-build/` that imports the pages + wrappers and calls `mountApp` with the route table and the endpoint manifest `sdk/org/libs/cli/src/app/build/pages.ts:14-21`, `sdk/org/libs/cli/src/app/build/pages.ts:239-243`.
-4. esbuild-bundle into `<projectRoot>/.data/pages-dist/` with hashed assets (`assets/[name]-[hash]`) and an `index.html` that references them with **relative** URLs `sdk/org/libs/cli/src/app/build/pages.ts#runBuild`, `sdk/org/libs/cli/src/app/build/pages.ts:417-432`. `@app/runtime` aliases to the CLI's own runtime source (`resolveEnv` walks up to the `@lmthing/cli` package root) `sdk/org/libs/cli/src/app/build/pages.ts:461-473`, and `@app/types` to the project's `types/generated.d.ts` `sdk/org/libs/cli/src/app/build/pages.ts:249-250`.
-5. The **asset manifest** = every emitted file relative to `outDir`, including `index.html` `sdk/org/libs/cli/src/app/build/pages.ts:300-302`.
-
-Builds are serialized process-wide and deferred under memory pressure (each build peaks ~100 MB) `sdk/org/libs/cli/src/app/build/pages.ts:96-118`, `sdk/org/libs/cli/src/app/build/pages.ts:279-285`.
-
-`BUILDER_VERSION` (currently `'7'`) participates in the source hash, so a change to the builder or the bundled `@app/runtime` invalidates every cached bundle — the project-file hash alone would not `sdk/org/libs/cli/src/app/build/pages.ts#BUILDER_VERSION`, `sdk/org/libs/cli/src/app/build/pages.ts#sourceHash`.
-
-The server caches the built bundle per project for its lifetime (`pageBuildCache`, populated lazily by `getOutDirForProject`; a build failure caches `null` and the route 404s) `sdk/org/libs/cli/src/server/serve.ts:248-305`. Installing an app or a store space **drops** that cache entry, so freshly-hashed assets are served instead of a stale manifest `sdk/org/libs/cli/src/server/serve.ts:258-287` — see [`../cli-api/rest/apps.md`](../cli-api/rest/apps.md).
-
-## How pages are served (`pages-serve.ts`)
-
-`createPageServeHandler(getOutDirForProject, mountPrefix = '/app')` serves every non-api path under the mount `sdk/org/libs/cli/src/app/pages-serve.ts#createPageServeHandler`:
-
-- **No bundle** for the project → `404 project "<id>" has no page app` (plain text) `sdk/org/libs/cli/src/app/pages-serve.ts:100-104`.
-- **Path-traversal guard** — the sub-path must resolve inside `outDir`, else `400 bad request`; nothing outside the bundle is ever served `sdk/org/libs/cli/src/app/pages-serve.ts:120-126`.
-- **Asset-manifest match** (not filesystem probing) — a sub-path present in the manifest is served as a static file; anything else falls back to `index.html`. Matching on the manifest is what lets a dynamic param containing a `.` (e.g. `/items/my.v2.id`) route client-side instead of 404-ing as a missing asset `sdk/org/libs/cli/src/app/pages-serve.ts:13-21`, `sdk/org/libs/cli/src/app/pages-serve.ts:128-152`.
-- **A missing ASSET is a 404, not the shell.** A sub-path whose extension is one this server serves (`.js`, `.css`, `.ico`, … — the `MIME` table, `.html` excepted) but which is *not* in the manifest returns `404`, rather than 200 + `index.html` `sdk/org/libs/cli/src/app/pages-serve.ts#isAssetRequest`. Answering an asset request with HTML is how a stale bundle becomes `Unexpected token '<'` (the browser executes `index.html` as a module) and why every served app logged a CSP console error for its favicon — it asked for an icon and got the SPA shell (scenario 07's browser pass). A dot in a *route param* still reaches the client router, because `.id` is not an extension we serve.
-- **Caching** — hashed assets are `public, max-age=31536000, immutable`; `index.html` is `no-cache` `sdk/org/libs/cli/src/app/pages-serve.ts:139-146`, `sdk/org/libs/cli/src/app/pages-serve.ts#serveIndex`. An in-manifest file missing on disk (stale build) degrades to the SPA fallback rather than erroring `sdk/org/libs/cli/src/app/pages-serve.ts:134-137`.
+Since ONE dist serves every project, there is nothing to invalidate on install/rebuild — the
+shell only changes when `@lmthing/app-shell` itself ships a new build, and every project picks
+that up together. Contrast with the old per-project cache this replaced, which had to be
+explicitly dropped on install — see [`../cli-api/rest/apps.md`](../cli-api/rest/apps.md).
 
 ### The SPA shell injection
 
-The fallback rewrites `<head>` (idempotently — never doubles an existing `<base>`) with two things `sdk/org/libs/cli/src/app/pages-serve.ts:156-198`:
+The fallback rewrites `<head>` (idempotently — never doubles an existing `<base>`) with three things `sdk/org/libs/cli/src/app/pages-serve.ts:183-229`:
 
 ```html
 <head>
     <base href="/app/blog/">
-    <script nonce="…">window.__APP_BASE__ = "/app/blog";</script>
+    <script nonce="…">window.__APP_BASE__ = "/app/blog";window.__APP_PROJECT_ID__ = "blog";</script>
 ```
 
-`<base>` makes the shell's *relative* asset URLs (`./assets/…`) resolve at **any** route depth — without it, a deep route like `…/feed/a-1` would resolve `./assets/x` against `…/feed/`, 404 into this very fallback, and the browser would try to load `index.html` as a module `sdk/org/libs/cli/src/app/pages-serve.ts:108-117`. `window.__APP_BASE__` (the base without the trailing slash) is the client router's basename override, required on the root mount where there is no `/app/` segment to derive from `sdk/org/libs/cli/src/app/pages-serve.ts:158-167`, `sdk/org/libs/cli/src/app/pages-serve.ts#serveIndex`.
+`<base>` makes the shell's *relative* asset URLs (`./assets/…`) resolve at **any** route depth — without it, a deep route like `…/feed/a-1` would resolve `./assets/x` against `…/feed/`, 404 into this very fallback, and the browser would try to load `index.html` as a module. `window.__APP_BASE__` (the base without the trailing slash) is AppHost's basename override, and `window.__APP_PROJECT_ID__` its project-id override — both required on the root mount where there is no `/app/` segment to derive either from `sdk/org/libs/cli/src/app/pages-serve.ts:183-200`.
 
 ### CSP
 
@@ -146,12 +124,12 @@ default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
 connect-src 'self'; img-src 'self' data: https:; base-uri 'self'; frame-ancestors 'self'
 ```
 
-Rationale (LLM-authored pages render fetched third-party content, an XSS surface): no inline script, so injected markup cannot execute; `connect-src 'self'` means even a self-XSS cannot exfiltrate or reach the top-level admin `/api/*` — the page can only talk to its own `…/app/<project>/api/*`; `frame-ancestors 'self'` allows the Studio same-origin preview iframe while blocking cross-origin framing `sdk/org/libs/cli/src/app/pages-serve.ts:23-42`. The shell response is the one exception: it adds a **per-request random nonce** to `script-src` purely so the `__APP_BASE__` bootstrap can run `sdk/org/libs/cli/src/app/pages-serve.ts#serveIndex`.
+Rationale (LLM-authored pages render fetched third-party content, an XSS surface): no inline script, so injected markup cannot execute; `connect-src 'self'` means even a self-XSS cannot exfiltrate or reach the top-level admin `/api/*` — the page can only talk to its own `…/app/<project>/api/*`; `frame-ancestors 'self'` allows the Studio same-origin preview iframe while blocking cross-origin framing `sdk/org/libs/cli/src/app/pages-serve.ts:1-46`. The shell response is the one exception: it adds a **per-request random nonce** to `script-src` purely so the `__APP_BASE__`/`__APP_PROJECT_ID__` bootstrap can run `sdk/org/libs/cli/src/app/pages-serve.ts#serveIndex`.
 
-**The policy is fixed — a project cannot extend it.** `CSP` is a module-level constant `sdk/org/libs/cli/src/app/pages-serve.ts#CSP`; the only parameters `createPageServeHandler` takes are `getOutDirForProject` and `mountPrefix` `sdk/org/libs/cli/src/app/pages-serve.ts#createPageServeHandler`, and the only per-response variation is the nonce substitution on the shell `sdk/org/libs/cli/src/app/pages-serve.ts#serveIndex`. Nothing in the build (`build/pages.ts`) or the app manifest carries a CSP field — a project therefore cannot declare extra `connect-src`/`img-src` origins. A page that must reach a third-party origin goes through its own `api/` handler instead — that runs server-side in a plain `node:worker_threads` worker `sdk/org/libs/cli/src/app/api/runtime.ts:23`, `sdk/org/libs/cli/src/app/api/worker.ts:1-23`, where no browser CSP applies. Remote **images** are the one thing a page may load directly (`img-src … https:`).
+**The policy is fixed — a project cannot extend it.** `CSP` is a module-level constant `sdk/org/libs/cli/src/app/pages-serve.ts#CSP`; the only parameters `createPageServeHandler` takes are `getOutDirForProject`, `mountPrefix` and an optional `fallback` `sdk/org/libs/cli/src/app/pages-serve.ts#createPageServeHandler`, and the only per-response variation is the nonce substitution on the shell. Nothing in a view spec carries a CSP field — a project therefore cannot declare extra `connect-src`/`img-src` origins. A page that must reach a third-party origin goes through its own `api/` handler instead — that runs server-side in a plain `node:worker_threads` worker `sdk/org/libs/cli/src/app/api/runtime.ts:23`, `sdk/org/libs/cli/src/app/api/worker.ts:1-23`, where no browser CSP applies. Remote **images** are the one thing a page may load directly (`img-src … https:`).
 
 ## Related
 
-- Page authoring, `@app/runtime` hooks, `_app`/`_layout` → [`../format/project/pages/README.md`](../format/project/pages/README.md)
+- View-spec authoring, the shared `ViewRenderer` → [`./views.md`](./views.md) · [`../format/project/pages/view-spec.md`](../format/project/pages/view-spec.md)
 - Endpoint authoring, `Input`/`Output`, `HttpError`, worker isolation → [`../format/project/api/README.md`](../format/project/api/README.md)
 - Install / list / rebuild / manage an app over REST → [`../cli-api/rest/apps.md`](../cli-api/rest/apps.md)

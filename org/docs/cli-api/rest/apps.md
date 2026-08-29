@@ -194,7 +194,7 @@ Full serving behaviour of the page bundle (asset-manifest SPA fallback, `<base h
 
 `:id` is a **project** id in the runtime root (not a catalog app id). Registered right after the install route `sdk/org/libs/cli/src/server/serve.ts#startSessionServer`, handler `sdk/org/libs/cli/src/server/routes/app-views.ts#handleAppViews`.
 
-A spec app's pages are not a bundle — they are **specs** (the contract is `sdk/org/libs/cli/src/app/view-spec/schema.ts#ViewSpec`), rendered by the shared `ViewRenderer` on both targets. This route is the transport for the target that has no host page: on web the wrapper page carries its spec inline and the endpoint manifest arrives as the injected `window.__APP_ENDPOINTS__` `sdk/org/libs/cli/src/app/runtime/client.ts:L58-L63`, while on native there is nothing to inject into — which is why `endpoints` travels **in this payload** rather than in a second request `sdk/org/libs/cli/src/server/routes/app-views.ts:L1-L40`.
+A spec app's pages are not a bundle — they are **specs** (the contract is `sdk/org/libs/cli/src/app/view-spec/schema.ts#ViewSpec`), rendered by the shared `ViewRenderer` on both targets. This route is the ONE transport both targets use — the prebuilt web shell (`AppHost`) and the mobile app alike fetch this same payload rather than having anything injected into a per-project page, and `endpoints` travels **in this payload** so neither host needs a host page to inject a manifest into `sdk/org/libs/cli/src/server/routes/app-views.ts:L1-L40`.
 
 ### Response
 

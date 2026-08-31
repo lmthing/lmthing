@@ -17,7 +17,7 @@ pnpm thing        # the unified Studio/Computer/Chat SPA + /api on one port (loc
 
 `make up` runs `cd <name> && pnpm dev --port <port> --strictPort` for every `type: vite` service in `services.yaml` (`Makefile:23`), and `services.yaml` still lists `studio` (3000), `chat` (3001) and `computer` (3010) as such (`services.yaml:2-6`, `:10-14`, `:85-89`). **Those three directories no longer exist.** Studio, Chat and Computer were merged into the one unified SPA at `sdk/org/apps/web/` and the top-level dirs were deleted (commit `af4f0e5f` "move studio and computer into sdk/org cli server"); `pnpm-workspace.yaml` confirms the workspace is `blog casa com space social store team cloud org sdk/org/libs/* sdk/org/apps/*` — no `studio`/`chat`/`computer` package. So `make up` starts the **seven product SPAs** (com, social, store, space, team, blog, casa) and fails the `cd` for the other three.
 
-The root `package.json` `dev` / `build` / `build:pages` / `lint` / `preview` scripts are stale for the same reason — they all filter `./studio` (`package.json:9`, `:11`, `:12`, `:13`, `:15`), a package that no longer exists. Only `pnpm thing` (`package.json:10`) and `pnpm lint:tokens` (`package.json:14`, which correctly points at `sdk/org/apps/web/src`) work from the root.
+The root `package.json` `dev` / `build` / `build:pages` / `lint` / `preview` scripts are stale for the same reason — they all filter `./studio` (`package.json:9`, `:14`, `:15`, `:16`, `:20`), a package that no longer exists. Only `pnpm thing` (`package.json:11`), `pnpm agents` (`package.json:10`) and `pnpm lint:tokens` (`package.json:17`, which correctly points at `sdk/org/apps/web/src`) work from the root.
 
 Two supported ways to run the unified app:
 
@@ -162,6 +162,12 @@ Two ways to serve compute, selected in `cloud/gateway/.env.local`:
 Relevant gateway env (from `cloud/gateway/.env.local.example`): `DATABASE_URL=postgresql://lmthing:lmthing_local@localhost:5432/lmthing` (`:24`), `LITELLM_URL=http://localhost:4000` (`:27`), `LITELLM_MASTER_KEY=sk-lmt-local-dev` (`:28`) — which must match `devops/local/.env.local`'s `LITELLM_MASTER_KEY` (`devops/local/.env.local.example:5`). The compute-server model is set via `LM_MODEL=provider:modelId` in `devops/local/.env.local` (`devops/local/.env.local.example:15`); the minikube pod instead gets the per-tier `LM_MODEL_{XS,S,M,L,M_R,L_R}` vars, which is what `make local-compute-env` copies into the `user-env` secret (`Makefile:113-124`).
 
 `make local-down` reverses it all: `make down`, kill `kubectl proxy` and the gateway, `docker compose down` (`Makefile:93-97`).
+
+## Agent fleet (herdr)
+
+`pnpm agents` (`package.json:10`) brings up a four-pane coding-agent fleet in a dedicated herdr workspace named `fleet`, driven by [`devops/scripts/start-agent-fleet.sh`](../../../devops/scripts/start-agent-fleet.sh). The grid is `orchestrator` (claude opus, top-left), `claudez` (claude via `~/.claude/zai-settings.json`, top-right), `pi-glm` (pi on `zai/glm-5.3`, bottom-left) and `pi-luna` (pi on `azure-responses/gpt-5.6-luna`, bottom-right).
+
+The script seeds the orchestrator with [`.claude/agent-fleet.md`](../../../.claude/agent-fleet.md) as standing policy: the opus pane is the orchestrator, achieves tasks by delegating to the three subagents over the `herdr` CLI, and never answers a blocked approval dialog itself. Requirements: the herdr TUI is already running (the script probes `herdr workspace list`; there is no detached server start) and `herdr`, `claude`, and `pi` are on `PATH`. The script is idempotent — it refuses to create a second `fleet` workspace, so re-running just tells you the fleet is up.
 
 ## Stack summary
 

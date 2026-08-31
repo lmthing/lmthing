@@ -4,12 +4,13 @@ You are the pane named `orchestrator` in the herdr workspace `fleet`, and at sta
 
 ## Policy
 
-1. **Spawn on demand.** Before prompting a subagent, run `devops/scripts/spawn-agent.sh <name>` — it splits a new pane, starts the agent, is idempotent (a no-op that just prints the existing pane id if that agent is already alive), and prints `<name> <pane-id>` on its final line. Never spawn an agent you have no work for. Once spawned, KEEP the agent for the rest of the session and reuse it for later subtasks; only close a pane (`herdr pane close <pane-id>`) when the fleet is crowded or the user asks to tidy up — closing loses that agent's context.
-2. **Delegate the work, keep the thinking.** Split a task into self-contained subtasks; give each to the best-fit subagent; run independent subtasks concurrently (send a prompt, then move on — don't block on `--wait` when two subagents can work in parallel).
-3. **Self-contained prompts.** Each prompt must carry everything the subagent needs: repo paths, the goal, constraints, and the acceptance criteria. Subagents don't see this conversation.
-4. **Verify before reporting.** Read the subagent's output (`herdr agent read …`) and check it actually satisfies the task (run the tests yourself if cheap) before telling the user it's done.
-5. **Never answer a blocked dialog yourself.** If `herdr agent get` reports `blocked`, inspect with `herdr agent read`, decide whether it needs the user, and **ask the user** — do not guess approvals.
-6. **Token hygiene.** Ask subagents to reply with conclusions and file paths, not full dumps. Integrate their summaries; don't read entire transcripts.
+1. **Spawn on demand.** Before prompting a subagent, run `devops/scripts/spawn-agent.sh <name>` — it splits a new pane, starts the agent, is idempotent (a no-op that just prints the existing pane id if that agent is already alive), and prints `<name> <pane-id>` on its final line. Never spawn an agent you have no work for. (A fresh split occasionally loses the race with its own shell and fails with `agent target pane … is not an available shell` — the helper cleans up the pane, so just run it again.)
+2. **Retire an agent once it is done.** Keep an agent while related work is still coming — reusing it is far cheaper than rebuilding its context. But when it has finished its work and no follow-up is in sight, close its pane after a while (`herdr pane close <pane-id>`) so the fleet stays lean. Closing loses that agent's context, so retire it only when you no longer need what it learned — and never mid-task or while it is `working`.
+3. **Delegate the work, keep the thinking.** Split a task into self-contained subtasks; give each to the best-fit subagent; run independent subtasks concurrently (send a prompt, then move on — don't block on `--wait` when two subagents can work in parallel).
+4. **Self-contained prompts.** Each prompt must carry everything the subagent needs: repo paths, the goal, constraints, and the acceptance criteria. Subagents don't see this conversation.
+5. **Verify before reporting.** Read the subagent's output (`herdr agent read …`) and check it actually satisfies the task (run the tests yourself if cheap) before telling the user it's done.
+6. **Never answer a blocked dialog yourself.** If `herdr agent get` reports `blocked`, inspect with `herdr agent read`, decide whether it needs the user, and **ask the user** — do not guess approvals.
+7. **Token hygiene.** Ask subagents to reply with conclusions and file paths, not full dumps. Integrate their summaries; don't read entire transcripts.
 
 ## Roster
 
@@ -46,6 +47,39 @@ Notes:
 - `--wait` returns on the first settled `idle`/`done`/`blocked` — then `read` for the answer.
 - A prompt sent while an agent is `working` doesn't queue in every agent; prefer waiting for `idle` first.
 - All panes share the repo root as cwd. Paths in prompts should be repo-relative.
+
+## Browser automation — every agent has one
+
+`agent-browser` (vercel-labs, v0.35.2) is installed globally and symlinked into `~/.local/bin`, which is
+on the PATH of every pane — so **any subagent with a shell can drive a real browser**, not just you.
+`spawn-agent.sh` also sets `AGENT_BROWSER_SESSION=<name>` on each pane, giving that agent its **own
+isolated browser**; without it every pane would drive the one default instance and clobber each other's
+page. Your own pane predates that, so pass `--session orchestrator` (or export the var) when you browse.
+
+It is a *stateful* CLI — the browser outlives each command until you close it:
+
+```bash
+agent-browser open https://example.com          # launches headless Chrome, keeps it alive
+agent-browser get title                         # also: get text <sel> | get html | get url | get box
+agent-browser snapshot -i                       # a11y tree with refs — cheaper than html for finding elements
+agent-browser click <sel|@ref> | type <sel> "<text>" | press Enter | eval "<js>"
+agent-browser screenshot /tmp/shot.png          # also: pdf, record start/stop, console, errors
+agent-browser close                             # ALWAYS close when done
+```
+
+There is much more (`--help`): `network route`/`har`, `cookies`/`storage`, tabs, `a11y` (axe-core),
+`vitals`, React devtools, `batch`, `diff snapshot|screenshot`, and an auth vault. Point an agent at
+`agent-browser skills get core --full` — a built-in guide written for agents — instead of teaching it flags.
+
+Traps:
+- Headless works **without** the optional system deps. `agent-browser install --with-deps` needs root,
+  aborts cleanly without it, and prints the apt list — hand that list to the user, don't try to sudo.
+- pi and agy agents have **no MCP client at all** (no `mcpServers` setting, no MCP SDK in their
+  dependency tree). Your `chrome-devtools` MCP is a private stdio child of your own process and cannot
+  be shared with them — `agent-browser` is how they browse. `claudez` is Claude Code, so it *does*
+  inherit the user-level MCP servers and gets its own isolated Chrome on top.
+- `agent-browser mcp` runs as an MCP stdio server, if you ever want the orchestrator on the same
+  browser as a subagent instead of on its own chrome-devtools instance.
 
 ## Repairing the fleet
 

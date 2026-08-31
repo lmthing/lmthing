@@ -102,7 +102,10 @@ if [ -z "${dir}" ]; then
 fi
 
 # --- split a fresh shell pane and start the agent in it ---------------------------
-new_pane="$(herdr pane split --pane "${src}" --direction "${dir}" --cwd "${repo_root}" --no-focus | pane_id)"
+# AGENT_BROWSER_SESSION gives this agent its OWN agent-browser instance; without it
+# every pane drives the one default browser and they clobber each other's page.
+new_pane="$(herdr pane split --pane "${src}" --direction "${dir}" --cwd "${repo_root}" --no-focus \
+  --env "AGENT_BROWSER_SESSION=${NAME}" | pane_id)"
 
 if ! herdr agent start "${NAME}" --kind "${KIND}" --pane "${new_pane}" -- "${ARGS[@]}" >/dev/null; then
   echo "error: herdr agent start failed for '${NAME}' — closing pane ${new_pane}" >&2

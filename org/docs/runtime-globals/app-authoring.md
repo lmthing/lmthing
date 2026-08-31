@@ -27,6 +27,9 @@ A capability that is not granted is **not injected AND not declared** — a stra
 | `views:write` | `writeProjectViewComponent(name, def)` | `components/<Name>.view.json` | [pages/view-spec.md](../format/project/pages/view-spec.md) |
 | `views:write` | `writeProjectViewShell(shell)` | `shell.view.json` | [pages/view-spec.md](../format/project/pages/view-spec.md) |
 | `hooks:write` | `writeProjectHook(slug, src)` | `hooks/<slug>.ts` | [hooks/](../format/project/hooks/README.md) |
+| `api:write` | `deleteProjectApi(route)` · `deleteProjectQuery(name)` | removes the handler (and a query's generated handler) | [api/](../format/project/api/README.md) |
+| `views:write` | `deleteProjectView(route)` · `deleteProjectViewLayout(prefix)` · `deleteProjectViewComponent(name)` | removes the artifact | [pages/view-spec.md](../format/project/pages/view-spec.md) |
+| `hooks:write` | `deleteProjectHook(slug)` | removes `hooks/<slug>.ts` | [hooks/](../format/project/hooks/README.md) |
 | `hooks:write` | `writeProjectEvent(name, src)` | `events/<name>.ts` | [events/](../format/project/events/README.md) |
 | `hooks:write` | `writeProjectFunction(name, src)` | `functions/<name>.ts` | [project format](../format/project/README.md) |
 | `self:author` | `appendSelfInstruct(text)`, `writeSelfKnowledge(field, aspect, md)`, `readSelf(path?)` | `<projectRoot>/spaces/user-thing/…` | [capabilities](../format/space/agents/capabilities.md) |
@@ -169,6 +172,22 @@ Unlike the parse/column checks (which return `{ ok:false }`), a lint violation *
 A view/layout/component/shell write has no equivalent TS pass — it is JSON checked by `validateViewSpec` et al. against the SAME project endpoint contracts (query/mutation names, Input/Output field agreement), just via ajv and the spec schema rather than `tsc` — see [view-spec.md](../format/project/pages/view-spec.md#validation--three-tiers-all-structured).
 
 ---
+
+## Live-project deletes — `deleteProjectView*` · `deleteProjectApi` · `deleteProjectQuery` · `deleteProjectHook`
+
+Every writer has a matching deleter, gated by the **same** capability as its writer: `deleteProjectView(route)` `sdk/org/libs/cli/src/app/authoring/globals.ts#deleteProjectView`, `deleteProjectViewComponent(name)` `sdk/org/libs/cli/src/app/authoring/globals.ts#deleteProjectViewComponent`, `deleteProjectViewLayout(prefix)` `sdk/org/libs/cli/src/app/authoring/globals.ts#deleteProjectViewLayout`, `deleteProjectApi(route)` `sdk/org/libs/cli/src/app/authoring/globals.ts#deleteProjectApi`, `deleteProjectQuery(name)` `sdk/org/libs/cli/src/app/authoring/globals.ts#deleteProjectQuery` and `deleteProjectHook(slug)` `sdk/org/libs/cli/src/app/authoring/globals.ts#deleteProjectHook`. Each returns the writers' `{ ok, error? }` shape, and a missing artifact is `{ ok: false }` with the real list hinted rather than a throw.
+
+**There is deliberately no table or entity delete.** Dropping a table destroys user data, so it stays a host-only operation — the same reason `db.remove` is not an agent global.
+
+### The reference guard — a delete that would break the app is refused
+
+A deleter never simply unlinks. `refuseIfNewFaults` `sdk/org/libs/cli/src/app/authoring/globals.ts:L1066-1111` runs the whole-app view sweep `appViewFindings` `sdk/org/libs/cli/src/app/view-spec/validate.ts#appViewFindings` over the state the project *would* have, and compares it to the state it has now. The comparison is a multiset diff, so a delete is refused only for the faults it would **freshly** introduce — an app that already carries a fault twice keeps one, and a pre-existing fault never blocks an unrelated delete `sdk/org/libs/cli/src/app/authoring/globals.ts:1097-1103`.
+
+Because the sweep is the shipped app-wide gate, the guard covers every way one artifact can reference another: the shell's nav entries, groups and subnav (`validateShellSpec` → `checkRoute` `sdk/org/libs/cli/src/app/view-spec/validate.ts:1329-1343`), another page's `navigate` action (`sdk/org/libs/cli/src/app/view-spec/validate.ts:1029`) and its `link.to` (`sdk/org/libs/cli/src/app/view-spec/validate.ts:1089-1090`). The refusal names each referencing file so the caller knows what to repoint first `sdk/org/libs/cli/src/app/authoring/globals.ts:1105-1110`.
+
+Retiring the **last** page is still allowed — a rebuild is legitimately mid-flight, not a broken app — but the shell is still validated against the emptied route list, so a shell that navigates to a route you just deleted is a fault even on a page-less app `sdk/org/libs/cli/src/app/view-spec/validate.ts:1485`.
+
+> A `fix_broken` fork owns exactly ONE artifact, so it cannot repoint the shell itself. If a delete is refused it must fix its page in place rather than write a replacement and strand a duplicate — the rule the appbuilder's repair node states directly `sdk/org/libs/core/system-spaces/system-appbuilder/tasklists/repair_live_project/02-fix_broken.md`.
 
 ## Path safety (all writers)
 

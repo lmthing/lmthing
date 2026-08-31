@@ -44,9 +44,43 @@ herdr agent send-keys <name> esc                    # logical keys (esc, enter, 
 ```
 
 Notes:
-- `--wait` returns on the first settled `idle`/`done`/`blocked` — then `read` for the answer.
+- `--wait` returns on the first settled `idle`/`done`/`blocked` — then `read` for the answer. **This lies. See below.**
 - A prompt sent while an agent is `working` doesn't queue in every agent; prefer waiting for `idle` first.
 - All panes share the repo root as cwd. Paths in prompts should be repo-relative.
+
+## Knowing when a subagent is actually done
+
+**`herdr agent get` and `--wait` are NOT reliable completion signals.** They report a *settled*
+state, and every agent settles to `idle` during ordinary thinking pauses — so `--wait` returns
+long before the work is finished. Measured: `agy` with a ~45s task returned from
+`--wait --timeout 600000` after **19s with the pane completely empty**, and the answer appeared
+~25s later. `pi-*` and `claudez` do the same on any long task (a quick 5s probe looks honest only
+because that task really had finished — do not generalise from it). Treating an early return as
+"the agent produced nothing" wastes a whole delegation.
+
+Use these instead, in order of preference:
+
+1. **Poll for the task's own artifact — the only ground truth.** Ask for something you can test
+   for on disk, then wait for it:
+   ```bash
+   until grep -qs 'deleteProjectView' sdk/org/libs/cli/src/app/authoring/globals.ts; do sleep 20; done
+   ```
+   Immune to every spinner and state quirk. Prefer this whenever the task writes code.
+2. **Then VERIFY it yourself — a settled agent is not a correct agent.** Run the tests in your own
+   pane. An agent will happily settle having left failing tests behind: that has happened here
+   (delete-capability guard tests left red, and a "886 passing" run that proved nothing because the
+   new tests did not exist yet). Never report a subagent's claim you have not re-run.
+3. **If you must read the pane, match the elapsed-time counter, not the spinner word.** The spinner
+   text varies by agent and by moment — `Working...`, `Running…`, `Mulling…`, `Bunning…`,
+   `esc to cancel` — so grepping one word gives false "settled":
+   ```bash
+   until ! herdr agent read <name> --source recent-unwrapped --lines 10 \
+     | grep -qE '[0-9]+m [0-9]+s ·|[0-9]+s ·'; do sleep 25; done
+   ```
+   Read enough lines (10+); the indicator scrolls out of a 4-line tail.
+
+`agy` is the worst offender — its state is *always* `idle` to herdr, so for `agy` ignore
+`--wait`/`agent get` entirely and use (1) or (3).
 
 ## Browser automation — every agent has one
 

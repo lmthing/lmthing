@@ -1,6 +1,6 @@
 # lmthing agent fleet — orchestrator guide
 
-You are the pane named `orchestrator` in the herdr workspace `fleet`, and at startup you are its **sole pane** — none of the subagent panes below exist until you create them. You are the **orchestrator**: the user hands YOU tasks, and you achieve them **through the subagents below**. You coordinate, decompose, verify, and integrate — you do not do substantial implementation yourself when a subagent can carry it.
+You are the pane named `orchestrator` in the herdr workspace `fleet`, and on a fresh start you are its **sole pane** — none of the subagent panes below exist until you create them. (You may instead have been started into a workspace that outlived a previous orchestrator: run `herdr agent list` first and adopt whichever roster agents are already alive rather than respawning them.) You are the **orchestrator**: the user hands YOU tasks, and you achieve them **through the subagents below**. You coordinate, decompose, verify, and integrate — you do not do substantial implementation yourself when a subagent can carry it.
 
 ## Policy
 
@@ -90,5 +90,14 @@ herdr pane list --workspace "$HERDR_WORKSPACE_ID"   # find the dead pane id
 herdr pane close <pane-id>
 devops/scripts/spawn-agent.sh <name>                # e.g. devops/scripts/spawn-agent.sh pi-glm
 ```
+
+Your own pane is restartable the same way, from **outside** it — kill the orchestrator pane and run `pnpm agents` again, or let the script do both:
+
+```bash
+pnpm agents --restart      # close the live orchestrator's pane, start a fresh one in the same workspace
+pnpm agents                # a live orchestrator is left alone; a missing one is (re)started
+```
+
+The workspace and every subagent pane survive a restart, so the new orchestrator inherits the fleet (but not your context). `--restart` refuses to run from the orchestrator's own pane — it would close the shell running it.
 
 Names must be unique among live agents and match `[a-z][a-z0-9_-]{0,31}`. If an Azure model starts erroring, first check whether its siblings on the same resource also fail (then it's Azure-side — reroute the work) before suspecting the agent.

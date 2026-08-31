@@ -80,13 +80,16 @@ which neutralizes known **model output habits** — see [§2.1](#21-model-output
 returned text is what every downstream step (log, trace, `processStatement`) sees, so the trace stays
 honest with what actually ran.
 
-1. **prose drop** — `looksLikeProse(stmt)` (`:225-246`). A natural-language sentence the model
-   narrated instead of code never parses as TS, so dropping it avoids burning a retry. Conservative:
-   bails on any code punctuation (`=(){}[];\`<>`, `=>`, `.\w`, `await`), on a TS keyword start
-   (`TS_KEYWORD_START`, `:207`), and on <3 words; requires an English function word
-   (`ENGLISH_FUNCTION_WORDS`, `:212-217`) — but an apostrophe contraction ("I'll start by") is
-   unambiguously prose (`:239`). Dropped statements are logged and traced as
-   `/* dropped non-code prose: … */` (`:527-528`).
+1. **prose drop** — `looksLikeProse(stmt)` (`:226-273`). A natural-language sentence the model
+   narrated instead of code never parses as TS, so dropping it avoids burning a retry. Prose ABOUT
+   code quotes identifiers ("Now I'll create the `views/books/[id]` detail page."), so paired
+   backtick spans and bare bracketed path segments (`[id]`, `[0]`) are stripped first and every
+   guard below judges the remainder (`:249-254`); an unpaired backtick/bracket, or a strip that
+   empties the string, keeps the line as code. Conservative: bails on any code punctuation
+   (`=(){}[];\`<>`, `=>`, `.\w`, `await`), on a TS keyword start (`TS_KEYWORD_START`, `:208`),
+   and on <3 words; requires an English function word (`ENGLISH_FUNCTION_WORDS`, `:213-218`) —
+   but an apostrophe contraction ("I'll start by") is unambiguously prose (`:266`). Dropped
+   statements are logged and traced as `/* dropped non-code prose: … */` (`:754`).
 2. **typecheck** — `runTsc({ ambientDts: fullAmbient(), sessionContext: accumulatedContext, statement })`
    (`:438`). See [typecheck.md](./typecheck.md).
 3. **missing-`await` lint** — `sdk/org/libs/core/src/eval/await-lint.ts#lintMissingAwait`, run *after*

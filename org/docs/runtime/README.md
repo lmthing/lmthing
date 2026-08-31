@@ -16,7 +16,7 @@ budget.tickEpisode()                         turn-loop.ts:L341
   → per chunk:  FenceLineFilter.feed         turn-loop.ts:L450  (strips ``` fences / partial lang tags)
                 BoundaryDetector.feed        sandbox/boundary.ts:L16  (complete top-level TS statements)
   → per statement (processStatement, turn-loop.ts:L382-L422):
-        looksLikeProse?      → drop          turn-loop.ts:L383
+        looksLikeProse?      → drop          turn-loop.ts:L648
         runTsc(...)          → typecheck gate turn-loop.ts:L385
         transpileStatement + globalThis propagation  turn-loop.ts:L396-L402
         vm.evalStatement(js)                 turn-loop.ts:L403
@@ -30,7 +30,7 @@ Statements are extracted from the *live* stream — the loop does not wait for t
 
 ### Prose drop
 
-Models sometimes narrate instead of coding. `looksLikeProse` (`turn-loop.ts:L172-L193`) discards a "statement" that has no code punctuation, no TS keyword start, ≥3 word-like tokens and an English function word — dropping it costs nothing, whereas typechecking it would burn a retry. The boundary detector cooperates: a bare identifier carved out of a longer line (`I'll start by…` parses as `I` + an unterminated string) is widened to the whole physical line so the prose filter can see it (`sandbox/boundary.ts:L58-L70`).
+Models sometimes narrate instead of coding. `looksLikeProse` (`turn-loop.ts:L226-L273`) discards a "statement" that — after stripping paired backtick spans and bare bracketed path segments (`[id]`, `[0]`, `turn-loop.ts:L249-L254`) — has no code punctuation, no TS keyword start, ≥3 word-like tokens and an English function word; an unpaired backtick, or a strip that empties the string, is kept as code. Dropping prose costs nothing, whereas typechecking it would burn a retry. The boundary detector cooperates: a bare identifier carved out of a longer line (`I'll start by…` parses as `I` + an unterminated string) is widened to the whole physical line so the prose filter can see it (`sandbox/boundary.ts:L58-L70`).
 
 ---
 
@@ -48,7 +48,7 @@ Models sometimes narrate instead of coding. `looksLikeProse` (`turn-loop.ts:L172
 
 ## 3. The typecheck gate
 
-Every statement is typechecked **before** it is evaluated (`turn-loop.ts:L385-L391`). `runTsc` (`sdk/org/libs/core/src/typecheck/tsc.ts#runTsc`) builds a two-file in-memory program — `__ambient__.d.ts` (the DTS) plus `__session__.tsx` = `export {};` + the accumulated context + the new statement — under `strict`, `jsx: React`, `jsxFactory: React.createElement`, and reports only diagnostics that land in the new statement's line range. A failure never reaches the VM: the loop aborts the stream and appends an ERROR block to history (`turn-loop.ts:L578-L596`).
+Every statement is typechecked **before** it is evaluated (`turn-loop.ts:L385-L391`). `runTsc` (`sdk/org/libs/core/src/typecheck/tsc.ts#runTsc`) builds a two-file in-memory program — `__ambient__.d.ts` (the DTS) plus `__session__.tsx` = `export {};` + the accumulated context + the new statement — under `strict` (with `noImplicitAny` deliberately disabled for callbacks over dynamically typed agent values), `jsx: React`, `jsxFactory: React.createElement`, and reports only diagnostics that land in the new statement's line range. A failure never reaches the VM: the loop aborts the stream and appends an ERROR block to history (`turn-loop.ts:L578-L596`).
 
 The DTS is assembled **additively from the capability profile** by `buildAmbientDts` (`sdk/org/libs/core/src/exec/bootstrap.ts#buildAmbientDts`, whose app-grant half is `buildAppCapabilityDts`, `bootstrap.ts:L311-L343`), so "not granted ⇒ not injected **and** absent from the DTS" — a call to a global this context does not have fails typecheck (a clean, retryable model error) rather than throwing at runtime. Passing statements are transpiled with `ts.transpileModule` (`sdk/org/libs/core/src/typecheck/transpile.ts#transpileStatement`), which strips types and lowers JSX to the injected `React.createElement` shim (`exec/bootstrap.ts:L241-L264`).
 

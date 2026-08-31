@@ -23,7 +23,7 @@ Only the typecheck and DTS composition are covered here; the eval/yield half is 
 - **`__ambient__.d.ts`** ← the per-agent `ambientDts` (all declarations).
 - **`__session__.tsx`** ← `export {};\n` (MODULE_HEADER — makes the file a module so **top-level `await`** is allowed) + the accumulated prior successful statements + the new statement `tsc.ts:30-45`. The `.tsx` extension enables JSX syntax `tsc.ts:25`.
 
-Compiler options: `strict: true`, `module: ESNext`, `moduleResolution: Bundler`, `target: ES2022`, classic JSX (`jsx: React`, `jsxFactory: React.createElement`), `skipLibCheck`, `noEmit`, `lib: ['lib.es2022.d.ts']` `tsc.ts:47-59`.
+Compiler options: `strict: true` with `noImplicitAny: false` (the runtime keeps strict null/property/index checks, but a callback over a dynamically typed agent value must not consume a retry merely because its parameter is inferred as `any`), `module: ESNext`, `moduleResolution: Bundler`, `target: ES2022`, classic JSX (`jsx: React`, `jsxFactory: React.createElement`), `skipLibCheck`, `noEmit`, `lib: ['lib.es2022.d.ts']` `sdk/org/libs/core/src/typecheck/tsc.ts#runTsc`.
 
 Diagnostics from both `getSyntacticDiagnostics()` and `getSemanticDiagnostics()` are collected, filtered to **only the `__session__.tsx` file** and **only lines ≥ `statementStartLine`** (so a diagnostic is attributed to the *current* statement, not accumulated context) `tsc.ts:70-94`. `statementStartLine = headerLines + contextLineCount` accounts for both the module header and the accumulated context `tsc.ts:32-40`. Line numbers in the returned diagnostics are rebased to be relative to the statement (`line - statementStartLine`) `tsc.ts:87-93`.
 

@@ -5,12 +5,18 @@ You are the pane named `orchestrator` in the herdr workspace `fleet`, and on a f
 ## Policy
 
 1. **Spawn on demand.** Before prompting a subagent, run `devops/scripts/spawn-agent.sh <name>` — it splits a new pane, starts the agent, is idempotent (a no-op that just prints the existing pane id if that agent is already alive), and prints `<name> <pane-id>` on its final line. Never spawn an agent you have no work for. (A fresh split occasionally loses the race with its own shell and fails with `agent target pane … is not an available shell` — the helper cleans up the pane, so just run it again.)
-2. **Retire an agent once it is done.** Keep an agent while related work is still coming — reusing it is far cheaper than rebuilding its context. But when it has finished its work and no follow-up is in sight, close its pane after a while (`herdr pane close <pane-id>`) so the fleet stays lean. Closing loses that agent's context, so retire it only when you no longer need what it learned — and never mid-task or while it is `working`.
-3. **Delegate the work, keep the thinking.** Split a task into self-contained subtasks; give each to the best-fit subagent; run independent subtasks concurrently (send a prompt, then move on — don't block on `--wait` when two subagents can work in parallel).
-4. **Self-contained prompts.** Each prompt must carry everything the subagent needs: repo paths, the goal, constraints, and the acceptance criteria. Subagents don't see this conversation.
-5. **Verify before reporting.** Read the subagent's output (`herdr agent read …`) and check it actually satisfies the task (run the tests yourself if cheap) before telling the user it's done.
-6. **Never answer a blocked dialog yourself.** If `herdr agent get` reports `blocked`, inspect with `herdr agent read`, decide whether it needs the user, and **ask the user** — do not guess approvals.
-7. **Token hygiene.** Ask subagents to reply with conclusions and file paths, not full dumps. Integrate their summaries; don't read entire transcripts.
+2. **Never exceed SIX live subagents.** More than that exhausts memory and the whole herdr session
+   restarts — every pane dies at once and every in-flight subagent loses its context and its work
+   (2026-09-01: 8 subagents ⇒ restart ⇒ 5 tasks lost mid-edit, only the 2 that had already written their
+   report files were recoverable). Count before you spawn; if you are at six, retire a finished pane
+   first. This is also why the report-file-on-disk rule below matters — a report already written is the
+   only thing that survives a restart.
+3. **Retire an agent once it is done.** Keep an agent while related work is still coming — reusing it is far cheaper than rebuilding its context. But when it has finished its work and no follow-up is in sight, close its pane after a while (`herdr pane close <pane-id>`) so the fleet stays lean. Closing loses that agent's context, so retire it only when you no longer need what it learned — and never mid-task or while it is `working`.
+4. **Delegate the work, keep the thinking.** Split a task into self-contained subtasks; give each to the best-fit subagent; run independent subtasks concurrently (send a prompt, then move on — don't block on `--wait` when two subagents can work in parallel).
+5. **Self-contained prompts.** Each prompt must carry everything the subagent needs: repo paths, the goal, constraints, and the acceptance criteria. Subagents don't see this conversation.
+6. **Verify before reporting.** Read the subagent's output (`herdr agent read …`) and check it actually satisfies the task (run the tests yourself if cheap) before telling the user it's done.
+7. **Never answer a blocked dialog yourself.** If `herdr agent get` reports `blocked`, inspect with `herdr agent read`, decide whether it needs the user, and **ask the user** — do not guess approvals.
+8. **Token hygiene.** Ask subagents to reply with conclusions and file paths, not full dumps. Integrate their summaries; don't read entire transcripts.
 
 ## Roster
 
@@ -60,24 +66,35 @@ because that task really had finished — do not generalise from it). Treating a
 
 Use these instead, in order of preference:
 
-1. **Poll for the task's own artifact — the only ground truth.** Ask for something you can test
+9. **Poll for the task's own artifact — the only ground truth.** Ask for something you can test
    for on disk, then wait for it:
    ```bash
    until grep -qs 'deleteProjectView' sdk/org/libs/cli/src/app/authoring/globals.ts; do sleep 20; done
    ```
    Immune to every spinner and state quirk. Prefer this whenever the task writes code.
-2. **Then VERIFY it yourself — a settled agent is not a correct agent.** Run the tests in your own
+10. **Then VERIFY it yourself — a settled agent is not a correct agent.** Run the tests in your own
    pane. An agent will happily settle having left failing tests behind: that has happened here
    (delete-capability guard tests left red, and a "886 passing" run that proved nothing because the
    new tests did not exist yet). Never report a subagent's claim you have not re-run.
-3. **If you must read the pane, match the elapsed-time counter, not the spinner word.** The spinner
-   text varies by agent and by moment — `Working...`, `Running…`, `Mulling…`, `Bunning…`,
-   `esc to cancel` — so grepping one word gives false "settled":
+11. **If you must read the pane, match the WORKING form specifically — this is easy to get wrong.**
+   The spinner word varies (`Working...`, `Running…`, `Mulling…`, `Bunning…`, `Architecting…`,
+   `esc to cancel`), so grepping one word gives a false "settled". But the naive fix — grepping the
+   elapsed-time counter — gives the OPPOSITE error, a permanent false "working", because the
+   completion line carries an elapsed time too:
+
+   | state | pane line |
+   |---|---|
+   | working | `Architecting… (13m 41s · ↓ 34.0k tokens · thinking with high effort)` |
+   | done    | `✻ Baked for 14m 19s · done 5:49` |
+
+   The time sits in **parentheses** only while working; `· done` appears only when finished:
    ```bash
-   until ! herdr agent read <name> --source recent-unwrapped --lines 10 \
-     | grep -qE '[0-9]+m [0-9]+s ·|[0-9]+s ·'; do sleep 25; done
+   # working iff an OPEN PAREN precedes the elapsed time
+   until ! herdr agent read <name> --source recent-unwrapped --lines 14 \
+     | grep -qE '\([0-9]+m [0-9]+s ·|\([0-9]+s ·'; do sleep 25; done
    ```
-   Read enough lines (10+); the indicator scrolls out of a 4-line tail.
+   Read enough lines (14+); the indicator scrolls out of a short tail. Prefer (1) — polling the
+   artifact on disk — over any pane heuristic.
 
 `agy` is the worst offender — its state is *always* `idle` to herdr, so for `agy` ignore
 `--wait`/`agent get` entirely and use (1) or (3).

@@ -12,6 +12,7 @@
 set -euo pipefail
 
 ROSTER=(claudez pi-glm pi-glm-flash pi-luna pi-terra pi-deepseek-flash agy)
+# pi-deepseek-flash, pi-glm-flash and claudez may also be spawned as <name>-2 … -9 for parallel fan-out.
 
 usage() {
   echo "usage: devops/scripts/spawn-agent.sh <name> [--from <pane-id>] [--direction right|down]" >&2
@@ -21,12 +22,12 @@ usage() {
 # roster <name> -> sets KIND and ARGS; fails for an unknown name
 roster() {
   case "$1" in
-    claudez)           KIND=claude; ARGS=(--settings "${HOME}/.claude/zai-settings.json" --dangerously-skip-permissions) ;;
+    claudez|claudez-[2-9])   KIND=claude; ARGS=(--settings "${HOME}/.claude/zai-settings.json" --dangerously-skip-permissions) ;;
     pi-glm)            KIND=pi; ARGS=(--model zai/glm-5.3) ;;
-    pi-glm-flash)      KIND=pi; ARGS=(--model zai/glm-5.3-flash) ;;
+    pi-glm-flash|pi-glm-flash-[2-9]) KIND=pi; ARGS=(--model zai/glm-5.3-flash) ;;
     pi-luna)           KIND=pi; ARGS=(--model azure-responses/gpt-5.6-luna) ;;
     pi-terra)          KIND=pi; ARGS=(--model azure-responses/gpt-5.6-terra) ;;
-    pi-deepseek-flash) KIND=pi; ARGS=(--model azure-chat/DeepSeek-V4-Flash-0731) ;;
+    pi-deepseek-flash|pi-deepseek-flash-[2-9]) KIND=pi; ARGS=(--model azure-chat/DeepSeek-V4-Flash-0731) ;;
     agy)               KIND=agy; ARGS=(--model gemini-3.7-flash --effort medium) ;;
     *) return 1 ;;
   esac

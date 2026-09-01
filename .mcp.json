@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "space": {
+      "command": "node",
+      "args": [
+        "mcp/src/cli.ts",
+        "--spaces-dir",
+        "mcp/spaces",
+        "--agent",
+        "space-probe/probe"
+      ]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "space-probe",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "Space Probe",
+    "tags": ["fixture", "probe"],
+    "icon": "🔎",
+    "description": "A fixture space for probing the standalone MCP format loader."
+  }
+}

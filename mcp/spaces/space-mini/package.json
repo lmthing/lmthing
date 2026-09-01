@@ -1,0 +1,12 @@
+{
+  "name": "space-mini",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "Space Mini",
+    "tags": ["fixture", "mini"],
+    "icon": "🧪",
+    "description": "A minimal fixture space for multi-space discovery."
+  }
+}

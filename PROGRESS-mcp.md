@@ -26,10 +26,13 @@ meanings, easy to flip silently — every track has a test for it.
 
 | track | agent | owns | status |
 |---|---|---|---|
-| Format | `pi-terra` | `mcp/spaces/{space-probe,space-mini}/`, `src/format/{frontmatter,capabilities,load,knowledge,tasklist}.ts` | in progress |
-| Server + discovery | `pi-terra-2` | `src/cli.ts`, `src/server/**`, `src/tools/discovery.ts` | in progress |
-| Extraction + invocation | `pi-terra-3` | `src/schema/**`, `src/exec/**`, `src/tools/functions.ts` | in progress |
-| Knowledge/tasklists/delegation/authoring | `pi-terra-4` | `src/format/{dag,write}.ts`, `src/tools/{knowledge,tasklists,delegation,authoring}.ts` | in progress |
+| Format | `pi-terra` | `mcp/spaces/{space-probe,space-mini}/`, `src/format/{frontmatter,capabilities,load,knowledge,tasklist}.ts` | landed |
+| Server + discovery | `pi-terra-2` | `src/cli.ts`, `src/server/**`, `src/tools/discovery.ts` | landed |
+| Extraction + invocation | `pi-terra-3` | `src/schema/**`, `src/exec/**`, `src/tools/functions.ts` | landed |
+| Knowledge/tasklists/delegation/authoring | `pi-terra-4` | `src/format/{dag,write}.ts`, `src/tools/{knowledge,tasklists,delegation,authoring}.ts` | landed |
+
+All four tracks landed and integrated. **37 tools**, 14 resources, 5 prompts (one per agent).
+Gates: `tsc` clean, **27/27 tests** including a live end-to-end MCP gate.
 
 ## Done
 
@@ -43,15 +46,48 @@ meanings, easy to flip silently — every track has a test for it.
       tracks compile against each other from minute one; integration is a stub swap, not a rewrite
 - [x] Four `pi-terra` subagents spawned and prompted with self-contained briefs
 
-## Open / to verify
+## Four defects the unit tests could not see
 
-- [ ] Integration: swap stubs, wire every tool group into the registry, full `vitest` green
-- [ ] `npx @modelcontextprotocol/inspector node mcp/dist/cli.js --spaces-dir mcp/spaces`
-- [ ] **The real gate** — add to the repo's `.mcp.json` and drive the whole surface from a live
-      Claude Code session (expect one session restart for approval)
-- [ ] **Does Claude Code honour `notifications/tools/list_changed`?** If not, per-agent dynamic
-      tool lists are cosmetic and the fallback is one server process per agent via `--agent`.
-      This fails SILENTLY, so it must be tested explicitly, not assumed.
+All four gates were green — 20/20 tests, `tsc` clean — while the shipped server was broken.
+They were found by `test/live.stdio.test.ts`: a real MCP client, over a real stdio transport,
+against the server booted as a subprocess. The unit tests inject their own loader, so none of
+this was reachable from them. This is the whole reason that gate now exists.
+
+1. **Every space function had an EMPTY schema.** `SpaceServerContext.spaces()` called
+   `loadSpaces(dir)` with no options, so no extractor was ever passed. `schema/derive.ts` was
+   correct and unit-tested in isolation; it was simply never wired in. Every tool advertised
+   `{type:'object', properties:{}}` and no call could work.
+2. **The whole `functions` tool group was silently absent.** The registry held module *paths*
+   with `.js` extensions behind a dynamic `import()` wrapped in a tolerant "group not available
+   yet" branch — scaffolding for parallel tracks. Node's type stripping cannot resolve `.js` to
+   `.ts`, so the import failed and the tolerant branch swallowed it. Now static imports: a
+   missing group is a compile error.
+3. **A failing space function returned MCP `isError: false`**, with the failure buried in an
+   `{ok:false}` payload. `isError` is the signal a client actually reads, so a failure looked
+   like a success to anything that did not parse the envelope.
+4. **A seam flaw of mine:** `LoadOpts.extractor` was a single `Extractor`, but an extractor is
+   space-scoped (its TS `Program` is rooted at one space's `functions/`). One instance across
+   `loadSpaces` would resolve every space's types against the first space's program. Now
+   `extractorFor?: (spaceDir) => Extractor`, called once per space.
+
+## Confirmed working, live
+
+- **`notifications/tools/list_changed` DOES work over a real MCP session** — the plan flagged
+  this as an unknown that fails silently. `set_agent` from `probe` to `minimal` takes the tool
+  list from 37 to 26 and back. The per-server-process fallback is not needed.
+- Schema extraction is genuinely right: `string[]` carries `items`, `@param` text reaches the
+  model, a defaulted parameter is optional, an **imported** interface resolves (`exact`), a
+  function-typed parameter degrades to `degraded` **naming the parameter**, and an
+  `export const schema` reports `explicit`.
+- `undefined` returns become `null`; the diamond DAG yields `{inspect, expand}` after `start`.
+
+## Open
+
+- [ ] **Add to the repo's `.mcp.json` and drive it from a live Claude Code session** — the last
+      acceptance step. Expect one session restart for approval.
+- [ ] `export_claude_subagents` end-to-end: generate `.claude/agents/*.md` and confirm the
+      generated subagent is actually reachable via the Agent tool.
+- [ ] The authoring round trip driven by a model (`write_function` → new tool appears).
 
 ## Gates
 

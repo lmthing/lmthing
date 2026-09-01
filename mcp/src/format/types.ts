@@ -255,8 +255,17 @@ export class SpaceFormatError extends Error {
 // ---------------------------------------------------------------- loader API
 
 export interface LoadOpts {
-  /** Omit to leave every `SpaceFn.schema` as an empty object with verdict `degraded`. */
-  extractor?: Extractor;
+  /**
+   * Called ONCE PER SPACE with that space's directory, to build its extractor.
+   *
+   * A factory rather than a single instance because an extractor is space-scoped: it
+   * builds a TypeScript `Program` rooted at `<spaceDir>/functions` so imported types
+   * resolve. One shared instance would silently resolve every space's functions against
+   * the first space's program. `createExtractor(spaceDir)` matches this signature.
+   *
+   * Omit to leave every `SpaceFn.schema` empty with verdict `degraded`/'no extractor'.
+   */
+  extractorFor?: (spaceDir: string) => Extractor;
 }
 
 export type LoadSpace = (dir: string, opts?: LoadOpts) => Promise<Space>;

@@ -8,7 +8,7 @@
  *
  * Do not modify this file. If you think it must change, STOP and report why.
  */
-import type { Agent, JsonSchema, Space } from '../format/types.js';
+import type { Agent, JsonSchema, Space } from '../format/types.ts';
 
 export interface ToolDef {
   /** MCP tool name. Group-owned names use snake_case; a space function keeps its own name. */

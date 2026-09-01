@@ -507,9 +507,13 @@ const MODEL_ALIAS_DEFAULTS = {
   LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash-0731",
   LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash-0731",
   LM_MODEL_M: "lmthingcloud:DeepSeek-V4-Flash-0731",
-  LM_MODEL_L: "lmthingcloud:DeepSeek-V4-Pro",
-  LM_MODEL_M_R: "lmthingcloud:DeepSeek-V4-Pro",
-  LM_MODEL_L_R: "lmthingcloud:Kimi-K2.6",
+  // Every alias is Flash. Pro was measured hanging mid-turn at 0% CPU on 2 of 3 lanes (38k and ~23k
+  // log lines) and never returning — unbounded latency, not slow latency — while Flash completed
+  // every lane in 9-16 min. LM_MODEL_VISION is deliberately NOT Flash: it is not vision-capable, and
+  // the system-vision agent THING delegates images to would break.
+  LM_MODEL_L: "lmthingcloud:DeepSeek-V4-Flash-0731",
+  LM_MODEL_M_R: "lmthingcloud:DeepSeek-V4-Flash-0731",
+  LM_MODEL_L_R: "lmthingcloud:DeepSeek-V4-Flash-0731",
   // Vision model for the system-vision space agent (image analysis). Cheap,
   // vision-capable; THING (a text model) delegates images to it.
   LM_MODEL_VISION: "lmthingcloud:gpt-5.4-mini",

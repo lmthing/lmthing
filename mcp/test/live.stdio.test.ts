@@ -25,7 +25,9 @@ before(async () => {
   client = new Client({ name: 'live-gate', version: '0' }, { capabilities: {} });
   await client.connect(new StdioClientTransport({
     command: process.execPath,
-    args: [join(pkgRoot, 'src', 'cli.ts'), '--spaces-dir', join(pkgRoot, 'spaces'), '--agent', 'space-probe/probe'],
+    // Deliberately the LAUNCHER, not src/cli.ts — it is what .mcp.json actually runs, and
+    // pointing at cli.ts once hid a bug where the launcher started nothing at all.
+    args: [join(pkgRoot, 'bin', 'mcp-space.mjs'), '--spaces-dir', join(pkgRoot, 'spaces'), '--agent', 'space-probe/probe'],
     cwd: pkgRoot,
     stderr: 'pipe',
   }));

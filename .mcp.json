@@ -3,7 +3,7 @@
     "space": {
       "command": "node",
       "args": [
-        "mcp/src/cli.ts",
+        "mcp/bin/mcp-space.mjs",
         "--spaces-dir",
         "mcp/spaces",
         "--agent",

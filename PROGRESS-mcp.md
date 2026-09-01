@@ -81,10 +81,36 @@ this was reachable from them. This is the whole reason that gate now exists.
   `export const schema` reports `explicit`.
 - `undefined` returns become `null`; the diamond DAG yields `{inspect, expand}` after `start`.
 
+## Registered in `.mcp.json`
+
+```json
+{ "mcpServers": { "space": { "command": "node",
+  "args": ["mcp/bin/mcp-space.mjs", "--spaces-dir", "mcp/spaces", "--agent", "space-probe/probe"] } } }
+```
+
+Verified with that exact invocation and cwd: 37 tools, 5 prompts, 14 resources, a real
+`joinTags` round trip, and relative `--spaces-dir` resolved from the repo root. The server finds
+its own dependencies in `mcp/node_modules` because Node resolves from the file's location, not
+the cwd — so the repo root needs no MCP dependency of its own.
+
+**Two more defects found only by launching it the configured way:**
+
+5. **The entry point ran nothing.** `cli.ts` self-started behind an
+   `import.meta.url === argv[1]` guard. Once `bin/mcp-space.mjs` imported it, `argv[1]` was the
+   launcher, the guard was false, `main()` never ran — and the client saw only
+   `MCP error -32000: Connection closed`, with no error printed anywhere. `cli.ts` now exports
+   `run()` and the launcher calls it. The live gate spawns **the launcher**, not `cli.ts`, so
+   this class of bug cannot come back unseen.
+6. **Node < 24 failed unreadably.** Pointing `.mcp.json` straight at a `.ts` file means an older
+   Node dies with `ERR_UNKNOWN_FILE_EXTENSION ".ts"` before any of our code parses — which an
+   MCP client shows only as "server failed to start". Hence `bin/mcp-space.mjs`: a `.mjs` parses
+   on every Node, so its version check can actually report the real cause. The realistic way to
+   hit this is a client launched from a desktop environment with a different PATH.
+
 ## Open
 
-- [ ] **Add to the repo's `.mcp.json` and drive it from a live Claude Code session** — the last
-      acceptance step. Expect one session restart for approval.
+- [ ] **Drive it from a live Claude Code session** — needs approval + a session restart, so it
+      cannot be done from the session that added it.
 - [ ] `export_claude_subagents` end-to-end: generate `.claude/agents/*.md` and confirm the
       generated subagent is actually reachable via the Agent tool.
 - [ ] The authoring round trip driven by a model (`write_function` → new tool appears).

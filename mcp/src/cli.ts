@@ -39,9 +39,19 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   await app.connectStdio();
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((error: unknown) => {
+/**
+ * Run the server, reporting a startup failure on stderr.
+ *
+ * Exported because `bin/mcp-space.mjs` imports and calls it. It used to self-start behind an
+ * `import.meta.url === argv[1]` guard, which silently did NOTHING once the launcher imported
+ * this module — argv[1] was then the launcher, the guard was false, `main()` never ran, and the
+ * MCP client saw only "Connection closed" with no error anywhere.
+ */
+export async function run(): Promise<void> {
+  try {
+    await main();
+  } catch (error: unknown) {
     process.stderr.write(`[mcp-space] ${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;
-  });
+  }
 }

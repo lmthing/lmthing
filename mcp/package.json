@@ -5,9 +5,9 @@
   "description": "An MCP server for the LMThing space format. Standalone: zero @lmthing/* dependencies.",
   "type": "module",
   "bin": {
-    "mcp-space": "./src/cli.ts"
+    "mcp-space": "./bin/mcp-space.mjs"
   },
-  "main": "./src/cli.ts",
+  "main": "./bin/mcp-space.mjs",
   "engines": {
     "node": ">=24"
   },
@@ -15,7 +15,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test \"test/**/*.test.ts\"",
     "test:watch": "node --test --watch \"test/**/*.test.ts\"",
-    "start": "node src/cli.ts"
+    "start": "node bin/mcp-space.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "catalog:",

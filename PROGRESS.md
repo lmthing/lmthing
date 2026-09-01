@@ -743,6 +743,17 @@ prior runs, never against a single result.
 | 2 | 09-01 03:0x | recipe box | `azure:DeepSeek-V4-Flash-0731` | **92** | yes | no |
 | 3 | 09-01 03:5x | recipe box | `azure:DeepSeek-V4-Flash-0731` | **66** | yes | no |
 | 3 | 09-01 03:5x | gym workout log | `azure:DeepSeek-V4-Pro` | **52** | yes | no |
+| 4 | 09-01 04:4x | recipe box | Flash | **58** (7.6/1k) | yes | no |
+| 4 | 09-01 05:0x | gym workout log | Pro | **103** (4.2/1k) | yes | no |
+| 5 | 09-01 05:5x | recipe box | Flash | **92** (4.7/1k) | yes | no |
+| 5 | 09-01 06:3x | gym workout log | Pro | — | — | **HUNG** |
+| 6 | 09-01 07:1x | recipe box | Flash | **84** (6.3/1k) | yes | no |
+| 6 | 09-01 07:5x | gym workout log | Pro | — | — | **VOID (35m timeout)** |
+
+**`azure:DeepSeek-V4-Pro` lanes hang.** Two of three went silent mid-turn at 0% CPU (38k and ~23k log
+lines) and never returned. The harness now bounds each lane (`PARALLEL_BUILD_TIMEOUT_MS`, default 45m)
+and classifies a timeout as **VOID, not FAIL** — scoring a partial log would feed a truncated census
+into the trend. Pro results are consequently sparse and should be treated as such.
 
 > **Batch 1 is NOT comparable to later batches.** It ran before the typed view writers, when malformed
 > specs were accepted silently and failed later at ajv or not at all. Its lower count means fewer

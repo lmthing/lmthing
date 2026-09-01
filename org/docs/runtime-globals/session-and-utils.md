@@ -396,6 +396,24 @@ is the only generic filesystem in the runtime. Declared by `SCRATCH_DTS`, emitte
 `EXEC_SHELL_DTS` under `caps.scratchFs` `sdk/org/libs/core/src/exec/bootstrap.ts#buildAmbientDts`,
 `sdk/org/libs/core/src/typecheck/library-dts.ts#SCRATCH_DTS`.
 
+### `readProjectFile(path)` / `readSpaceFile(space, relPath)` — plain text in `.content`, NO `.raw`
+
+Project/space files are read TEXT, rooted (`projectRoot` / a space dir): `readProjectFile`
+`sdk/org/libs/cli/src/app/authoring/globals.ts#readProjectFile`, `readSpaceFile`
+`sdk/org/libs/core/system-spaces/system-architect/functions/readSpaceFile.ts#readSpaceFile`. Both return
+`{ ok, content, error? }` where **`content` is the plain, unmodified file text** — there is no `raw`
+field and no line-numbered variant. A model reaching for `readProjectFile(path).raw` (or
+`.text`) gets a typecheck error on the FIRST use, aborting the retry.
+
+A third, distinct reflex — passing the result object itself where the body is wanted — fails the same way: `JSON.parse(readProjectFile(path))` (no `.content`) errors `Argument of type '{ ok: boolean; content: string; error?: string }' is not assignable to parameter of type 'string'`. To parse/regex a file, always read the body off `content` first: `const table = JSON.parse(readProjectFile(path).content)`.
+
+That `.raw` reflex is a **cross-family confusion, not an API gap**: the engineer's scratch `readFile`
+(above) returns `content` **line-numbered** for display/citation and therefore exposes a separate
+`raw` (clean) field — a convention the fork role preamble explicitly teaches (`readFile(path).raw`)
+`sdk/org/libs/core/src/fork/roles.ts#rolePreamble`. The project/space readers do NOT inherit that
+dichotomy: their `content` is already the clean text, so `.raw` is both wrong and pointless. If you
+need to regex/parse a project file, parse `readProjectFile(path).content` directly.
+
 ### `progress()` → `{ episodes, toolCalls, elapsedMs }`
 
 A fresh read-only snapshot of the run budget (the "complexity factor"); the VM cannot write

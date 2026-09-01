@@ -50,6 +50,23 @@ The `name` + default/`handler` contract is now **enforced at write time**: `writ
 
 The handler's **typed boundary** is enforced too: `writeProjectApi` rejects an `input` parameter typed (or left implicitly) `any`, a return typed `any`/`Promise<any>`, and — when the appbuilder emitted a `<Base>Output` contract type for the endpoint — a return that is not that `<Base>Output` `sdk/org/libs/cli/src/app/authoring/lint.ts#apiHandlerTypingError`. This closes the vacuous-`any` escape: a `(input: any, ctx: ApiCtx): Promise<any>` handler satisfies every `Output` type without its returned object being checked against any, so a response whose field names diverge from what the page reads (`useApi<<Base>Output>(…)`) would otherwise compile clean and render `undefined` over real data. The `Output` type must therefore be the real response shape; the appbuilder writes each handler `handler(input: Input, ctx: ApiCtx): Promise<Output>` with `export type Output = <Base>Output`.
 
+## Declarative query endpoints
+
+A plain list, get, aggregate, create, update, toggle, or delete can instead be authored with `writeProjectQuery(name, query)`. Its `QueryIr` is validated against the real table schema and compiled into the ordinary method handler, so the generated handler and its declared query cannot diverge `sdk/org/libs/cli/src/app/ir/query.ts#QueryIr` `sdk/org/libs/cli/src/app/ir/query.ts#validateQueryIr` `sdk/org/libs/cli/src/app/ir/query.ts#generateQueryHandler`.
+
+For a `create` or `update`, `set` is a **column map**, not a request body: each column uses either `{ input: '<request-key>' }` or `{ value: <literal> }`. A route `[id]` identifies an update/delete row; an explicit `where`, when needed, is an array of `{ field, op, input? | value? }` clauses. Delete has no `set` map `sdk/org/libs/cli/src/app/ir/query.ts#SetSource` `sdk/org/libs/cli/src/app/ir/query.ts#WhereClause` `sdk/org/libs/cli/src/app/ir/query.ts#validateQueryIr`.
+
+```ts
+writeProjectQuery('job-create', {
+  kind: 'create', entity: 'job', route: 'jobs',
+  set: { status: { input: 'status' }, hours: { value: 0 } },
+})
+writeProjectQuery('job-update', {
+  kind: 'update', entity: 'job', route: 'jobs/[id]',
+  set: { status: { input: 'status' }, hours: { value: 0 } },
+})
+```
+
 A response field that carries a **list the page maps** or a **record the page reads keyed sub-fields off of** is typed **structurally** — a named item interface (`<Base><Field>Item[]` or `<Base><Field>Item | null`), never a pre-formatted display `string`. The appbuilder declares such a field with a nested `item` shape and `emit_types` renders the interface `sdk/org/libs/core/system-spaces/system-appbuilder/tasklists/build_live_project/09-emit_types.ts#renderShape`, so a handler that returns display text (e.g. `rows.map(fmt).join('\n')`) for a list field fails the typed-boundary check above. This closes the level below the `any`-escape: a field both sides merely call `string` lets the endpoint return formatted text while the page `JSON.parse`s it (throwing, then silently falling back to an empty render over real rows).
 
 ## `Input` is one object, assembled by method

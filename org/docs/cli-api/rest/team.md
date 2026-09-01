@@ -177,13 +177,14 @@ Registered only in team mode `sdk/org/libs/cli/src/server/serve.ts:209-217`:
 |---|---|---|---|
 | GET | `/api/team/channels` | member | List the channels this caller can see, **plus** the categories, in one response `sdk/org/libs/cli/src/server/routes/team-channels.ts#handleListChannels` |
 | POST | `/api/team/channels` | **editor** | Create a channel (`{name, categoryId?}`); the id is the slugified name |
-| PATCH | `/api/team/channels/:channelId` | **editor** | Rename it, file it under a category, or set the apps pinned to it (`{name?, categoryId?, apps?}`) `sdk/org/libs/cli/src/server/team-channels.ts#patchChannel` |
+| PATCH | `/api/team/channels/:channelId` | **editor** | Rename it, file it under a category, set the apps pinned to it, or set who may invoke THING (`{name?, categoryId?, apps?, thingAccess?}`, `thingAccess: 'all' \| 'editors'`) `sdk/org/libs/cli/src/server/team-channels.ts#patchChannel` |
 | GET | `/api/team/channels/:channelId/messages` | member | History, newest last; `?limit=` (≤200) and `?before=<messageId>` page backwards. Also returns `turns` — the THING turns running in this channel right now (below) |
 | POST | `/api/team/channels/:channelId/messages` | member | Post `{text, threadId?, clientId?, answersAskId?, attachmentIds?}`; **404** if the channel does not exist or is not visible to the caller `sdk/org/libs/cli/src/server/routes/team-channels.ts#handlePostMessage`. **200** (not 201) with `deduplicated:true` when `clientId` repeats a send; **409** when `answersAskId` names a question the thread is not waiting on; **403** when an `attachmentIds` entry is an upload the caller does not own (below) |
 | POST | `/api/team/channels/:channelId/read` | member | Mark read, optionally `{messageId}` to say how far `sdk/org/libs/cli/src/server/routes/team-channels.ts#handleMarkRead` |
 | POST | `/api/team/dms` | member | Open (or reopen) the direct conversation with `{userId}` |
 | GET/POST | `/api/team/categories` | member / **editor** | List, or create `{name}` |
 | PATCH/DELETE | `/api/team/categories/:categoryId` | **editor** | Rename or reorder `{name?, order?}`; delete |
+| GET | `/api/team/audit` | **editor** | The attributed log of what THING did — posts, pins, channels it created, memory it rewrote — newest first, with optional `?channel=&actor=&action=&limit=` filters `sdk/org/libs/cli/src/server/routes/team-channels.ts#handleTeamAudit`. Each row is `{ts, actor, actorLabel?, channelId, action, detail?}` `sdk/org/libs/cli/src/server/team-audit.ts#AuditEntry` |
 | GET | `/api/team/directory` | member | The `@`-picker's data: members (with handles) and projects (with `hasApp`) |
 | GET/PUT | `/api/team/profile` | member | Read, or set `{handle?, displayName?}` — **409** when a handle is taken or reserved |
 
@@ -305,6 +306,37 @@ thread THING has never answered in stays between the humans. Threads are what
 makes implicit addressing safe — you opt in by opening one with THING. The
 thread composer stops advertising `@thing` once THING has answered there
 `sdk/org/libs/ui/src/team/channels-view.tsx#TeamChannelsView`.
+
+### Access mode — who may invoke THING in a channel
+
+A channel carries an optional `thingAccess`
+`sdk/org/libs/cli/src/server/team-channels.ts#Channel`. Absent (the default, and
+how every channel written before access modes reads) means `'all'` — any member
+can invoke THING. `'editors'` restricts **invocation** to editors: a viewer's
+`@thing` in such a channel is declined with a `system` notice ("Only editors can
+ask THING in this channel.") and no turn runs, while the viewer's own message
+still stands. The decision is the pure
+`sdk/org/libs/cli/src/server/team-guard.ts#canInvokeThing`, enforced at the post
+edge `sdk/org/libs/cli/src/server/routes/team-channels.ts#postThingAccessDenied`.
+
+This gates invocation only — it is **not** a read/write permission. A viewer keeps
+every channel right they had (`VIEWER_ALLOWED`): reading, posting, opening a DM. It
+is set by an editor through the channel PATCH route above (`{thingAccess}`).
+
+### The audit log — what THING did, and who asked
+
+Every consequential thing THING does in the team — a `teamPost`, a `teamPinApp`, a
+`teamCreateChannel`, a `teamRemember` — appends one attributed row to an append-only
+log at `<lmthingRoot>/.team/audit.jsonl`
+`sdk/org/libs/cli/src/server/team-audit.ts#appendAudit`. The row records the action,
+the channel it ran in, and the **caller** who drove the turn — the same identity the
+resolver binds every team write to `sdk/org/libs/cli/src/server/team-globals.ts#createTeamResolver`,
+so "who had THING announce that" is answerable after the fact. A refused action (a
+viewer's write) never happened, so it is never logged. Auditing is best-effort: a
+logging failure never fails the action it was recording. Read it, editor-only and
+filtered, at `GET /api/team/audit` (above). `actor` is a member's userId today; it is
+a plain string so a future ambient action can record `actor: 'thing'` with no change
+to readers.
 
 The mechanism is the one the inbound-webhook dispatcher already uses: a stable
 session id per `(channel, thread)`, resolved through

@@ -138,8 +138,11 @@ If the tasklist declares an `input` schema (`tasklists/<name>/index.md` frontmat
 The orchestrator loops until `done + skipped` covers all tasks (`sdk/org/libs/core/src/tasklist/orchestrator.ts:145`):
 
 1. **`findReadyTasks`** returns every not-done/not-skipped task whose deps are all `done`-or-`skipped` AND whose `condition` (if any) evaluates true (`sdk/org/libs/core/src/tasklist/dag.ts#findReadyTasks`). A condition that throws is treated as not-met (`:112-120`).
-2. All ready tasks run **in parallel** via `Promise.allSettled` (bounded further by the fork semaphore) (`sdk/org/libs/core/src/tasklist/orchestrator.ts:179-284`).
-3. If **no** task is ready but tasks remain, any remaining task whose deps are satisfied and that is `optional` or has a `condition` is **skipped** (its condition/optional prerequisite can't be met). If nothing gets skipped, the tasklist is **stuck** and throws (`sdk/org/libs/core/src/tasklist/orchestrator.ts:148-171`).
+2. Every newly-ready task is launched (bounded by the fork semaphore) and added to an in-flight map; a task already running is never relaunched (`sdk/org/libs/core/src/tasklist/orchestrator.ts#runTasklist`).
+3. The loop then awaits the **first** task to settle — `Promise.race`, not `Promise.allSettled` — commits its output, and re-evaluates readiness. Scheduling is therefore **rolling**, not wave-barriered: a task starts as soon as *its own* dependencies are satisfied, rather than waiting for the slowest unrelated task that happened to become ready at the same moment.
+4. If **no** task is ready and none is in flight but tasks remain, any remaining task whose deps are satisfied and that is `optional` or has a `condition` is **skipped** (its condition/optional prerequisite can't be met). If nothing gets skipped, the tasklist is **stuck** and throws.
+
+Rolling commit is safe against `onFail` by construction: `resumeSet` un-does `goto`, the failing task, and the tasks between them — all of which are **ancestors** of the failing task, and an ancestor of a task that has just run is necessarily already complete. No in-flight task can be in the resume set, so a resume cannot double-launch running work (`sdk/org/libs/core/src/tasklist/dag.ts#resumeSet`).
 
 Each fork is spawned via `forkWithMeta` seeded with the (filtered) tasklist input plus its upstream outputs keyed by dependency id (`getUpstreamOutputs`), carrying `role`/`functions`/`canDelegateTo`/`prelude`/`tasklistDescription` from the task node (`sdk/org/libs/core/src/tasklist/orchestrator.ts:120-129`, `:232-248`).
 

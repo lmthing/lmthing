@@ -4,10 +4,8 @@
       "command": "node",
       "args": [
         "mcp/bin/mcp-space.mjs",
-        "--spaces-dir",
-        "mcp/spaces",
-        "--agent",
-        "space-probe/probe"
+        "--root",
+        "mcp"
       ]
     }
   }

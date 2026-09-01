@@ -4,7 +4,7 @@ import { parseCapabilities } from './capabilities.ts';
 import { parseFrontmatter } from './frontmatter.ts';
 import { loadKnowledge } from './knowledge.ts';
 import { loadTasklists } from './tasklist.ts';
-import { AGENT_FRONTMATTER_ALLOWED_KEYS, SpaceFormatError, type Agent, type Capability, type LoadOpts, type Problem, type Space, type SpaceFn, type Unsupported, type WebhookTrigger } from './types.ts';
+import { AGENT_FRONTMATTER_ALLOWED_KEYS, SpaceFormatError, type Agent, type Capability, type LoadOpts, type Problem, type Project, type Space, type SpaceFn, type Unsupported, type WebhookTrigger } from './types.ts';
 
 const AGENT_KEYS = new Set<string>(AGENT_FRONTMATTER_ALLOWED_KEYS);
 
@@ -36,8 +36,8 @@ async function loadFunctions(dir: string, opts: LoadOpts | undefined, problems: 
   return functions;
 }
 
-/** Parse one standalone space directory without importing the LMThing runtime. */
-export async function loadSpace(dir: string, opts?: LoadOpts): Promise<Space> {
+/** Parse one space directory without importing the LMThing runtime. */
+export async function loadSpace(dir: string, project = 'default', opts?: LoadOpts): Promise<Space> {
   const root = resolve(dir); const problems: Problem[] = []; const unsupported: Unsupported[] = [];
   const id = basename(root);
   let manifest: unknown = null;
@@ -90,7 +90,7 @@ export async function loadSpace(dir: string, opts?: LoadOpts): Promise<Space> {
         return [{ path: record.path as string, provider: typeof record.provider === 'string' ? record.provider : undefined }];
       });
     }
-    agents.push({ ref: `${id}/${slug}`, slug, title: typeof data.title === 'string' ? data.title : slug, charter, instruct, functions: functionsForAgent, knowledge: knowledgeForAgent, capabilities, canDelegateTo, actions, defaultAction, model, triggers });
+    agents.push({ ref: `${project}/${id}/${slug}`, project, space: id, slug, title: typeof data.title === 'string' ? data.title : slug, charter, instruct, functions: functionsForAgent, knowledge: knowledgeForAgent, capabilities, canDelegateTo, actions, defaultAction, model, triggers });
   }
   const functionNames = new Set(functions.map((fn) => fn.name));
   const knowledgeRefs = new Set(knowledge.flatMap((domain) => domain.fields.flatMap((field) => [field.ref, ...field.options.map((option) => option.ref)])));
@@ -99,12 +99,40 @@ export async function loadSpace(dir: string, opts?: LoadOpts): Promise<Space> {
     for (const ref of agent.knowledge) if (!knowledgeRefs.has(ref)) problems.push({ path: `agents/${agent.slug}/instruct.md`, message: `unknown knowledge ref "${ref}"` });
     for (const action of agent.actions) if (action.tasklist && !tasklists[action.tasklist]) problems.push({ path: `agents/${agent.slug}/instruct.md`, message: `unknown tasklist "${action.tasklist}"` });
   }
-  if (problems.length) throw new SpaceFormatError(`Space "${id}" has ${problems.length} format problem(s)`, problems);
-  return { id, dir: root, agents, functions, knowledge, tasklists, manifest, unsupported };
+  if (problems.length) throw new SpaceFormatError(`Space "${project}/${id}" has ${problems.length} format problem(s)`, problems);
+  return { id, project, ref: `${project}/${id}`, dir: root, agents, functions, knowledge, tasklists, manifest, unsupported };
 }
 
-/** Load every immediate directory under a spaces root, sorted by directory name. */
-export async function loadSpaces(spacesDir: string, opts?: LoadOpts): Promise<Space[]> {
-  const dirs = (await entries(resolve(spacesDir))).filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
-  return Promise.all(dirs.map((entry) => loadSpace(join(resolve(spacesDir), entry.name), opts)));
+/** Load every immediate directory under one project's spaces root, sorted by directory name. */
+export async function loadSpaces(spacesDir: string, project = 'default', opts?: LoadOpts): Promise<Space[]> {
+  const root = resolve(spacesDir);
+  const dirs = (await entries(root)).filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
+  return Promise.all(dirs.map((entry) => loadSpace(join(root, entry.name), project, opts)));
+}
+
+/**
+ * Load EVERY project under a runtime root (`<cwd>/.lmthing`).
+ *
+ * One server instance serves the whole runtime, so a harness can reach any project's spaces and
+ * then any agent without being restarted or repointed.
+ *
+ * A project directory with no `spaces/` is still reported, with an empty list — that is what
+ * lets a caller see it exists and create a space in it. A missing runtime root is likewise an
+ * empty result, not an error: a fresh cwd simply has no projects yet.
+ */
+export async function loadProjects(runtimeDir: string, opts?: LoadOpts): Promise<Project[]> {
+  const root = resolve(runtimeDir);
+  const dirs = (await entries(root)).filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
+  const projects: Project[] = [];
+  for (const entry of dirs) {
+    const dir = join(root, entry.name); const spacesDir = join(dir, 'spaces');
+    const spaces = (await existsDir(spacesDir)) ? await loadSpaces(spacesDir, entry.name, opts) : [];
+    projects.push({ id: entry.name, dir, spacesDir, spaces });
+  }
+  return projects;
+}
+
+/** Every space across every project, in project-then-space order. */
+export async function loadAllSpaces(runtimeDir: string, opts?: LoadOpts): Promise<Space[]> {
+  return (await loadProjects(runtimeDir, opts)).flatMap((project) => project.spaces);
 }

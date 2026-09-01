@@ -31,8 +31,10 @@ meanings, easy to flip silently — every track has a test for it.
 | Extraction + invocation | `pi-terra-3` | `src/schema/**`, `src/exec/**`, `src/tools/functions.ts` | landed |
 | Knowledge/tasklists/delegation/authoring | `pi-terra-4` | `src/format/{dag,write}.ts`, `src/tools/{knowledge,tasklists,delegation,authoring}.ts` | landed |
 
-All four tracks landed and integrated. **37 tools**, 14 resources, 5 prompts (one per agent).
-Gates: `tsc` clean, **27/27 tests** including a live end-to-end MCP gate.
+All four tracks landed and integrated. **14 resources, 5 prompts** (one per agent). Tools are now
+DYNAMIC: **27 server-level tools** at boot (no agent selected) plus one tool per function the
+active agent declares (`set_agent` grows the list live — 38 with `probe` active). Gates: `tsc`
+clean, **33/33 tests** including a live end-to-end MCP gate.
 
 ## Done
 
@@ -222,3 +224,38 @@ that fails `Record<string, JsonSchema>`. Fix is to annotate each tool separately
 - Real-world conformance of both the parser and the extractor is **unmeasured** by design: the
   fixtures are authored alongside them, so they pass by construction. The 125 real function files
   under `store/*/functions/` are the obvious corpus for a later read-only survey.
+
+## Runtime-wide server (2026-09-01)
+
+One server now serves the WHOLE runtime — every project under `.lmthing/`, not one pinned project
+or agent. Requested: "all spaces under the .lmthing dir should be able to be loaded dynamically by
+the harness … load spaces from any project and then agents".
+
+**Layout.** Spaces live at `<root>/.lmthing/<project>/spaces/<spaceId>/`; the default project is
+`default`. The fixtures moved accordingly (`mcp/spaces/` → `mcp/.lmthing/default/spaces/`) and
+`.lmthing/` is deliberately **not** ignored at the repo root — the layout is real and the fixtures
+are tracked. The CLI auto-creates `<runtimeDir>/<project>/spaces` so a first boot never fails.
+
+**Refs gained a project part.** `Space.ref = "<project>/<id>"`, `Agent.ref =
+"<project>/<space>/<slug>"`. Every ref-taking tool accepts the qualified form, and the bare form
+(`<id>`, `<space>/<slug>`) when **unambiguous** — with two projects holding the same id the server
+REFUSES, naming both candidates, rather than picking one invisibly. `list_projects` is now the
+first tool a cold client calls; `describe_space` takes `ref` (the addressable identity), not `id`.
+
+**Delegation is project-local by default (defect 10).** The format's native two-part
+`canDelegateTo` entry means "<space>/<slug> in the source agent's OWN project"; only a three-part
+ref crosses projects. This failed live — the allowlist resolved to nothing after refs grew a part
+— while every parser test stayed green. `test/server.delegation.test.ts` now pins it with a
+two-project fixture (same space id in both; a two-part entry must NOT match the foreign one).
+
+**`.mcp.json` pins no agent** (requested): the server boots with no active agent — 27 static
+tools, `get_active_agent` → `null` — and the client discovers and selects with
+`list_projects`/`list_agents`/`set_agent` (verified live over stdio; the grown list arrives via
+`tools/list_changed`). `--agent <ref>` remains a CLI option for a pinned deployment.
+
+**Also resolved:** the generated subagent (`.claude/agents/space-probe-helper.md`, exported by
+`export_claude_subagents` with MCP-qualified tools) is REACHABLE — the session restart picked it
+up and Claude Code lists it with `Tools: mcp__space__greet`. The export round trip is closed.
+
+**Counts after the refactor:** 33 tests (was 27), `tsc` clean. Open: real-world parser/extractor
+conformance survey over `store/*/functions/` (unmeasured, by design).

@@ -175,8 +175,17 @@ export interface TasklistDag {
 // ---------------------------------------------------------------- agents & spaces
 
 export interface Agent {
-  /** `<spaceId>/<slug>` */
+  /**
+   * `<project>/<spaceId>/<slug>` — FULLY QUALIFIED.
+   *
+   * One server serves every project under `.lmthing/`, and two projects may each hold a space
+   * with the same id, so a two-part ref is ambiguous. Always address an agent by all three parts.
+   */
   ref: string;
+  /** The project directory name, e.g. `default`. */
+  project: string;
+  /** The owning space's id (its directory name). */
+  space: string;
   slug: string;
   title: string;
   /** `charter.md` body, frontmatter stripped. '' when absent. */
@@ -217,7 +226,12 @@ export interface Unsupported {
 }
 
 export interface Space {
+  /** The space's own directory name, e.g. `space-probe`. NOT unique across projects. */
   id: string;
+  /** The project directory name this space lives under, e.g. `default`. */
+  project: string;
+  /** `<project>/<id>` — the unique way to address this space. */
+  ref: string;
   dir: string;
   agents: Agent[];
   functions: SpaceFn[];
@@ -254,6 +268,16 @@ export class SpaceFormatError extends Error {
 
 // ---------------------------------------------------------------- loader API
 
+/** One project directory under the runtime root, with the spaces it holds. */
+export interface Project {
+  /** Directory name under `.lmthing/`, e.g. `default`. */
+  id: string;
+  dir: string;
+  /** Absolute path to `<dir>/spaces`, whether or not it exists yet. */
+  spacesDir: string;
+  spaces: Space[];
+}
+
 export interface LoadOpts {
   /**
    * Called ONCE PER SPACE with that space's directory, to build its extractor.
@@ -268,5 +292,15 @@ export interface LoadOpts {
   extractorFor?: (spaceDir: string) => Extractor;
 }
 
-export type LoadSpace = (dir: string, opts?: LoadOpts) => Promise<Space>;
-export type LoadSpaces = (spacesDir: string, opts?: LoadOpts) => Promise<Space[]>;
+export type LoadSpace = (dir: string, project: string, opts?: LoadOpts) => Promise<Space>;
+export type LoadSpaces = (spacesDir: string, project: string, opts?: LoadOpts) => Promise<Space[]>;
+
+/**
+ * Load EVERY project under a runtime root (`<cwd>/.lmthing`).
+ *
+ * This is the server's real entry point: one server instance serves the whole runtime, so a
+ * harness can reach any project's spaces and then any agent, without being restarted or
+ * repointed. A directory with no `spaces/` subdirectory is still a project — it simply has no
+ * spaces yet, and reporting it is what lets a caller create one there.
+ */
+export type LoadProjects = (runtimeDir: string, opts?: LoadOpts) => Promise<Project[]>;

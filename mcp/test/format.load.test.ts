@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { loadSpace, loadSpaces } from '../src/format/load.ts';
 
-const spaces = resolve('spaces');
+// The real layout: <root>/.lmthing/<project>/spaces/, project 'default'.
+const spaces = resolve('.lmthing/default/spaces');
 const cleanup: string[] = [];
 async function scratch(): Promise<string> { const dir = await mkdtemp(join(tmpdir(), 'mcp-space-')); cleanup.push(dir); return dir; }
 async function agent(root: string, frontmatter: string): Promise<void> {

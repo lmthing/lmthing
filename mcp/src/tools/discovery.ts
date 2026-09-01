@@ -2,7 +2,6 @@ import type { Agent, JsonSchema, KnowledgeField, Space, SpaceFn } from '../forma
 import type { ToolGroup } from './ctx.ts';
 
 const emptyObject: JsonSchema = { type: 'object', properties: {}, additionalProperties: false };
-const idSchema: JsonSchema = { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false };
 const refSchema: JsonSchema = { type: 'object', properties: { ref: { type: 'string' } }, required: ['ref'], additionalProperties: false };
 
 function spaceParts(space: Space): string[] {
@@ -37,12 +36,37 @@ function agentSummary(agent: Agent): object {
 
 export const tools: ToolGroup = (ctx) => [
   {
-    name: 'list_spaces',
-    description: 'List all LMThing spaces discovered under the configured spaces directory.',
+    /**
+     * The entry point for a cold client: one server serves the whole runtime, so the first
+     * question is which projects exist. A project with no `spaces/` yet is still listed —
+     * that is how a caller learns it can create one there.
+     */
+    name: 'list_projects',
+    description: 'List every project under the runtime root, with how many spaces each holds.',
     inputSchema: emptyObject,
     async handler() {
-      return (await ctx.spaces()).map((space) => ({
+      return (await ctx.projects()).map((project) => ({
+        id: project.id,
+        dir: project.dir,
+        spacesDir: project.spacesDir,
+        spaceCount: project.spaces.length,
+        spaces: project.spaces.map((space) => space.ref),
+        isDefault: project.id === ctx.defaultProject,
+      }));
+    },
+  },
+  {
+    name: 'list_spaces',
+    description: 'List spaces across every project under the runtime root. Optionally filter to one project.',
+    inputSchema: { type: 'object', properties: { project: { type: 'string', description: 'Only spaces in this project.' } }, additionalProperties: false },
+    async handler(args) {
+      const only = args.project === undefined ? undefined : String(args.project);
+      const all = await ctx.spaces();
+      return all.filter((space) => only === undefined || space.project === only).map((space) => ({
+        // `ref` is the addressable identity; `id` alone is NOT unique across projects.
+        ref: space.ref,
         id: space.id,
+        project: space.project,
         dir: space.dir,
         agentCount: space.agents.length,
         has: spaceParts(space),
@@ -53,11 +77,13 @@ export const tools: ToolGroup = (ctx) => [
   {
     name: 'describe_space',
     description: 'Describe one LMThing space, including its parsed format data.',
-    inputSchema: idSchema,
+    inputSchema: refSchema,
     async handler(args) {
-      const id = requiredString(args, 'id');
-      const space = await ctx.space(id);
-      if (!space) throw new Error(`Unknown space: ${id}`);
+      // `ref` is the addressable identity (`<project>/<id>`); a bare id is still accepted when
+      // unambiguous — ctx.space() refuses rather than guesses when two projects share one.
+      const ref = requiredString(args, 'ref');
+      const space = await ctx.space(ref);
+      if (!space) throw new Error(`Unknown space: ${ref}`);
       return {
         id: space.id,
         dir: space.dir,
@@ -86,8 +112,9 @@ export const tools: ToolGroup = (ctx) => [
       const ref = requiredString(args, 'ref');
       const agent = await ctx.agent(ref);
       if (!agent) throw new Error(`Unknown agent reference: ${ref}`);
-      const spaceId = ref.slice(0, ref.lastIndexOf('/'));
-      const space = await ctx.space(spaceId);
+      // The agent carries its own address; slicing the caller's ref would break for the
+      // two-part form, which no longer encodes the project.
+      const space = await ctx.space(`${agent.project}/${agent.space}`);
       if (!space) throw new Error(`Agent ${ref} has no owning space`);
       const declared = new Set(agent.functions);
       // Capabilities grant unsupported retired-runtime globals, not standalone space functions.

@@ -67,7 +67,9 @@ devops/ansible/k8s/envoy/tls-certificates.yaml
 # have committed a live private key. Closed by default now, with the one tracked thing re-admitted.
 .etc/*
 !.etc/scripts/
-.lmthing/
+# `.lmthing/<project>/spaces/` is the REAL space layout the MCP server resolves, and it holds
+# tracked fixtures — so `.lmthing/` is deliberately NOT ignored here. `sdk/org` is a submodule
+# and ignores its own runtime `.lmthing/` via its own .gitignore (lines 27, 44).
 # lmauto: the live raw event stream of an in-flight attempt. It is APPENDED TO for the whole run, in
 # a tree where autonomous agents run git commands — a stash/checkout would swap the inode out from
 # under the loop's open fd and silently lose the rest of the stream. Keep it untracked while it is

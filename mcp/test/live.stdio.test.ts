@@ -20,6 +20,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+const spacesDir = join(pkgRoot, '.lmthing', 'default', 'spaces');
 let client: Client;
 
 before(async () => {
@@ -27,8 +28,10 @@ before(async () => {
   await client.connect(new StdioClientTransport({
     command: process.execPath,
     // Deliberately the LAUNCHER, not src/cli.ts — it is what .mcp.json actually runs, and
-    // pointing at cli.ts once hid a bug where the launcher started nothing at all.
-    args: [join(pkgRoot, 'bin', 'mcp-space.mjs'), '--spaces-dir', join(pkgRoot, 'spaces'), '--agent', 'space-probe/probe'],
+    // pointing at cli.ts once hid a bug where the launcher started nothing at all. And `--root`
+    // rather than `--spaces-dir`, so this exercises the DEFAULT layout resolution
+    // (<root>/.lmthing/default/spaces) that a real client gets, not an override path.
+    args: [join(pkgRoot, 'bin', 'mcp-space.mjs'), '--root', pkgRoot, '--agent', 'space-probe/probe'],
     cwd: pkgRoot,
     stderr: 'pipe',
   }));
@@ -145,7 +148,7 @@ test('a write does not degrade schemas: the authoring round trip end to end', as
     assert.ok((await names()).includes('addTwo'), 'and it must surface as a live MCP tool');
   } finally {
     await call('set_agent', { ref: 'space-probe/probe' });
-    await rm(join(pkgRoot, 'spaces', id), { recursive: true, force: true });
+    await rm(join(spacesDir, id), { recursive: true, force: true });
   }
 });
 

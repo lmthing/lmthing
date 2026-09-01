@@ -1,0 +1,3 @@
+# scratch dirs the derive/exec tests write their throwaway function fixtures into
+test/tmp/
+node_modules/

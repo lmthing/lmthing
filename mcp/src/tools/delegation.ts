@@ -9,11 +9,22 @@ function active(ctx: Parameters<ToolGroup>[0]) { const agent = ctx.activeAgent()
 function stripAction(ref: string): string { return ref.split('#', 1)[0]!; }
 function resolvedTools(space: Space, agent: Agent): string[] { const declared = new Set(agent.functions); return space.functions.filter((fn) => declared.has(fn.name)).map((fn) => fn.name); }
 
+/**
+ * Normalize a delegate ref against the delegating agent. The format's native two-part form
+ * (`<space>/<slug>`) is PROJECT-LOCAL — it means the source agent's own project, which is
+ * what every existing space's frontmatter means by it. Only a three-part
+ * `<project>/<space>/<slug>` ref crosses projects.
+ */
+function delegateRef(entry: string, source: Agent): string {
+  const bare = stripAction(entry);
+  return bare.split('/').length === 2 ? `${source.project}/${bare}` : bare;
+}
+
 async function delegates(ctx: Parameters<ToolGroup>[0]): Promise<Array<{ space: Space; agent: Agent }>> {
   const source = active(ctx); const spaces = await ctx.spaces();
   const all = spaces.flatMap((space) => space.agents.map((agent) => ({ space, agent })));
   if (source.canDelegateTo === undefined || source.canDelegateTo.includes('*')) return all;
-  const allowed = new Set(source.canDelegateTo.map(stripAction));
+  const allowed = new Set(source.canDelegateTo.map((entry) => delegateRef(entry, source)));
   return all.filter(({ agent }) => allowed.has(agent.ref));
 }
 function requiredString(args: Record<string, unknown>, key: string): string { const value = args[key]; if (typeof value !== 'string' || !value) throw new Error(`${key} must be a non-empty string`); return value; }
@@ -23,7 +34,10 @@ export const tools: ToolGroup = (ctx): ToolDef[] => [
     return (await delegates(ctx)).map(({ space, agent }) => ({ ref: agent.ref, title: agent.title, tools: resolvedTools(space, agent) }));
   } },
   { name: 'get_delegate', description: 'Get a permitted delegate’s instructions and resolved standalone tool list.', inputSchema: { type: 'object', properties: { ref: { type: 'string' } }, required: ['ref'], additionalProperties: false }, async handler(args) {
-    const ref = requiredString(args, 'ref'); const target = (await delegates(ctx)).find(({ agent }) => agent.ref === ref);
+    // Accept either form of the ref: the qualified one list_delegates returns, or the
+    // project-local one the frontmatter itself uses.
+    const ref = requiredString(args, 'ref'); const wanted = delegateRef(ref, active(ctx));
+    const target = (await delegates(ctx)).find(({ agent }) => agent.ref === ref || agent.ref === wanted);
     if (!target) throw new Error(`Delegate ${ref} is not available to the active agent`);
     return { ref: target.agent.ref, title: target.agent.title, instruct: target.agent.instruct, tools: resolvedTools(target.space, target.agent) };
   } },

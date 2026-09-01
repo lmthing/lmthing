@@ -1,30 +1,41 @@
-import { loadSpaces } from '../format/load.ts';
+import { loadProjects } from '../format/load.ts';
 import { createExtractor } from '../schema/derive.ts';
-import type { Agent, LoadSpaces, Space } from '../format/types.ts';
+import type { Agent, LoadProjects, Project, Space } from '../format/types.ts';
 import type { ServerCtx } from '../tools/ctx.ts';
 
 export interface ServerContextOptions {
-  spacesDir: string;
-  loader?: LoadSpaces;
+  /** The runtime root, i.e. `<cwd>/.lmthing`. Every project beneath it is served. */
+  runtimeDir: string;
+  /** The project new spaces are created in when a caller does not name one. */
+  defaultProject?: string;
+  loader?: LoadProjects;
   /** Rebuild dynamic tool definitions before announcing the change. */
   onActiveAgentChanged?: () => Promise<void> | void;
   /** Sends the MCP tools/list_changed notification. */
   onToolsChanged?: () => void;
 }
 
-/** The sole stateful implementation shared by every tool group. */
+/**
+ * The sole stateful implementation shared by every tool group.
+ *
+ * ONE server serves the WHOLE runtime root: every project under `.lmthing/`, every space in
+ * each, and every agent in those. A harness never restarts or repoints the server to reach a
+ * different project — it just names a qualified ref.
+ */
 export class SpaceServerContext implements ServerCtx {
-  readonly spacesDir: string;
-  private readonly loader: LoadSpaces;
+  readonly runtimeDir: string;
+  readonly defaultProject: string;
+  private readonly loader: LoadProjects;
   private readonly onActiveAgentChanged: () => Promise<void> | void;
   private readonly onToolsChanged: () => void;
-  private cachedSpaces: Space[] | undefined;
+  private cachedProjects: Project[] | undefined;
   private active: Agent | null = null;
   private activeOwner: Space | null = null;
 
   constructor(options: ServerContextOptions) {
-    this.spacesDir = options.spacesDir;
-    this.loader = options.loader ?? loadSpaces;
+    this.runtimeDir = options.runtimeDir;
+    this.defaultProject = options.defaultProject ?? 'default';
+    this.loader = options.loader ?? loadProjects;
     this.onActiveAgentChanged = options.onActiveAgentChanged ?? (() => undefined);
     this.onToolsChanged = options.onToolsChanged ?? (() => undefined);
   }
@@ -38,18 +49,27 @@ export class SpaceServerContext implements ServerCtx {
    * forgets an argument is a failure this codebase has now produced twice; the fix is to
    * leave exactly one.
    */
-  private load(): Promise<Space[]> {
-    return this.loader(this.spacesDir, { extractorFor: createExtractor });
+  private load(): Promise<Project[]> {
+    return this.loader(this.runtimeDir, { extractorFor: createExtractor });
   }
 
+  async projects(): Promise<Project[]> {
+    this.cachedProjects ??= await this.load();
+    return this.cachedProjects;
+  }
+
+  /** Every space across every project. */
   async spaces(): Promise<Space[]> {
-    this.cachedSpaces ??= await this.load();
-    return this.cachedSpaces;
+    return (await this.projects()).flatMap((project) => project.spaces);
+  }
+
+  async project(id: string): Promise<Project | undefined> {
+    return (await this.projects()).find((candidate) => candidate.id === id);
   }
 
   async reload(): Promise<void> {
-    this.cachedSpaces = await this.load();
-    if (this.active && !this.cachedSpaces.some((space) => space.agents.some((agent) => agent.ref === this.active?.ref))) {
+    this.cachedProjects = await this.load();
+    if (this.active && !(await this.spaces()).some((space) => space.agents.some((agent) => agent.ref === this.active?.ref))) {
       this.active = null;
       this.activeOwner = null;
     } else if (this.active) {
@@ -75,19 +95,49 @@ export class SpaceServerContext implements ServerCtx {
 
   notifyToolsChanged(): void { this.onToolsChanged(); }
 
-  async space(id: string): Promise<Space | undefined> {
-    return (await this.spaces()).find((space) => space.id === id);
+  /**
+   * Resolve a space by `<project>/<id>`, or by a bare `<id>` when it is unambiguous.
+   *
+   * A bare id is accepted because it is what a caller naturally types, but it is REFUSED when
+   * two projects both hold that id rather than silently picking one — a coin flip the caller
+   * cannot see is worse than an error naming both candidates.
+   */
+  async space(ref: string): Promise<Space | undefined> {
+    const all = await this.spaces();
+    const qualified = all.find((space) => space.ref === ref);
+    if (qualified) return qualified;
+    if (ref.includes('/')) return undefined;
+    const matches = all.filter((space) => space.id === ref);
+    if (matches.length > 1) {
+      throw new Error(`Ambiguous space id "${ref}" — qualify it as one of: ${matches.map((m) => m.ref).join(', ')}`);
+    }
+    return matches[0];
   }
 
   async agent(ref: string): Promise<Agent | undefined> {
     return (await this.findAgent(ref))?.agent;
   }
 
+  /**
+   * Resolve `<project>/<space>/<slug>`, or a bare `<space>/<slug>` when unambiguous.
+   *
+   * As with `space()`, a two-part ref is a convenience that REFUSES rather than guesses when
+   * several projects hold the same space id.
+   */
   private async findAgent(ref: string): Promise<{ space: Space; agent: Agent } | undefined> {
-    for (const space of await this.spaces()) {
+    const all = await this.spaces();
+    for (const space of all) {
       const agent = space.agents.find((candidate) => candidate.ref === ref);
       if (agent) return { space, agent };
     }
-    return undefined;
+    if (ref.split('/').length !== 2) return undefined;
+    const matches: { space: Space; agent: Agent }[] = [];
+    for (const space of all) {
+      for (const agent of space.agents) if (`${agent.space}/${agent.slug}` === ref) matches.push({ space, agent });
+    }
+    if (matches.length > 1) {
+      throw new Error(`Ambiguous agent ref "${ref}" — qualify it as one of: ${matches.map((m) => m.agent.ref).join(', ')}`);
+    }
+    return matches[0];
   }
 }

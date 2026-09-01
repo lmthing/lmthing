@@ -1,3 +1,5 @@
 # scratch dirs the derive/exec tests write their throwaway function fixtures into
 test/tmp/
+# persisted DAG run state — runtime data, keyed per agent, never format data
+.runs/
 node_modules/

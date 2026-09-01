@@ -51,6 +51,7 @@ test('every tool group is mounted', async () => {
                    'list_functions', 'get_function_schema', // functions
                    'load_knowledge', 'search_knowledge',    // knowledge
                    'get_tasklist', 'next_tasklist_nodes',   // tasklists
+                   'start_task', 'complete_task',           // tasklist run state
                    'list_delegates', 'export_claude_subagents', // delegation
                    'write_function', 'validate_space']) {   // authoring
     assert.ok(t.includes(n), `missing tool: ${n}`);
@@ -95,6 +96,34 @@ test('knowledge and the tasklist DAG', async () => {
   assert.ok((await json('search_knowledge', { query: 'shallow' })).length > 0);
   assert.deepEqual(await json('next_tasklist_nodes', { slug: 'run_probe', completed: ['start'] }), ['inspect', 'expand']);
   assert.deepEqual(await json('next_tasklist_nodes', { slug: 'run_probe', completed: ['start', 'inspect'] }), ['expand']);
+});
+
+test('run state is stored programmatically, and a drifting harness is nudged', async () => {
+  // The run file lives OUTSIDE spaces/ — runtime data, not format data — keyed per agent,
+  // and every start/complete call re-reads it, so a reconnecting harness loses nothing.
+  const file = join(pkgRoot, '.lmthing', 'default', '.runs', 'space-probe', 'probe', 'run_probe.json');
+  try {
+    await rm(file, { force: true });
+    await call('set_agent', { ref: 'space-probe/probe' });
+
+    // DRIFT: completing a node that never started must be refused with the fix in the message.
+    const drift = await call('complete_task', { slug: 'run_probe', id: 'start' });
+    assert.equal(drift.isError, true, 'out-of-order completion must be salient, not a normal result');
+    assert.match(drift.text, /no run state[\s\S]*Ready now: start/);
+
+    // completed omitted → derived from the run once one exists: only the entry is ready.
+    await call('start_task', { slug: 'run_probe' });
+    assert.deepEqual(await json('next_tasklist_nodes', { slug: 'run_probe' }), ['start']);
+
+    await call('start_task', { slug: 'run_probe', id: 'start' });
+    const done = await json('complete_task', { slug: 'run_probe', id: 'start', output: { samples: [1] } });
+    assert.deepEqual(done.next.map((entry: { id: string }) => entry.id), ['inspect', 'expand'], 'the diamond forks');
+    assert.deepEqual(done.next[0].inputs.start, { samples: [1] }, 'ready entries carry recorded upstream outputs — the harness carries nothing');
+    assert.match(await readFile(file, 'utf8'), /"status": "complete"/, 'state is really on disk');
+  } finally {
+    await call('set_agent', { ref: 'space-probe/probe' });
+    await rm(file, { force: true });
+  }
 });
 
 test('discovery sees both spaces, and delegation resolves the allowlist', async () => {

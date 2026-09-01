@@ -275,3 +275,31 @@ re-derives everything from its own transcript; `index.md`'s `input:` schema is i
 pure client convention, and the fixture's `target` is referenced by no body); `condition`/
 `forEach` are free-text interpreted by the model, not an expression language — fine when the MCP
 client is an agent, a soft spot if a deterministic client ever walks a DAG.
+
+### Run state is now programmatic (2026-09-01, fixes the first friction above)
+
+`start_task` / `complete_task` (requested names) walk a tasklist with the state held ON DISK, and
+a drifting harness is **nudged**:
+
+- **State** is one JSON file per (agent, tasklist) at
+  `<root>/.lmthing/<project>/.runs/<space>/<agent>/<slug>.json` — runtime data OUTSIDE `spaces/`
+  (the parser never sees it), gitignored, atomic via tmp+rename, keyed per agent so two agents
+  sharing a space never clobber each other. Every call re-reads it: a reconnecting harness asks
+  the server where it is instead of re-deriving from its own transcript.
+- **Nudges on drift**: completing a never-started node and starting a blocked node are
+  `isError` refusals naming what IS ready; restarting a completed node returns its recorded
+  output plus a `reset: true` hint; a completion missing fields the node declares in `output:`
+  is accepted but nudged. State edited out from under the DAG (a tasklist changed mid-run) is
+  reconciled and reported as `adjustedFromRun`, never silently kept; corrupt state is loud.
+- **The harness carries nothing**: `start_task` hands back the node body plus dependencies'
+  recorded outputs; `complete_task` returns the newly-ready nodes each already briefed with
+  `inputs`. `next_tasklist_nodes` derives completion from the run when `completed` is omitted;
+  pass the list and it stays a pure topology query.
+- **Tasklists belong to agents** (user correction): every tasklist tool addresses the ACTIVE
+  agent's tasklists — the `actions:` that name them — never a runtime-wide slug lookup. The run
+  state keying follows the same rule.
+
+Tests: `server.taskrun.test.ts` (12: the whole diamond, both drift directions, resume, reset,
+reconcile, corrupt state, purity of the explicit-completed path); live gate extended with a real
+stdio drift probe. **46/46, `tsc` clean.** `condition`/`forEach` remain model-interpreted
+(free text) — unchanged by design.

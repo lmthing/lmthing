@@ -817,6 +817,28 @@ One class went the WRONG way: `a handler imports from "../../types/contract"` ro
 top error. The knowledge layer was updated but the api-author's own EXAMPLE was not — and the example is
 what gets copied. Routed as task 14.
 
+### Browser census — what a USER gets (2026-09-01)
+
+The body-level gate scored 14 built apps 8 true / 6 false. Driving them in a real browser:
+
+| run | app | verdict | why |
+|---|---|---|---|
+| 1 | recipe-box | **NO** | no create button anywhere — read-only dead end |
+| 4 | gym-workout-log | **NO** | create+list work; edit blank, delete absent |
+| 9 | recipe-box | **NO** | fabricated "0 recipes" row; add 500s; edit blank; no delete |
+| 10 | gym-workout-log | **NO** | create 500s — `NOT NULL constraint failed: workouts.title` (handler writes `name`) |
+| 14 | gym-workout-log | **NO** | `workouts-list` vs `workout-list` — list 404s forever |
+
+**0 of 5 checked apps work.** A body-level pass means the list endpoint's JSON looks plausible; it says
+nothing about whether a person can use the app.
+
+Universal defects, every app checked:
+- **edit form opens BLANK** — `kind: 'create'` used for update with no `prefill`
+- **delete missing or unreachable**
+
+Plus naming drift in two forms: a handler writing a column the table does not have (`name` vs `title`),
+and a view querying an endpoint name that was authored differently (`workouts-list` vs `workout-list`).
+
 ## Fixed and pushed
 
 | Class | Root cause | Where |

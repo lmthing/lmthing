@@ -1,0 +1,25 @@
+{
+  "name": "@lmthing/mcp-space",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An MCP server for the LMThing space format. Standalone: zero @lmthing/* dependencies.",
+  "type": "module",
+  "bin": { "mcp-space": "./dist/cli.js" },
+  "main": "./dist/cli.js",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "catalog:",
+    "esbuild": "^0.27.0",
+    "typescript": "catalog:",
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -16,6 +16,9 @@ packages:
   # where apps/mobile belongs.
   - sdk/org/apps/web
   - automation/app
+  # Standalone MCP server for the space format. Joins the workspace ONLY to use the
+  # catalog pins below; it must never depend on an @lmthing/* package.
+  - mcp
 
 catalog:
   '@modelcontextprotocol/sdk': 1.29.0

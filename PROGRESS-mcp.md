@@ -341,3 +341,29 @@ exist, so a tasklist must be authored BEFORE the agent that binds it (the forge 
 Also: the runtime moved to the REPO ROOT (`.mcp.json` runs `--root .`) — `.lmthing/default/spaces/`
 now sits where a real user's does; the live gate and loader test are anchored to the repo root,
 not the process cwd. **50/50 tests, `tsc` clean.**
+
+### First delegated subagent run (2026-09-01) — forger → guide → `hello-forge`
+
+The full delegation chain, live: authored **`forger`** (orchestrator: `functions: []`,
+`canDelegateTo: ["format-guide/guide"]`, action `author-a-space`) → `list_delegates` resolved the
+two-part entry project-locally → `export_claude_subagents` (inheritTools) wrote
+`.claude/agents/format-guide-guide.md` (committed; the harness registered it as a native agent
+type) → spawned on the specific action. The subagent drove `author_a_space` through
+`start_task`/`complete_task` and produced **`hello-forge`** (10 files, `greet` verdict `exact`),
+then proved it usable: the greeter's `welcome` run went `prepare → greet` to `runComplete` with
+`inputs.prepare` carried into the `greet` node. Verified in the main session; left uncommitted
+run state under `.runs/`.
+
+**Operational finding — a subagent's tool list is its SPAWN-TIME SNAPSHOT.** This spawn happened
+while `forger` (`functions: []`) was active, so the subagent saw no `mcp__space__parseRef`/`checkDag`
+— it fell back to running the function FILES with `node --experimental-strip-types`. The tools
+themselves were never missing (the main session had called both minutes earlier, guide active);
+`tools/list_changed` reaches the interactive client, not an already-running subagent's snapshot.
+Rule: **`set_agent` to the delegate BEFORE spawning** and the subagent mounts its function tools.
+
+Also confirmed live: knowledge is scoped to the ACTIVE agent (forger's `load_knowledge` refused —
+correct; switch to the guide to load); the drift nudges fired on every premature `complete_task`;
+and the authoring-order rule held again — the `welcome` tasklist was written before the greeter
+that binds it, while the DAG's `agent` node still completed before `tasklist` (file order and
+node-completion order are independent). `create_space`'s placeholder `agents/agent` has no delete
+tool, but `write_agent slug:"agent"` REPLACES its instruct — the practical removal path.

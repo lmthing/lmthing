@@ -29,16 +29,26 @@ export class SpaceServerContext implements ServerCtx {
     this.onToolsChanged = options.onToolsChanged ?? (() => undefined);
   }
 
+  /**
+   * The ONLY place spaces are loaded.
+   *
+   * There were two call sites and only one passed the extractor, so every schema in the
+   * server collapsed to the empty fallback the first time anything was authored (any write
+   * calls `reload()`) — permanently, and with no error. Two forwarding sites where one
+   * forgets an argument is a failure this codebase has now produced twice; the fix is to
+   * leave exactly one.
+   */
+  private load(): Promise<Space[]> {
+    return this.loader(this.spacesDir, { extractorFor: createExtractor });
+  }
+
   async spaces(): Promise<Space[]> {
-    // The extractor MUST be passed here. Without it every function's schema is the empty
-    // fallback and the tools are unusable — a failure no unit test caught, because the tests
-    // inject their own loader. See PROGRESS-mcp.md.
-    this.cachedSpaces ??= await this.loader(this.spacesDir, { extractorFor: createExtractor });
+    this.cachedSpaces ??= await this.load();
     return this.cachedSpaces;
   }
 
   async reload(): Promise<void> {
-    this.cachedSpaces = await this.loader(this.spacesDir);
+    this.cachedSpaces = await this.load();
     if (this.active && !this.cachedSpaces.some((space) => space.agents.some((agent) => agent.ref === this.active?.ref))) {
       this.active = null;
       this.activeOwner = null;

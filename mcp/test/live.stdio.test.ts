@@ -13,6 +13,7 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -108,4 +109,42 @@ test('set_agent changes the tool list over a live session', async () => {
   assert.ok(!after.includes('joinTags'), 'an agent declaring no functions must expose none');
   await call('set_agent', { ref: 'space-probe/probe' });
   assert.ok((await names()).includes('joinTags'), 'and switching back restores them');
+});
+
+test('a write does not degrade schemas: the authoring round trip end to end', async () => {
+  // The gate that was missing. Every writer calls ctx.reload(), and reload() had its own
+  // loader call site that forgot the extractor — so the FIRST authoring write silently
+  // collapsed every schema in the server to `{properties:{}}`, permanently and with no error.
+  // Anything that writes and then re-reads a schema catches it; nothing else does.
+  const id = `space-writegate-${process.pid}`;
+  const created = await json('create_space', { id });
+  assert.equal(created.ok, true);
+  try {
+    const written = await json('write_function', {
+      space: id, name: 'addTwo',
+      source: '/**\n * Add two numbers.\n * @param a First.\n * @param b Second.\n */\nexport function addTwo(a: number, b: number): number { return a + b; }\n',
+    });
+    assert.equal(written.ok, true);
+    assert.equal(written.schema.properties.a.type, 'number', 'write_function must hand back the derived schema');
+    assert.equal(written.space.id, id);
+    assert.ok(!written.space.functions[0].file.startsWith('/tmp/'), 'function paths must be real');
+
+    await json('write_agent', {
+      space: id, slug: 'agent',
+      frontmatter: { title: 'Write Gate', functions: ['addTwo'], canDelegateTo: [] },
+      instruct: 'Use addTwo.',
+    });
+
+    // AFTER two writes (so two reloads), the schema must still be extracted, not degraded.
+    await call('set_agent', { ref: `${id}/agent` });
+    const fns = await json('list_functions');
+    const added = fns.find((f: any) => f.name === 'addTwo');
+    assert.ok(added, 'the newly authored function must be declared and resolved');
+    assert.equal(added.verdict.kind, 'exact', 'a reload must NOT drop the extractor');
+    assert.equal(added.schema.properties.b.type, 'number');
+    assert.ok((await names()).includes('addTwo'), 'and it must surface as a live MCP tool');
+  } finally {
+    await call('set_agent', { ref: 'space-probe/probe' });
+    await rm(join(pkgRoot, 'spaces', id), { recursive: true, force: true });
+  }
 });

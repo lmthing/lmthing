@@ -23,6 +23,21 @@ async function candidateFor(spaceDir: string): Promise<{ root: string; candidate
   const candidate = join(root, 'space'); await cp(spaceDir, candidate, { recursive: true, dereference: false });
   return { root, candidate };
 }
+/**
+ * Re-parse the space at its REAL location after a successful commit.
+ *
+ * Every writer validates a private copy under a temp dir and then renames the file into
+ * place. Returning that CANDIDATE's `Space` — which is what they all used to do — hands the
+ * caller a `dir`, an `id` (the temp dir's basename, so `"space"`) and per-function `file`
+ * paths that all point inside a directory deleted moments later in the `finally`. Observed
+ * live: `create_space` reported `/tmp/lmthing-mcp-create-…`, and `write_function` reported
+ * the space's id as `"space"`. Harmless to the files on disk, actively misleading to a model
+ * that reads the path back.
+ */
+async function committed(spaceDir: string, extract = false): Promise<Space> {
+  return validate(spaceDir, extract);
+}
+
 async function validate(candidate: string, extract = false): Promise<Space> {
   return loadSpace(candidate, extract ? { extractorFor: createExtractor } : undefined);
 }
@@ -40,7 +55,7 @@ export async function writeSpaceFile(spaceDir: string, path: string, content: st
     const target = resolve(spaceDir, path);
     if (!inside(spaceDir, target)) throw new Error('path must remain inside the space directory');
     await mkdir(dirname(target), { recursive: true }); await rename(file, target);
-    return { ok: true, space };
+    return { ok: true, space: await committed(spaceDir, extract) };
   } catch (error) { return { ok: false, problems: problems(error) }; }
   finally { if (temp) await rm(temp.root, { recursive: true, force: true }); }
 }
@@ -54,8 +69,8 @@ export async function createSpace(spacesDir: string, id: string): Promise<WriteR
     root = await mkdtemp(join(tmpdir(), 'lmthing-mcp-create-')); const candidate = join(root, id);
     await mkdir(join(candidate, 'agents', 'agent'), { recursive: true });
     await writeFile(join(candidate, 'agents', 'agent', 'instruct.md'), '---\ntitle: Agent\n---\n\nYou are the space agent.\n', 'utf8');
-    const space = await validate(candidate); await mkdir(dirname(destination), { recursive: true }); await rename(candidate, destination);
-    return { ok: true, space };
+    await validate(candidate); await mkdir(dirname(destination), { recursive: true }); await rename(candidate, destination);
+    return { ok: true, space: await committed(destination) };
   } catch (error) { return { ok: false, problems: problems(error) }; }
   finally { if (root) await rm(root, { recursive: true, force: true }); }
 }
@@ -70,11 +85,13 @@ export async function writeAgent(spaceDir: string, slug: string, frontmatter: un
     const agentDir = join(temp.candidate, 'agents', slug); await mkdir(agentDir, { recursive: true });
     await writeFile(join(agentDir, 'instruct.md'), `---\n${stringify(frontmatter).trimEnd()}\n---\n\n${instruct}`, 'utf8');
     if (charter !== undefined) await writeFile(join(agentDir, 'charter.md'), charter, 'utf8');
-    const space = await validate(temp.candidate);
+    await validate(temp.candidate);
     const targetDir = join(spaceDir, 'agents', slug); await mkdir(targetDir, { recursive: true });
     await rename(join(agentDir, 'instruct.md'), join(targetDir, 'instruct.md'));
     if (charter !== undefined) await rename(join(agentDir, 'charter.md'), join(targetDir, 'charter.md'));
-    return { ok: true, space };
+    // extract:true so a caller inspecting the returned agent's functions sees real schemas
+    // rather than the 'no extractor' fallback — the two writers disagreed on this before.
+    return { ok: true, space: await committed(spaceDir, true) };
   } catch (error) { return { ok: false, problems: problems(error) }; }
   finally { if (temp) await rm(temp.root, { recursive: true, force: true }); }
 }
@@ -117,7 +134,7 @@ export async function writeTasklistNode(spaceDir: string, slug: string, id: stri
     const parsed = await validate(temp.candidate); const issues = validateDag(parsed.tasklists[slug]!);
     if (issues.length) return { ok: false, problems: issues };
     const target = join(spaceDir, relativePath); await mkdir(dirname(target), { recursive: true }); await rename(candidateFile, target);
-    return { ok: true, space: parsed };
+    return { ok: true, space: await committed(spaceDir) };
   } catch (error) { return { ok: false, problems: problems(error) }; }
   finally { if (temp) await rm(temp.root, { recursive: true, force: true }); }
 }
@@ -130,7 +147,8 @@ export async function deleteSpaceFile(spaceDir: string, path: string): Promise<W
     const stat = await lstat(target); if (stat.isSymbolicLink()) throw new Error('refusing to delete a symlink'); if (!stat.isFile()) throw new Error('path must name one regular file');
     temp = await candidateFor(spaceDir); const candidateFile = resolve(temp.candidate, path); if (!inside(temp.candidate, candidateFile)) throw new Error('path must remain inside the space directory');
     const candidateStat = await lstat(candidateFile); if (candidateStat.isSymbolicLink()) throw new Error('refusing to delete a symlink');
-    await rm(candidateFile); const space = await validate(temp.candidate); await rm(target); return { ok: true, space };
+    await rm(candidateFile); await validate(temp.candidate); await rm(target);
+    return { ok: true, space: await committed(spaceDir) };
   } catch (error) { return { ok: false, problems: problems(error) }; }
   finally { if (temp) await rm(temp.root, { recursive: true, force: true }); }
 }

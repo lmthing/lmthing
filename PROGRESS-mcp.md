@@ -107,10 +107,56 @@ the cwd — so the repo root needs no MCP dependency of its own.
    on every Node, so its version check can actually report the real cause. The realistic way to
    hit this is a client launched from a desktop environment with a different PATH.
 
+## Driven from a live Claude Code session — DONE
+
+Session restarted, `space` approved, all 37 tools reachable as `mcp__space__*`. What that
+confirmed, and the three further defects it found:
+
+**Confirmed working in the real client**
+- **Claude Code honours `notifications/tools/list_changed`.** `set_agent` to `minimal`
+  (`functions: []`) removed all 11 space-function tools from the live tool list; switching back
+  restored them. This had been flagged as an unknown that fails silently — it does not.
+- Extraction, seen through a real client's tool schemas: union → `enum`, one- and two-level inline
+  objects recursed, an **imported** interface resolved (`resolvedShape` → `{label, retries}`), a
+  defaulted param optional, `opaqueShape` `degraded` naming `callback` in both the description and
+  the verdict, `explicitSchema` → `explicit`. Every `@param` reached the model.
+- `resolvedShape({label:'acceptance',retries:3})` → `"acceptance:3"` — typed nested object, real
+  round trip.
+- **The whole authoring round trip:** `create_space` → `write_function` → `write_agent` →
+  `set_agent`, and the newly authored function appeared as a live MCP tool.
+- `list_delegates` on the `open` agent (key OMITTED) returns every agent — unrestricted, and
+  visibly different from `helper`'s `[]`.
+- `export_claude_subagents` respected `probe`'s single-target allowlist and wrote one namespaced
+  file carrying a `generated-by` marker.
+
+**Defect 7 — the extractor was dropped again, at a SECOND call site.** `reload()` called
+`this.loader(this.spacesDir)` with no options — the identical bug fixed earlier in `spaces()`.
+Since every writer calls `ctx.reload()`, the **first authoring write silently collapsed every
+schema in the server to `{properties:{}}`**, permanently, with no error. Found by writing a
+function and then re-reading its schema; the live gate had never done that. Fixed by leaving
+exactly **one** load call site — two forwarding sites where one forgets an argument is a failure
+this codebase has now produced twice (see the `.claude` note in
+[[reference-wiring-gaps-need-live-runs]] §5). New regression test covers write → reload → schema.
+
+**Defect 8 — every writer returned the temp validation candidate, not the committed space.** So
+`create_space` reported `dir: /tmp/lmthing-mcp-create-…` and `write_function` reported the space's
+id as `"space"` (the temp dir's basename), with per-function `file` paths inside a directory
+deleted moments later in the `finally`. The files on disk were correct; the *reported* identity was
+a lie a model would act on. All five writers now re-parse the real location. `write_agent` also
+disagreed with `write_function` about whether to extract, so its report showed `no extractor`;
+both now extract.
+
+**Defect 9 (open) — the exported subagent's `tools` list is likely unusable.** It emits a YAML
+list of *space function* names (`- greet`) where Claude Code wants its own tool names — an MCP tool
+is `mcp__space__greet`, not `greet` — and the list-vs-comma-separated-string syntax is unconfirmed.
+As written the allowlist would match no real tool. Format being verified; not yet fixed.
+
 ## Open
 
-- [ ] **Drive it from a live Claude Code session** — needs approval + a session restart, so it
-      cannot be done from the session that added it.
+- [ ] Fix `export_claude_subagents` tool naming/syntax once the format is confirmed (defect 9),
+      then confirm a generated subagent is actually **reachable** via the Agent tool.
+- [ ] Real-world conformance of the parser and extractor is still **unmeasured** — the 125 function
+      files under `store/*/functions/` are the read-only corpus for that survey.
 - [ ] `export_claude_subagents` end-to-end: generate `.claude/agents/*.md` and confirm the
       generated subagent is actually reachable via the Agent tool.
 - [ ] The authoring round trip driven by a model (`write_function` → new tool appears).

@@ -28,7 +28,7 @@ roster() {
     pi-luna)           KIND=pi; ARGS=(--model azure-responses/gpt-5.6-luna) ;;
     pi-terra|pi-terra-[2-9]) KIND=pi; ARGS=(--model azure-responses/gpt-5.6-terra) ;;
     pi-deepseek-flash|pi-deepseek-flash-[2-9]) KIND=pi; ARGS=(--model azure-chat/DeepSeek-V4-Flash-0731) ;;
-    agy)               KIND=agy; ARGS=(--model gemini-3.7-flash --effort medium) ;;
+    agy|agy-[2-9])     KIND=agy; ARGS=(--model gemini-3.7-flash --effort medium) ;;
     *) return 1 ;;
   esac
 }

@@ -27,9 +27,26 @@ export const tools: ToolGroup = (ctx): ToolDef[] => [
     if (!target) throw new Error(`Delegate ${ref} is not available to the active agent`);
     return { ref: target.agent.ref, title: target.agent.title, instruct: target.agent.instruct, tools: resolvedTools(target.space, target.agent) };
   } },
-  { name: 'export_claude_subagents', description: 'Export permitted delegates as safely namespaced Claude Code subagent markdown files.', inputSchema: { type: 'object', properties: { outDir: { type: 'string' } }, additionalProperties: false }, async handler(args) {
+  /**
+   * A subagent's `tools` list must use CLAUDE CODE's tool names, not the space's function
+   * names. An MCP tool is `mcp__<server>__<fn>`, and from Claude Code 2.1.208 an unresolvable
+   * entry is FATAL — the subagent refuses to launch rather than starting with fewer tools. So
+   * emitting a bare `greet` produced files that could never run.
+   *
+   * `<server>` is the key the CLIENT chose in its own `.mcp.json`; this server cannot know its
+   * own alias, so it is a parameter (default `space`, matching this repo's config). Pass
+   * `serverName` if you registered it under a different key.
+   *
+   * Note what a narrowed subagent gives up: listing only MCP tools means no Read/Bash/Edit.
+   * That is the honest reading of `canDelegateTo` + `functions` as a privilege boundary — omit
+   * `tools` instead (set `inheritTools`) if you want a delegate that can also do general work.
+   */
+  { name: 'export_claude_subagents', description: 'Export permitted delegates as Claude Code subagent files, with MCP-qualified tool names.', inputSchema: { type: 'object', properties: { outDir: { type: 'string' }, serverName: { type: 'string', description: "The key this server is registered under in the client's .mcp.json. Default 'space'." }, inheritTools: { type: 'boolean', description: 'Omit the tools list entirely so the delegate inherits every available tool. Default false.' } }, additionalProperties: false }, async handler(args) {
     const rawOutDir = args.outDir === undefined ? '.claude/agents' : requiredString(args, 'outDir');
     const outDir = isAbsolute(rawOutDir) ? rawOutDir : resolve(rawOutDir);
+    const serverName = args.serverName === undefined ? 'space' : requiredString(args, 'serverName');
+    if (!/^[A-Za-z0-9_-]+$/.test(serverName)) throw new Error(`serverName must match [A-Za-z0-9_-]+, got: ${serverName}`);
+    const inheritTools = args.inheritTools === true;
     await mkdir(outDir, { recursive: true });
     const written: string[] = []; const refused: string[] = [];
     for (const { space, agent } of await delegates(ctx)) {
@@ -38,10 +55,15 @@ export const tools: ToolGroup = (ctx): ToolDef[] => [
         const existing = await readFile(file, 'utf8');
         if (!existing.includes(`generated-by: ${marker}`)) { refused.push(file); continue; }
       } catch (error: unknown) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
-      const tools = resolvedTools(space, agent);
-      const content = `---\ngenerated-by: ${marker}\nname: ${space.id}-${agent.slug}\ndescription: ${agent.title.replace(/\n/g, ' ')}\ntools: ${tools.length ? `\n${tools.map((tool) => `  - ${tool}`).join('\n')}` : '[]'}\n---\n\n${agent.instruct}`;
+      const tools = resolvedTools(space, agent).map((tool) => `mcp__${serverName}__${tool}`);
+      // An empty `tools:` would leave the delegate with nothing at all, so a delegate that
+      // declares no functions inherits instead — a useless subagent is worse than a broad one.
+      const toolsField = inheritTools || tools.length === 0
+        ? ''
+        : `tools:\n${tools.map((tool) => `  - ${tool}`).join('\n')}\n`;
+      const content = `---\ngenerated-by: ${marker}\nname: ${space.id}-${agent.slug}\ndescription: ${agent.title.replace(/\n/g, ' ')}\n${toolsField}---\n\n${agent.instruct}`;
       await writeFile(file, content, 'utf8'); written.push(file);
     }
-    return { written, refused };
+    return { written, refused, serverName, toolPrefix: `mcp__${serverName}__` };
   } },
 ];

@@ -146,15 +146,29 @@ a lie a model would act on. All five writers now re-parse the real location. `wr
 disagreed with `write_function` about whether to extract, so its report showed `no extractor`;
 both now extract.
 
-**Defect 9 (open) — the exported subagent's `tools` list is likely unusable.** It emits a YAML
-list of *space function* names (`- greet`) where Claude Code wants its own tool names — an MCP tool
-is `mcp__space__greet`, not `greet` — and the list-vs-comma-separated-string syntax is unconfirmed.
-As written the allowlist would match no real tool. Format being verified; not yet fixed.
+**Defect 9 — every exported subagent was dead on arrival.** It emitted a YAML list of *space
+function* names (`- greet`). Claude Code's `tools` needs ITS OWN tool names, and an MCP tool is
+`mcp__<server>__greet`. The YAML-list syntax was fine (both a list and a comma-separated string are
+accepted), but from **Claude Code 2.1.208 an unresolvable tool name is FATAL** — the subagent
+refuses to launch rather than starting with fewer tools. This repo runs 2.1.252, so every generated
+file could never have run. Confirmed against
+[the subagents docs](https://code.claude.com/docs/en/sub-agents.md) rather than assumed.
+
+Fixed: names are now `mcp__<serverName>__<fn>`. `<serverName>` is a **parameter** (default
+`space`) because it is the key the *client* chose in its own `.mcp.json` — this server cannot know
+its own alias. Two further judgements baked in: an agent declaring no functions now **omits**
+`tools` entirely (inheriting) rather than emitting an empty list that would leave it with no tools
+at all; and an `inheritTools` flag exists because listing only MCP tools means the delegate gets no
+Read/Bash/Edit — narrow is the honest reading of `canDelegateTo` as a privilege boundary, but it is
+not always what you want.
 
 ## Open
 
-- [ ] Fix `export_claude_subagents` tool naming/syntax once the format is confirmed (defect 9),
-      then confirm a generated subagent is actually **reachable** via the Agent tool.
+- [ ] Confirm a generated subagent is **reachable** via the Agent tool. Blocked on a restart, not
+      on code: Claude Code does not hot-load `.claude/agents/` any more than it hot-loads
+      `.mcp.json` — spawning `space-probe-helper` in the session that wrote it returns
+      `Agent type not found`. A correctly-formatted `.claude/agents/space-probe-helper.md` is left
+      in place (uncommitted) so the next session can finish the check; delete it if unwanted.
 - [ ] Real-world conformance of the parser and extractor is still **unmeasured** — the 125 function
       files under `store/*/functions/` are the read-only corpus for that survey.
 - [ ] `export_claude_subagents` end-to-end: generate `.claude/agents/*.md` and confirm the

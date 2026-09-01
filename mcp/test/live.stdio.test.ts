@@ -13,7 +13,7 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rm } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -146,5 +146,38 @@ test('a write does not degrade schemas: the authoring round trip end to end', as
   } finally {
     await call('set_agent', { ref: 'space-probe/probe' });
     await rm(join(pkgRoot, 'spaces', id), { recursive: true, force: true });
+  }
+});
+
+test('exported subagents use MCP-qualified tool names', async () => {
+  // Claude Code >= 2.1.208 REFUSES to launch a subagent naming a tool it cannot resolve, so a
+  // bare space-function name like `greet` is not merely narrow — it is fatal. The correct name
+  // is `mcp__<server>__greet`, and <server> is the key the CLIENT chose in its .mcp.json, which
+  // this server cannot know: hence the serverName parameter.
+  const outDir = join(pkgRoot, 'test', 'tmp-subagents');
+  try {
+    await call('set_agent', { ref: 'space-probe/probe' });     // canDelegateTo: [helper]
+    const res = await json('export_claude_subagents', { outDir, serverName: 'space' });
+    assert.equal(res.refused.length, 0);
+    assert.equal(res.written.length, 1, 'must respect the allowlist, not export every agent');
+    const body = await readFile(res.written[0], 'utf8');
+    assert.match(body, /^generated-by: lmthing-mcp-space$/m, 'the anti-clobber marker must be present');
+    assert.match(body, /^name: space-probe-helper$/m);
+    assert.match(body, /^ {2}- mcp__space__greet$/m, 'tool names must be MCP-qualified');
+    assert.doesNotMatch(body, /^ {2}- greet$/m, 'a bare function name is fatal to the subagent');
+
+    const custom = await json('export_claude_subagents', { outDir, serverName: 'lm-spaces' });
+    assert.match(await readFile(custom.written[0], 'utf8'), /^ {2}- mcp__lm-spaces__greet$/m);
+
+    // A delegate declaring no functions must INHERIT rather than get an empty list, which
+    // would leave it with no tools at all.
+    await call('set_agent', { ref: 'space-probe/open' });        // omitted => unrestricted
+    const wide = await json('export_claude_subagents', { outDir, serverName: 'space' });
+    const minimalFile = wide.written.find((f: string) => f.endsWith('space-probe-minimal.md'));
+    assert.ok(minimalFile);
+    assert.doesNotMatch(await readFile(minimalFile, 'utf8'), /^tools:/m);
+  } finally {
+    await call('set_agent', { ref: 'space-probe/probe' });
+    await rm(outDir, { recursive: true, force: true });
   }
 });

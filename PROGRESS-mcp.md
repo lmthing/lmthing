@@ -259,3 +259,19 @@ up and Claude Code lists it with `Tools: mcp__space__greet`. The export round tr
 
 **Counts after the refactor:** 33 tests (was 27), `tsc` clean. Open: real-world parser/extractor
 conformance survey over `store/*/functions/` (unmeasured, by design).
+
+### First live tasklist walk (2026-09-01, from this session)
+
+Drove `run_probe` (the diamond) end to end through the in-session server: `next([])` → `start`
+→ gathered 3 samples by really calling the space's functions (`addNumbers`/`greet`/`joinTags`)
+→ `next(['start'])` correctly forked to `inspect`+`expand` → executed both (`condition`
+evaluated client-side: samples non-null; `forEach` ran 3 iterations) → `next` correctly withheld
+`report` until BOTH branches were in the completed set → joined, produced the report, exhausted
+to `[]`. Bad slug errors name the available lists.
+
+**Friction observed (design, not bugs):** the client holds ALL run state — completed ids and node
+outputs live in the caller's context, there is no `mark_complete`, so a reconnecting client
+re-derives everything from its own transcript; `index.md`'s `input:` schema is inert (binding is
+pure client convention, and the fixture's `target` is referenced by no body); `condition`/
+`forEach` are free-text interpreted by the model, not an expression language — fine when the MCP
+client is an agent, a soft spot if a deterministic client ever walks a DAG.

@@ -749,7 +749,30 @@ prior runs, never against a single result.
 > *detected* failures, not a better app — the skeleton problem showing up in the metric itself. Compare
 > batch 2 onward.
 >
-> Trend on comparable batches: Flash 92 -> 66, Pro 69 -> 52.
+> **Raw `[error]` count is a MISLEADING trend metric** — it conflates how buggy a run was with how much
+> it attempted. A run that gets further emits more statements and therefore more errors. Normalising by
+> log lines (`err/1k`) changes the reading of two batches entirely:
+>
+> | run | model | raw | log lines | err/1k |
+> |---|---|---|---|---|
+> | 1 | Flash | 36 | 7145 | 5.0 |
+> | 2 | Pro | 133 | 19978 | 6.7 |
+> | 3 | Flash | 92 | 10229 | 9.0 |
+> | 4 | Pro | 69 | 12569 | 5.5 |
+> | 5 | Flash | 66 | 10413 | 6.3 |
+> | 6 | Pro | 52 | 14035 | 3.7 |
+> | 7 | Flash | 58 | 7654 | 7.6 |
+> | 8 | Pro | 103 | 24359 | 4.2 |
+> | 9 | Flash | 92 | 19392 | **4.7** |
+>
+> Run 8 read as a doubling (52 -> 103) but the RATE barely moved (3.7 -> 4.2). Run 9 read as a
+> regression (58 -> 92) but is the **best Flash rate recorded** (7.6 -> 4.7) — it errored more only
+> because it got roughly 2.5x further. Both of those were misreported at the time.
+>
+> Normalised trend: Flash 9.0 -> 4.7, Pro 6.7 -> 4.2.
+>
+> Zero errors remains the bar — the rate is for tracking progress, not for declaring success. The
+> harness now prints `err/1k` beside the raw count so this cannot be misread again.
 
 Note: run 2's higher count is not simply "Pro is worse" — it produced 19k log lines vs 7k, i.e. it
 attempted considerably more work, so it had more opportunities to fail. Compare like-for-like ideas

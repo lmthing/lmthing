@@ -1,0 +1,1 @@
+The format, taught and applied: every space this agent helps create parses clean and runs end to end.

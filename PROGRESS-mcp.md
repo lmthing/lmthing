@@ -232,9 +232,11 @@ or agent. Requested: "all spaces under the .lmthing dir should be able to be loa
 the harness … load spaces from any project and then agents".
 
 **Layout.** Spaces live at `<root>/.lmthing/<project>/spaces/<spaceId>/`; the default project is
-`default`. The fixtures moved accordingly (`mcp/spaces/` → `mcp/.lmthing/default/spaces/`) and
-`.lmthing/` is deliberately **not** ignored at the repo root — the layout is real and the fixtures
-are tracked. The CLI auto-creates `<runtimeDir>/<project>/spaces` so a first boot never fails.
+`default`. The fixtures moved accordingly (`mcp/spaces/` → `mcp/.lmthing/default/spaces/`, then —
+when `.mcp.json` was repointed at `--root .` — to the REPO ROOT `.lmthing/default/spaces/`, the
+same layout a real user gets). `.lmthing/` is deliberately **not** ignored at the repo root — the
+layout is real and the fixtures are tracked — but `.runs/` beneath it IS (runtime data). The CLI
+auto-creates `<runtimeDir>/<project>/spaces` so a first boot never fails.
 
 **Refs gained a project part.** `Space.ref = "<project>/<id>"`, `Agent.ref =
 "<project>/<space>/<slug>"`. Every ref-taking tool accepts the qualified form, and the bare form
@@ -303,3 +305,39 @@ Tests: `server.taskrun.test.ts` (12: the whole diamond, both drift directions, r
 reconcile, corrupt state, purity of the explicit-completed path); live gate extended with a real
 stdio drift probe. **46/46, `tsc` clean.** `condition`/`forEach` remain model-interpreted
 (free text) — unchanged by design.
+
+### The `format-guide` space — the format, taught by the format (2026-09-01)
+
+Requested: "a space about the space format with tasklists on creating knowledge, agents,
+tasklists etc". Authored **entirely through the MCP authoring tools** (`mcp/forge-format-guide.mjs`
+drives a fresh subprocess against `--root <repoRoot>`): `create_space` → 2 functions → 6
+knowledge aspects → 6 tasklist nodes → the agent. The corpus is now `space-probe`, `space-mini`,
+`format-guide` (22 files).
+
+- **`functions/`**: `parseRef` (validates `<project>/<space>/<slug>`) and `checkDag` (pure
+  unknown-dep + cycle detection) — both extract `exact`; `checkDag` proves array-of-objects with
+  a nested string array extracts fully (`items.items`).
+- **`knowledge/format/`**: `agents/{frontmatter,files}`, `functions/{extraction,rules}`,
+  `tasklists/{dag,running}` — the enforced rules, written as reference an agent loads on demand.
+- **`tasklists/author_a_space`**: a comb — `scaffold → {functions, knowledge} → agent → tasklist
+  → validate` — the validate node ends in walking the new space's own tasklist.
+
+Two more defects only the live forge caught:
+
+- **Defect 11 — the writer's extraction was OPT-IN.** `validate(candidate, project, extract=false)`:
+  most writer call sites never passed `extract`, so `validate_space` and the tasklist/agent
+  writers reported freshly-committed functions as `degraded`/"no extractor" with empty schemas —
+  the write path lying about the artifact it just wrote (defect 7's class again: a forwarding
+  flag the next caller forgets). Extraction is now UNCONDITIONAL on every re-parse; the flag is
+  gone.
+- **`write_tasklist_node` crashed on an entry node** — `node.dependsOn.length` with a raw
+  TypeError (path "") because a first node legitimately omits `dependsOn`. Now defaulted at the
+  boundary and the parameter type says so; `format.write.test.ts` (new, 4 tests) pins entry-node
+  writes, NN- prefixing, unknown-dep refusal, cycle refusal with no partial file committed.
+
+Authoring-order rule discovered live: `write_agent` validates that its `actions:` tasklist slugs
+exist, so a tasklist must be authored BEFORE the agent that binds it (the forge does this).
+
+Also: the runtime moved to the REPO ROOT (`.mcp.json` runs `--root .`) — `.lmthing/default/spaces/`
+now sits where a real user's does; the live gate and loader test are anchored to the repo root,
+not the process cwd. **50/50 tests, `tsc` clean.**

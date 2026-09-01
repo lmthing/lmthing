@@ -130,9 +130,11 @@ test('run state is stored programmatically, and a drifting harness is nudged', a
 });
 
 test('discovery sees both spaces, and delegation resolves the allowlist', async () => {
-  assert.equal((await json('list_spaces')).length, 2);
+  const spaces = await json('list_spaces');
+  assert.ok(spaces.length >= 2, 'the fixtures plus whatever authored spaces exist');
+  assert.ok(spaces.some((space: { id: string }) => space.id === 'format-guide'), 'the format-guide space is discovered');
   assert.match(JSON.stringify(await json('list_delegates')), /helper/);
-  assert.equal((await client.listPrompts()).prompts.length, 5, 'one prompt per agent');
+  assert.ok((await client.listPrompts()).prompts.length >= 6, 'one prompt per agent — grows with the corpus');
   assert.ok((await client.listResources()).resources.length > 0);
 });
 

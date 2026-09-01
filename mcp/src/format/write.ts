@@ -41,16 +41,19 @@ async function candidateFor(spaceDir: string): Promise<{ root: string; candidate
  * the space's id as `"space"`. Harmless to the files on disk, actively misleading to a model
  * that reads the path back.
  */
-async function committed(spaceDir: string, project: string, extract = false): Promise<Space> {
-  return validate(spaceDir, project, extract);
+async function committed(spaceDir: string, project: string): Promise<Space> {
+  return validate(spaceDir, project);
 }
 
-async function validate(candidate: string, project: string, extract = false): Promise<Space> {
-  return loadSpace(candidate, project, extract ? { extractorFor: createExtractor } : undefined);
+// EVERY re-parse carries the extractor — never opt-in. An opt-in flag made most call sites
+// forget it, so writer responses reported freshly-committed functions as `degraded` with
+// "no extractor" and empty schemas: the write path lying about the artifact it just wrote.
+async function validate(candidate: string, project: string): Promise<Space> {
+  return loadSpace(candidate, project, { extractorFor: createExtractor });
 }
 
 /** Apply an edit in a private copy, re-parse it, then atomically replace just that file. */
-export async function writeSpaceFile(into: WriteTarget, path: string, content: string, extract = false): Promise<WriteResult> {
+export async function writeSpaceFile(into: WriteTarget, path: string, content: string): Promise<WriteResult> {
   let temp: { root: string; candidate: string } | undefined;
   try {
     if (isAbsolute(path) || path.split(/[\\/]/).includes('..')) throw new Error('path must remain inside the space directory');
@@ -58,11 +61,11 @@ export async function writeSpaceFile(into: WriteTarget, path: string, content: s
     const file = resolve(temp.candidate, path);
     if (!inside(temp.candidate, file)) throw new Error('path must remain inside the space directory');
     await mkdir(dirname(file), { recursive: true }); await writeFile(file, content, 'utf8');
-    const space = await validate(temp.candidate, into.project, extract);
+    const space = await validate(temp.candidate, into.project);
     const target = resolve(into.dir, path);
     if (!inside(into.dir, target)) throw new Error('path must remain inside the space directory');
     await mkdir(dirname(target), { recursive: true }); await rename(file, target);
-    return { ok: true, space: await committed(into.dir, into.project, extract) };
+    return { ok: true, space: await committed(into.dir, into.project) };
   } catch (error) { return { ok: false, problems: problems(error) }; }
   finally { if (temp) await rm(temp.root, { recursive: true, force: true }); }
 }
@@ -96,9 +99,9 @@ export async function writeAgent(into: WriteTarget, slug: string, frontmatter: u
     const targetDir = join(into.dir, 'agents', slug); await mkdir(targetDir, { recursive: true });
     await rename(join(agentDir, 'instruct.md'), join(targetDir, 'instruct.md'));
     if (charter !== undefined) await rename(join(agentDir, 'charter.md'), join(targetDir, 'charter.md'));
-    // extract:true so a caller inspecting the returned agent's functions sees real schemas
-    // rather than the 'no extractor' fallback — the two writers disagreed on this before.
-    return { ok: true, space: await committed(into.dir, into.project, true) };
+    // extraction is unconditional now, so a caller inspecting the returned agent's functions
+    // sees real schemas rather than the 'no extractor' fallback the writers used to disagree on.
+    return { ok: true, space: await committed(into.dir, into.project) };
   } catch (error) { return { ok: false, problems: problems(error) }; }
   finally { if (temp) await rm(temp.root, { recursive: true, force: true }); }
 }
@@ -106,7 +109,7 @@ export async function writeAgent(into: WriteTarget, slug: string, frontmatter: u
 export async function writeFunction(into: WriteTarget, name: string, source: string): Promise<WriteResult> {
   try {
     safeSegment(name, 'name'); if (typeof source !== 'string') throw new Error('source must be a string');
-    const result = await writeSpaceFile(into, join('functions', `${name}.ts`), source, true);
+    const result = await writeSpaceFile(into, join('functions', `${name}.ts`), source);
     if (!result.ok) return result;
     const fn = result.space.functions.find((item) => item.name === name);
     if (!fn) return { ok: false, problems: [{ path: `functions/${name}.ts`, message: 'function extraction produced no matching export' }] };
@@ -128,16 +131,19 @@ function nodeContent(node: Omit<TaskNode, 'file'>): string {
   if (node.role !== undefined) data.role = node.role;
   return `---\n${stringify(data).trimEnd()}\n---\n\n${node.body}`;
 }
-export async function writeTasklistNode(into: WriteTarget, slug: string, id: string, node: Omit<TaskNode, 'file' | 'id'>): Promise<WriteResult> {
+export async function writeTasklistNode(into: WriteTarget, slug: string, id: string, node: Omit<TaskNode, 'file' | 'id' | 'dependsOn'> & { dependsOn?: string[] }): Promise<WriteResult> {
   let temp: { root: string; candidate: string } | undefined;
   try {
     safeSegment(slug, 'slug'); safeSegment(id, 'id');
+    // `dependsOn` is optional at the boundary — an ENTRY node legitimately has none — and a raw
+    // TypeError from `node.dependsOn.length` deep in nodeContent is not a format problem.
+    const normalized: Omit<TaskNode, 'file' | 'id'> = { ...node, dependsOn: Array.isArray(node.dependsOn) ? node.dependsOn : [] };
     temp = await candidateFor(into.dir); const loaded = await validate(temp.candidate, into.project);
     const dag = loaded.tasklists[slug] ?? { slug, dir: join(temp.candidate, 'tasklists', slug), nodes: [] };
     const existing = dag.nodes.find((item) => item.id === id);
     const filename = existing ? basename(existing.file) : `${String(dag.nodes.length + 1).padStart(2, '0')}-${id}.md`;
     const relativePath = join('tasklists', slug, filename); const candidateFile = join(temp.candidate, relativePath);
-    await mkdir(dirname(candidateFile), { recursive: true }); await writeFile(candidateFile, nodeContent({ ...node, id }), 'utf8');
+    await mkdir(dirname(candidateFile), { recursive: true }); await writeFile(candidateFile, nodeContent({ ...normalized, id }), 'utf8');
     const parsed = await validate(temp.candidate, into.project); const issues = validateDag(parsed.tasklists[slug]!);
     if (issues.length) return { ok: false, problems: issues };
     const target = join(into.dir, relativePath); await mkdir(dirname(target), { recursive: true }); await rename(candidateFile, target);

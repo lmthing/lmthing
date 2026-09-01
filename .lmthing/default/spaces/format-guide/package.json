@@ -1,0 +1,12 @@
+{
+  "name": "format-guide",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "Format Guide",
+    "tags": ["format", "authoring", "meta"],
+    "icon": "📐",
+    "description": "A space about the space format: agents, functions, knowledge and tasklists, with a tasklist that walks authoring a complete space."
+  }
+}

@@ -18,11 +18,10 @@ async function agent(root: string, frontmatter: string): Promise<void> {
 afterEach(async () => { await Promise.all(cleanup.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))); });
 
 describe('space format loader', () => {
-  test('loads both authored fixture spaces and the complete probe surface', async () => {
+  test('loads all authored fixture spaces and the complete probe surface', async () => {
     const all = await loadSpaces(spaces);
-    assert.deepEqual(all.map((space) => space.id), ['space-mini', 'space-probe']);
-    assert.equal((all[0]!.manifest as { name: string }).name, 'space-mini');
-    const probe = all[1]!;
+    assert.deepEqual(all.map((space) => space.id), ['format-guide', 'space-mini', 'space-probe']);
+    const probe = all.find((space) => space.id === 'space-probe')!;
     assert.equal((probe.manifest as { name: string }).name, 'space-probe');
     assert.deepEqual(probe.functions.map((fn) => fn.name).sort(), ['addNumbers', 'explicitSchema', 'greet', 'joinTags', 'nestedShape', 'opaqueShape', 'pickTone', 'resolvedShape', 'returnsNothing', 'summarize', 'throwsError']);
     assert.ok(probe.functions.every((fn) => fn.verdict.kind === 'degraded'));

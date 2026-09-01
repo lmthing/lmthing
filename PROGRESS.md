@@ -769,7 +769,19 @@ prior runs, never against a single result.
 > regression (58 -> 92) but is the **best Flash rate recorded** (7.6 -> 4.7) — it errored more only
 > because it got roughly 2.5x further. Both of those were misreported at the time.
 >
-> Normalised trend: Flash 9.0 -> 4.7, Pro 6.7 -> 4.2.
+> **The aggregate rate is NOT a usable trend at n=1 per batch.** Flash's comparable runs are
+> 9.0, 6.3, 7.6, 4.7, 6.3 — mean 6.8, stdev 1.6, spread 4.3 wide. Quoting "9.0 -> 4.7" picks the
+> endpoints of a noisy series; the run-to-run spread is LARGER than the apparent improvement. Pro
+> (5.5, 3.7, 4.2) is tighter but only three points. Establishing a real rate trend needs several runs
+> per configuration, which has not been done.
+>
+> **Class-level evidence is the reliable signal** and it is strong: a specific class appearing or
+> vanishing after a specific fix is causal in a way a total is not. Confirmed disappearances —
+> `.raw` (4 -> 0), `create/update needs a "set" map` (4 -> 0), `used before being assigned` (3 -> 0),
+> the vague `not assignable to ViewSpec` tail (~30 -> 0). Confirmed reduction —
+> `returns Promise<Output>` 21 -> 8 after the implement_endpoints contradiction was fixed.
+>
+> Judge fixes by their class, not by the total.
 >
 > Zero errors remains the bar — the rate is for tracking progress, not for declaring success. The
 > harness now prints `err/1k` beside the raw count so this cannot be misread again.

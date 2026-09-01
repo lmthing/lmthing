@@ -72,7 +72,7 @@ export const tools: ToolGroup = (ctx): ToolDef[] => [
       if (args.reset === true) await rm(file, { force: true });
       let run: TasklistRun | undefined = await loadRun(file);
       const created = !run;
-      if (!run) run = freshRun(dag, agent.slug, space.project, now());
+      if (!run) run = freshRun(dag, agent.slug, space.id, space.project, now());
       const adjusted = reconcile(run, dag);
       if (adjusted.length) { run.updatedAt = now(); await saveRun(file, run); }
       const standings = () => ({

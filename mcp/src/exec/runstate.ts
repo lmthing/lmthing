@@ -68,14 +68,8 @@ export async function saveRun(file: string, run: TasklistRun): Promise<void> {
   await rename(tmp, file);
 }
 
-export function freshRun(dag: TasklistDag, agentSlug: string, project: string, now: string): TasklistRun {
-  return { version: 1, slug: dag.slug, agent: agentSlug, space: spaceIdOf(dag), project, startedAt: now, updatedAt: now, nodes: {} };
-}
-
-function spaceIdOf(dag: TasklistDag): string {
-  // `<...>/spaces/<spaceId>/tasklists/<slug>` — the space id is two levels above the tasklist.
-  const parts = dag.dir.split(/[/\\]/);
-  return parts[parts.length - 4] ?? '';
+export function freshRun(dag: TasklistDag, agentSlug: string, spaceId: string, project: string, now: string): TasklistRun {
+  return { version: 1, slug: dag.slug, agent: agentSlug, space: spaceId, project, startedAt: now, updatedAt: now, nodes: {} };
 }
 
 /**

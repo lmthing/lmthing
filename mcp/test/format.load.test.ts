@@ -2,11 +2,13 @@ import { afterEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { loadSpace, loadSpaces } from '../src/format/load.ts';
 
-// The real layout: <root>/.lmthing/<project>/spaces/, project 'default'.
-const spaces = resolve('.lmthing/default/spaces');
+// The real layout: <repoRoot>/.lmthing/<project>/spaces/ — anchored to the TEST FILE, not the
+// process cwd, so the suite runs identically from anywhere.
+const spaces = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '.lmthing', 'default', 'spaces');
 const cleanup: string[] = [];
 async function scratch(): Promise<string> { const dir = await mkdtemp(join(tmpdir(), 'mcp-space-')); cleanup.push(dir); return dir; }
 async function agent(root: string, frontmatter: string): Promise<void> {

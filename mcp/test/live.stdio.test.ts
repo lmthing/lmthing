@@ -20,7 +20,10 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const spacesDir = join(pkgRoot, '.lmthing', 'default', 'spaces');
+// The runtime lives at the REPO root (`<repo>/.lmthing/<project>/spaces`) — the same layout a
+// real user gets from `--root .`, which is what the repo's .mcp.json points at.
+const repoRoot = join(pkgRoot, '..');
+const spacesDir = join(repoRoot, '.lmthing', 'default', 'spaces');
 let client: Client;
 
 before(async () => {
@@ -31,7 +34,7 @@ before(async () => {
     // pointing at cli.ts once hid a bug where the launcher started nothing at all. And `--root`
     // rather than `--spaces-dir`, so this exercises the DEFAULT layout resolution
     // (<root>/.lmthing/default/spaces) that a real client gets, not an override path.
-    args: [join(pkgRoot, 'bin', 'mcp-space.mjs'), '--root', pkgRoot, '--agent', 'space-probe/probe'],
+    args: [join(pkgRoot, 'bin', 'mcp-space.mjs'), '--root', repoRoot, '--agent', 'space-probe/probe'],
     cwd: pkgRoot,
     stderr: 'pipe',
   }));
@@ -101,7 +104,7 @@ test('knowledge and the tasklist DAG', async () => {
 test('run state is stored programmatically, and a drifting harness is nudged', async () => {
   // The run file lives OUTSIDE spaces/ — runtime data, not format data — keyed per agent,
   // and every start/complete call re-reads it, so a reconnecting harness loses nothing.
-  const file = join(pkgRoot, '.lmthing', 'default', '.runs', 'space-probe', 'probe', 'run_probe.json');
+  const file = join(repoRoot, '.lmthing', 'default', '.runs', 'space-probe', 'probe', 'run_probe.json');
   try {
     await rm(file, { force: true });
     await call('set_agent', { ref: 'space-probe/probe' });

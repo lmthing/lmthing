@@ -49,7 +49,11 @@ describe('start_task / complete_task over a persisted run', () => {
     assert.deepEqual(fresh.completed, []);
     assert.deepEqual(fresh.ready.map((entry: { id: string }) => entry.id), ['start']);
     assert.equal(fresh.runComplete, false);
-    assert.ok((await loadRun(stateFile())), 'the run must be persisted immediately');
+    const stored = (await loadRun(stateFile()))!;
+    assert.ok(stored, 'the run must be persisted immediately');
+    assert.equal(stored.space, 'demo', 'provenance comes from the caller, never parsed out of a path');
+    assert.equal(stored.agent, 'walker');
+    assert.equal(stored.project, 'default');
   });
 
   test('starting a blocked node is refused with guidance naming what IS ready', async () => {

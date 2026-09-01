@@ -1,0 +1,12 @@
+{
+  "name": "utility-intake",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "utility",
+    "title": "Intake",
+    "tags": ["utility", "data-in"],
+    "icon": "📬",
+    "description": "A universal inbox: anything dropped into intake_items gets routed into your real tables by rules you confirm."
+  }
+}

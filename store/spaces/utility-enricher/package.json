@@ -1,0 +1,12 @@
+{
+  "name": "utility-enricher",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "utility",
+    "title": "Enricher",
+    "tags": ["utility", "research"],
+    "icon": "🔍",
+    "description": "Finds the blank cells in your tables, researches each one on the web with a cited source, and fills them in only after you approve."
+  }
+}

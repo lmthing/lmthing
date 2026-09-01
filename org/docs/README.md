@@ -87,7 +87,7 @@ store/
     └── <id>/            # a complete space template        → org/format/space/
 ```
 
-The generator resolves exactly these two dirs — `APPS_DIR = store/projects`, `SPACES_DIR = store/spaces` — and emits the two-array manifest (`store/scripts/gen-apps-manifest.mjs:L40-L42`, `:L482`). Six project-apps ship today (`blog`, `demo-feed`, `health`, `homes`, `kitchen`, `trips` — `store/projects/manifest.json` `apps[].id`); the integration spaces live under `store/spaces/integration-*`.
+The generator resolves exactly these two dirs — `APPS_DIR = store/projects`, `SPACES_DIR = store/spaces` — and emits the two-array manifest (`store/scripts/gen-apps-manifest.mjs:L40-L42`, `:L482`). Six project-apps ship today (`blog`, `demo-feed`, `health`, `homes`, `kitchen`, `trips` — `store/projects/manifest.json` `apps[].id`); the integration spaces live under `store/spaces/integration-*`, and the schema-agnostic utility spaces (`lmthing.kind: "utility"` in their `package.json`) under `store/spaces/utility-*`.
 
 Installing is a pod call, two ways:
 

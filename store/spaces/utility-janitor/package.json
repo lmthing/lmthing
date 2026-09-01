@@ -1,0 +1,12 @@
+{
+  "name": "utility-janitor",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "utility",
+    "title": "Janitor",
+    "tags": ["utility", "data-quality"],
+    "icon": "🧹",
+    "description": "Finds duplicates, messy values and orphaned rows across your app's tables and queues each one as a proposal you approve before anything is changed."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "utility-archivist",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "utility",
+    "title": "Archivist",
+    "tags": ["utility", "governance"],
+    "icon": "🗄️",
+    "description": "Takes weekly snapshots of your tables, names the rows old enough to archive, and reports where personal data lives — without ever deleting anything."
+  }
+}

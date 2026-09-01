@@ -43,13 +43,42 @@ export interface Capability {
 
 // ---------------------------------------------------------------- agent actions
 
-/** One `actions:` entry — a named entry point, optionally backed by a tasklist. */
+/**
+ * One `actions:` entry — a named entry point, optionally backed by a tasklist.
+ * Field names are the SPEC's (`{id,label,description,tasklist}`), not invented ones.
+ */
 export interface Action {
-  name: string;
+  id: string;
+  label?: string;
   description?: string;
+  /** Must resolve to a real tasklist slug in the space, or the load fails. */
   tasklist?: string;
-  isDefault?: boolean;
 }
+
+/** One `triggers:` entry — an inbound-webhook binding. */
+export interface WebhookTrigger {
+  path: string;
+  provider?: string;
+}
+
+/**
+ * The fail-loud allow-list for agent `instruct.md` frontmatter.
+ *
+ * Any top-level key outside this set MUST abort the whole space load. That is the
+ * point: a typo'd `capabilites:` or `canDelegateto:` would otherwise silently grant
+ * nothing, which is the exact failure this list exists to prevent.
+ */
+export const AGENT_FRONTMATTER_ALLOWED_KEYS = [
+  'title', 'knowledge', 'functions', 'components', 'actions', 'defaultAction',
+  'canDelegateTo', 'dependencies', 'capabilities', 'model', 'triggers',
+] as const;
+
+/** The recognized `capabilities:` grant ids. An unknown id MUST fail the load. */
+export const CAPABILITY_IDS = [
+  'db:read', 'db:write', 'db:schema', 'views:write', 'api:write', 'hooks:write',
+  'knowledge:write', 'self:author', 'project:manage', 'api:call', 'connections:use',
+  'store:read', 'store:install', 'events:emit',
+] as const;
 
 // ---------------------------------------------------------------- functions
 
@@ -156,16 +185,28 @@ export interface Agent {
   instruct: string;
   /** Declared function names — NOT resolved; intersect with `Space.functions`. */
   functions: string[];
-  /** Declared `<domain>/<field>` knowledge refs. */
+  /** Declared knowledge refs, each `domain/field` OR `domain/field/option` (three parts are legal). */
   knowledge: string[];
   capabilities: Capability[];
   /**
-   * `undefined` means the key was OMITTED, which is UNRESTRICTED.
-   * `[]` means explicitly none. Do not conflate the two — this inversion is
-   * easy to flip silently and it is the difference between "all" and "nothing".
+   * TRI-STATE, and the states are not interchangeable:
+   *   `undefined`  the key was OMITTED  -> unrestricted at agent level
+   *   `[]`         explicitly empty     -> NO delegation
+   *   `['*']`      the explicit wildcard-> unrestricted
+   *   `[refs...]`  an allowlist
+   * Do not normalise any of these into another. Omitted vs `[]` is the difference
+   * between "everything" and "nothing", and it flips silently.
+   *
+   * The deprecated `dependencies:` key is an alias read ONLY when `canDelegateTo`
+   * is absent; resolve it during parsing so nothing downstream sees `dependencies`.
    */
   canDelegateTo: string[] | undefined;
   actions: Action[];
+  /** An `actions[].id`. */
+  defaultAction?: string;
+  /** Model alias/spec for this agent's turns; undefined = inherit the caller. */
+  model?: string;
+  triggers?: WebhookTrigger[];
 }
 
 /** A part of the format this package deliberately does not support, surfaced rather than hidden. */

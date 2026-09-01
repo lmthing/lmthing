@@ -57,8 +57,37 @@ meanings, easy to flip silently — every track has a test for it.
 
 ```sh
 node sdk/org/node_modules/typescript/bin/tsc -p mcp/tsconfig.json --noEmit
-cd mcp && npx vitest run
+cd mcp && node --test "test/**/*.test.ts"
 ```
+
+## Corrections made mid-flight
+
+**The test runner is `node --test`, not vitest.** vitest is broken in this repo's **root**
+workspace — `@voidzero-dev/vite-plus-core@0.1.24` is missing its native rolldown binding, so every
+run dies with `Cannot find module '../rolldown-binding.linux-x64-gnu.node'`. Pre-existing; `mcp/`
+was simply the first root-workspace package to run tests (it works in `sdk/org`, a separate
+workspace, which is misleading). Node 24 strips TypeScript natively, so `node --test` on `.ts`
+files needs no runner dependency at all — a better fit for a package whose whole point is
+standing alone. vitest was dropped from `mcp/package.json`.
+
+**The seam diverged from the spec in five places**, all found by reading
+`org/docs/format/space/agents/frontmatter.md` and fixed in one pass while the tracks were still
+running (a `tsc` run then located every affected call site — 2 of them):
+
+| was | is | why |
+|---|---|---|
+| `Action.name` | `Action.id` (+ `label?`) | the spec's field is `id`; an invented name would have shipped |
+| — | `Agent.defaultAction` / `model` / `triggers` | allow-listed keys that were simply missing |
+| — | exported `AGENT_FRONTMATTER_ALLOWED_KEYS` | the allow-list is **fail-loud**: an unlisted key must abort the load, which is the whole reason it exists — a typo'd `capabilites:` would otherwise silently grant nothing |
+| — | exported `CAPABILITY_IDS` (14) | an unknown grant id must fail the load |
+| `canDelegateTo` 2-state | 4-state | `undefined` (omitted → unrestricted), `[]` (none), `['*']` (explicit wildcard), or an allowlist. Also `dependencies:` is a deprecated alias read only when `canDelegateTo` is absent |
+
+Knowledge refs are also `domain/field` **or** `domain/field/option` — three parts are legal.
+
+**`ToolGroup` idiom.** Three tracks independently hit the same compile error: an array of
+differing object literals gets unioned, TypeScript adds `someKey?: undefined` to each member, and
+that fails `Record<string, JsonSchema>`. Fix is to annotate each tool separately
+(`const t: ToolDef = {...}`) rather than rely on inference over the array.
 
 ## Notes worth keeping
 

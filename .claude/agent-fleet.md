@@ -125,10 +125,13 @@ There is much more (`--help`): `network route`/`har`, `cookies`/`storage`, tabs,
 Traps:
 - Headless works **without** the optional system deps. `agent-browser install --with-deps` needs root,
   aborts cleanly without it, and prints the apt list — hand that list to the user, don't try to sudo.
-- pi and agy agents have **no MCP client at all** (no `mcpServers` setting, no MCP SDK in their
-  dependency tree). Your `chrome-devtools` MCP is a private stdio child of your own process and cannot
-  be shared with them — `agent-browser` is how they browse. `claudez` is Claude Code, so it *does*
-  inherit the user-level MCP servers and gets its own isolated Chrome on top.
+- pi agents have **no MCP client at all** (no `mcpServers` setting, no MCP SDK in their
+  dependency tree); **agy DOES since 1.1.23** (`agy mcp add <name> -- <command> <args…>`,
+  config under `~/.gemini/antigravity-cli/` — verified 2026-09-02 by having agy author a space
+  through the lmthing space server). Your `chrome-devtools` MCP is a private stdio child of your
+  own process and cannot be shared with them — `agent-browser` is how they browse. `claudez` is
+  Claude Code, so it *does* inherit the user-level MCP servers and gets its own isolated Chrome
+  on top.
 - `agent-browser mcp` runs as an MCP stdio server, if you ever want the orchestrator on the same
   browser as a subagent instead of on its own chrome-devtools instance.
 

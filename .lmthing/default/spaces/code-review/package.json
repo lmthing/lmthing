@@ -1,0 +1,12 @@
+{
+  "name": "code-review",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "Code Review",
+    "tags": ["review", "quality"],
+    "icon": "🔍",
+    "description": "A space about reviewing code: standards, a severity scale, and a tasklist that walks a PR from diff to verdict."
+  }
+}

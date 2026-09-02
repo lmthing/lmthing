@@ -388,3 +388,22 @@ flagged the stale `store/projects/demo-feed/pages/index.tsx` as a leftover. The 
 Also: the loader test now pins the FIXTURE spaces rather than the whole corpus list — the corpus
 grows (5 spaces: app-forge, format-guide, hello-forge, space-mini, space-probe) and the test
 stopped breaking every time. 50/50, `tsc` clean.
+
+### Cross-harness proof: `agy` (Google Antigravity CLI) authored a space (2026-09-02)
+
+The original pivot requirement was that space agents be usable from MANY harnesses. First
+second-harness proof, live through herdr: `agy` 1.1.23 has a native MCP client (`agy mcp add
+<name> -- <command> <args…>` — the old "pi/agy have no MCP client" note was true on 08-31 and is
+now half false; still true for **pi**). Registered the space server user-level, spawned
+`gemini-3.7-flash` in a herdr pane (`agent start --kind agy`, permissions skipped), and gave it a
+spec for the **`code-review`** space.
+
+Result, verified from disk + a fresh subprocess (not from agy's claims): 11 files authored
+entirely through the MCP tools, `validate_space` clean, `prioritizeFindings` verdict **exact**
+with `"blocker" | "nit"` extracted as a real `enum`, and the `review_pr` DAG walks correctly
+(`read_diff` → `annotate` → `verdict`). agy followed the tasklist-before-agent ordering rule
+without hitting the refusal. Two mechanical notes: Antigravity materializes each MCP tool's JSON
+schema to `~/.gemini/antigravity-cli/mcp/<server>/` and the model READS those files before
+calling — discovery is file-based; and it left the `agents/agent` placeholder (removed at
+integration, per the established pattern) plus needed the `package.json` manifest no tool can
+author. **Corpus is now 6 spaces; 50/50 tests, `tsc` clean.**

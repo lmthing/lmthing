@@ -1,0 +1,12 @@
+{
+  "name": "app-forge",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "App Forge",
+    "tags": ["project-format", "appbuilder", "iteration"],
+    "icon": "🏗️",
+    "description": "A space about project-app creation and iteration: layout, tables, endpoints, view specs, hooks — with tasklists for building an app end to end and for iterating a live one."
+  }
+}

@@ -1,0 +1,1 @@
+The project-as-application format, in enforceable rules: how an app's pillars are laid out on disk, what each artifact kind must carry, and what must be true before an iteration is called done. Grounded in `org/docs/format/project/`.

@@ -20,7 +20,9 @@ afterEach(async () => { await Promise.all(cleanup.splice(0).map((dir) => rm(dir,
 describe('space format loader', () => {
   test('loads all authored fixture spaces and the complete probe surface', async () => {
     const all = await loadSpaces(spaces);
-    assert.deepEqual(all.map((space) => space.id), ['format-guide', 'space-mini', 'space-probe']);
+    // The corpus GROWS (format-guide, app-forge, …) — pin the fixtures, not the full list.
+    const ids = all.map((space) => space.id);
+    for (const expected of ['format-guide', 'space-mini', 'space-probe']) assert.ok(ids.includes(expected), `missing fixture space: ${expected}`);
     const probe = all.find((space) => space.id === 'space-probe')!;
     assert.equal((probe.manifest as { name: string }).name, 'space-probe');
     assert.deepEqual(probe.functions.map((fn) => fn.name).sort(), ['addNumbers', 'explicitSchema', 'greet', 'joinTags', 'nestedShape', 'opaqueShape', 'pickTone', 'resolvedShape', 'returnsNothing', 'summarize', 'throwsError']);

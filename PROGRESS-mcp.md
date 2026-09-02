@@ -367,3 +367,24 @@ and the authoring-order rule held again — the `welcome` tasklist was written b
 that binds it, while the DAG's `agent` node still completed before `tasklist` (file order and
 node-completion order are independent). `create_space`'s placeholder `agents/agent` has no delete
 tool, but `write_agent slug:"agent"` REPLACES its instruct — the practical removal path.
+
+### The `app-forge` space — project-app creation and iteration (2026-09-02, by a Sonnet subagent)
+
+Spawned a **Sonnet** general-purpose agent (with the guide active, so its tool snapshot carried
+`parseRef`/`checkDag`) to author a space about the PROJECT format: read `org/docs/format/project/**`
+first, skim a real `store/projects/*`, then build `.lmthing/default/spaces/app-forge/` (27 files)
+entirely through the authoring tools. Verified in the main session: `validate_space` clean, both
+functions verdict `exact` (`planIteration`'s `"fix" | "polish"` union extracted as a real `enum`),
+both DAG forks correct (`create_app`: scaffold → {schema, api} → pages → wire → verify;
+`iterate_app`: inspect → plan → {fix, polish} → reverify with condition/forEach over
+`planIteration`'s output), agents `agent` (orchestrator, rebranded placeholder) + `builder`.
+
+**The subagent over-ruled my prompt with the docs — correctly.** I sketched pages as `pages/`
+directories; the docs say a project page is a **view spec** (`views/<route>.view.json`, the
+hand-written-TSX format removed from the codebase entirely), so that is what it taught — and it
+flagged the stale `store/projects/demo-feed/pages/index.tsx` as a leftover. The spec lives in
+`org/docs/` and loses to nothing.
+
+Also: the loader test now pins the FIXTURE spaces rather than the whole corpus list — the corpus
+grows (5 spaces: app-forge, format-guide, hello-forge, space-mini, space-probe) and the test
+stopped breaking every time. 50/50, `tsc` clean.

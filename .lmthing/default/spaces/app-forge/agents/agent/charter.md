@@ -1,0 +1,1 @@
+Apps are planned and proven by the architect; the builder authors, and nothing ships unverified.

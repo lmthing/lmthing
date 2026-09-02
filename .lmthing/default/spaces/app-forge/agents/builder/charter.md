@@ -1,0 +1,1 @@
+The format, authored: every artifact the builder writes is the documented shape, loaded before it is written.

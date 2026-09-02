@@ -407,3 +407,23 @@ schema to `~/.gemini/antigravity-cli/mcp/<server>/` and the model READS those fi
 calling — discovery is file-based; and it left the `agents/agent` placeholder (removed at
 integration, per the established pattern) plus needed the `package.json` manifest no tool can
 author. **Corpus is now 6 spaces; 50/50 tests, `tsc` clean.**
+
+### agy loads the reviewer and reviews for real — and confirms the `tools/list_changed` risk (2026-09-02)
+
+Second agy run: told it to `set_agent` to `default/code-review/reviewer` (the agent it had just
+built) and walk `review_pr` over a seeded flawed file (`/tmp/review-sample/calculate.ts`).
+Result, verified from the run-state file: all three nodes complete in DAG order with declared
+outputs — `read_diff` recorded the file, `annotate` produced four genuine findings (`any[]`,
+unvalidated `mode` string, `==` vs `===`, unguarded division), `verdict` split them 3 blockers /
+1 nit and wrote a real decision text. The format loop worked end to end under a non-Claude
+harness.
+
+**The finding: Antigravity does NOT honour `tools/list_changed`.** After `set_agent`,
+`prioritizeFindings` never appeared in agy's tools — the registry is fixed at session start
+(agy's own words: "tools remain fixed at the server protocol level"). It fell back to executing
+the function file with `node --experimental-strip-types`, which produced the correct raw return
+but bypasses the server. This is the plan's flagged silent-failure risk, now CONFIRMED outside
+Claude Code (where the notification verifiably works). **Operational rule for agy: pre-select
+the agent at LAUNCH** — `--agent <project>/<space>/<slug>` puts that agent's function tools into
+the startup tool discovery; switching agents mid-session needs an agy restart. The `--agent`
+fallback was designed for exactly this.

@@ -15,20 +15,95 @@ integration.
   - Verified `pnpm install --frozen-lockfile` is green after refreshing lockfile specifiers
     offline (`pnpm install --offline`, zero network resolution — proves no version actually moved,
     only the specifier string).
-  - **Not done in A0** (deliberately deferred, needs its own decision — see below): the
-    vendored-mirror / private-registry mechanism for `pnpm install --frozen-lockfile --offline`
-    against a mirror the registry can't silently break. 198 `@deepseek-ai/*` packages, ~41MB in the
-    local store — committing that as tarballs is a real repo-size tradeoff, not a mechanical step.
-    **Needs a decision**: committed tarball dir vs. private registry vs. accept frozen-lockfile +
-    committed lockfile as the safety net for now (registry availability risk only, not version-drift
-    risk — a real gap, but a different one).
+  - **Decision (user, 2026-09-07): defer full vendoring.** Rely on the committed `pnpm-lock.yaml` +
+    exact pins + `--frozen-lockfile` as the safety net against version *drift*. Registry
+    *availability* risk (npm yanking/unpublishing `0.1.1-rc.2`) is knowingly NOT covered —
+    revisit (committed tarball mirror, ~41MB/198 packages, or a private registry) if/when a real
+    outage happens.
   - **Found, not fixed** (belongs to A1): `packages/space-knowledge/test/resolve.test.js`'s
     "a real LMThing frontmattered option (user-thing playbooks)" test fails — the real
     `sdk/org/libs/core/system-spaces/user-thing` agent now declares capability `self:author`,
     which isn't in dsh's `CAPABILITY_IDS` allow-list (`packages/space-format/src/capabilities.js`).
     Pre-existing drift, confirmed unrelated to the pinning change. Fix when unifying the parsers.
 
-- [ ] **A1 — unify the three space-format parsers** into one `@lmthing/dsh-space-format`.
+- [~] **A1 — unify the three space-format parsers** into one `@lmthing/dsh-space-format`.
+  Split into two independently-verified steps to contain blast radius:
+  - [x] **A1a — DONE.** Rewrote `dsh/packages/space-format` as the canonical parser, in native
+    TypeScript (no build step — same Node-24-native-type-stripping pattern `mcp/` already uses;
+    `main: src/index.ts`, imports use explicit `.ts` specifiers + `allowImportingTsExtensions` —
+    NOT the usual NodeNext `.js`-specifier convention, which does NOT auto-resolve to a sibling
+    `.ts` file at runtime, confirmed by direct experiment). Export surface kept 100%
+    backward-compatible for all 7 existing `@lmthing/dsh-space-*` consumers — zero required
+    changes to any of them. New files: `types.ts`, `components.ts` (extracted, core's fuller
+    loader restored — the legacy web/ink fallback dsh had dropped), `knowledge.ts` (extracted,
+    merged field metadata + sorted enumeration + additive `optionTitles`), `dag.ts` (new:
+    `validateDag`/`readyNodes`/`topoOrder`, ported from mcp, adapted to the map-keyed rich
+    TaskNode via a duck-typed `DagNode` shape — no circular import). `capabilities.ts` fixes the
+    real `self:author` bug. `frontmatter.ts` adopts mcp's two fail-loud improvements (unterminated
+    fence / non-mapping frontmatter both throw) — but explicitly does NOT adopt mcp's "always trim
+    the body" behavior for the no-frontmatter case: that's a separate, weaker-justified cosmetic
+    difference a real consumer (`space-knowledge`) depends on NOT happening, caught by its own test
+    suite and reverted to core/dsh's original untrimmed behavior.
+    **Verified:** `pnpm typecheck` clean; `pnpm test` 23/23 in space-format itself (incl. new
+    regression tests for `self:author`, the two new frontmatter throws, sorted knowledge
+    enumeration, and the 6 new `dag.ts` tests); **full workspace `pnpm -r test` 193 checks, 0
+    failures across all 9 packages** — proves zero consumer breakage. Live: profile assembly
+    (`scripts/assemble-lmthing-profile.mjs`) successfully exercises the real `loadSpace`/
+    `resolvePersonaText`/`resolveTasklistTools` pipeline against real fixtures. A live *running*
+    `dsh` CLI smoke test is currently blocked by unrelated, pre-existing environment drift (see
+    "Known pre-existing issue" below) — confirmed NOT caused by this change (reproduces identically
+    on an untouched sibling profile, `tasklist-demo`).
+  - [ ] **A1b — not started.** Repoint `mcp/src/format/*` to consume `@lmthing/dsh-space-format` as
+    a thin adapter (mcp keeps its own project/id/ref addressing, array-based `Agent`/`SpaceFn`
+    projection, `Problem[]`-accumulation error model, and `extractorFor` schema seam — none of
+    which belong in the base package). Deferred as its own change so mcp's full 9-file test suite
+    (`format.load`, `server.discovery`, `server.delegation`, `server.taskrun`, `live.stdio`, …) is
+    verified independently, not bundled into A1a's risk.
+
+  **Known pre-existing issue (not caused by this change, not fixed here):** a live *running*
+  `dsh --profile <name> "<message>"` invocation fails with `MISSING_CREDENTIAL: llm-deepseek: no
+  API key for provider route "deepseek-official"` even against the keyless-mock-configured
+  `lmthing`/`tasklist-demo` profiles, whose patches correctly set `agent-default-model` to
+  `lmthing-mock`. Reproduces identically on `tasklist-demo` (untouched by this change), so it's
+  environmental, not a regression — likely something in the real `~/.dsh` global settings/
+  credentials dir (dated 2026-08-22, predating this session) taking precedence over the profile's
+  own patch. The `dsh/.dsh-home/profiles/lmthing` profile directory itself had also gone missing
+  at some point (this session rebuilt it from the `tasklist-demo` profile's known-good template —
+  `package.json`/`cordis.yml`/`pnpm-workspace.yaml` — since `.dsh-home` is gitignored, local-only
+  state). Whoever picks up A1b/A2/A3 should resolve this credential-precedence issue first, since
+  every later live-verification step in this track depends on a working keyless mock run.
+  Exhaustive line-level comparison done (agent frontmatter keys byte-identical everywhere;
+  capability id lists, function/component/knowledge/tasklist loading, error philosophy, and
+  frontmatter strictness all differ — see design decisions below). Design calls locked in:
+  1. **Capability ids**: one flat list = core's 20 ids + dsh's missing `self:author` restored.
+     Drop mcp's narrower 14-id subset (looks stale-doc-derived, not deliberate) — the parser
+     describes what's on disk; consumers decide what they act on.
+  2. **Capability config validation**: core/dsh's deeper validation wins (`parseDbConfig` et al.)
+     — mcp's is a real fidelity gap (no unknown-key/array-type/non-empty/table-existence checks).
+  3. **Function loading**: dsh's extension superset (`.ts/.tsx/.js/.mjs`) + core/dsh's laissez-faire
+     loading (no mcp-style export-shape gating, which silently drops arrow-function exports).
+     `schema`/`description`/`outputSchema` recognition stays OUT of the parser — that's correctly
+     `space-functions`' runtime-import concern, not parse-time.
+  4. **Components**: core's fuller loader wins (view/form + the legacy web/ink fallback dsh
+     dropped). Adopt mcp's `Unsupported[]` reporting for what's deliberately unparsed
+     (events/hooks) instead of silent invisibility.
+  5. **Knowledge**: merge core/dsh's richer field metadata (`type`/`variableName`/`default`) +
+     mcp's deterministic sorted enumeration + mcp's `label→title` surfacing.
+  6. **Tasklists**: core/dsh's full `TaskNode` union wins (mcp's is a real subset — no code nodes,
+     subgraphs, per-node capabilities/functions/canDelegateTo). Fold in mcp's `dag.ts` utilities
+     (`validateDag`/`readyNodes`/`topoOrder`) and node-level `title` field as genuine additions.
+  7. **`loadSpace` top-level**: core's `requireAgents` option + mcp's sorted enumeration
+     (determinism, free win).
+  8. **`dependentSpaces`/npm-install**: EXCLUDED from the unified parser — a side-effecting
+     concern that doesn't belong in a pure parser; both mcp and dsh already independently chose
+     not to do this; matches this migration's agents-only, no-side-effects scope.
+  9. **Error-handling philosophy**: default throws immediately on first problem (core/dsh's
+     behavior — what all 7 existing dsh plugins are written/tested against). Opt-in
+     `collectProblems: true` accumulates into `Problem[]` instead, for mcp's `validate_space`
+     tool UX. Explicit switch, not a silent blend.
+  10. **Frontmatter strictness**: adopt mcp's stricter parsing (throw on unterminated `---` fence
+      or non-mapping frontmatter) as the new default — only turns silent misparses into loud
+      errors; matches the repo's existing fail-loud conventions elsewhere.
 - [ ] **A2 — `dsh-agent-presets` roster** for per-agent capability isolation (spike-gated).
 - [ ] **A3 — fix the `lmthing-web` profile** to boot natively (no `--patch` workaround).
 - [ ] **A4 — real component UI rendering** (`@lmthing/dsh-client-space-components`, reusing

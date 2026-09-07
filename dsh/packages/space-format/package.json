@@ -3,12 +3,20 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Pure parser/validator for the LMThing space format (agents/functions/tasklists/knowledge/components) — no Cordis dependency. See dsh/packages/README.md and the plan's Phase 1 step 2.",
-  "main": "src/index.js",
+  "description": "The canonical LMThing space-format parser — the unified merge of the three prior independent implementations (sdk/org/libs/core/src/spaces, mcp/src/format, and this package's own earlier JS port). No Cordis dependency. Authored in native TypeScript, run directly via Node's built-in type stripping (no build step) — the same pattern mcp/ already uses. See dsh/PROGRESS.md (Part A1) for the full design-decision record.",
+  "main": "src/index.ts",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "typescript": "5.9.3"
   }
 }

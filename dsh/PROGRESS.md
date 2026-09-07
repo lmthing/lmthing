@@ -528,6 +528,33 @@ integration.
     for this piece rides on the real GitHub Actions run instead (same method already used
     successfully for the compute-dsh canary build).
 
+### Live-tested against real production traffic: the "ask THING to create a space" acceptance test
+
+Ran for real against `https://lmthing.chat`, a real minted test-user session, the real `thing`
+preset, and the real `DeepSeek-V4-Flash-0731` model (not the mock) — this is what actually
+surfaced the three bugs above (workspace picker, the `additionalProperties` schema bug, and the
+Host/Origin trust-fence bug); none of them were reachable from a loopback/local test.
+
+- **Core capability CONFIRMED working**: asked THING (in the browser, real UI) to "create a new
+  agent space called weather-helper... Give it a short charter and instructions about being
+  honest it has no live weather data." The model decided on its own to call `create_agent`
+  (visible in the UI as a real tool-call block), and real, well-written, on-topic files landed on
+  the pod's persistent disk — confirmed directly via `kubectl exec`:
+  `/data/spaces/weather-helper/agents/weather-helper/{charter,instruct}.md`, content genuinely
+  matching what was asked (not templated filler). **This is the deliverable the user's live test
+  was asking for, and it works.**
+- **A fourth, NOT-yet-fixed bug found in the same session**: after the tool call executes, the
+  turn never continues — the UI sits at "Deep diving…" indefinitely (confirmed hung, not just slow:
+  survived a full page reload, `Ran for 2m 15s` before being manually stopped). A SECOND, unrelated
+  follow-up message in the same session ("Did that work?") hit the identical hang, with **zero**
+  new `POST /v1/chat/completions` reaching LiteLLM (confirmed via `kubectl logs` on both LiteLLM
+  replicas — only the ONE original completion call is there, ever) and the pod sitting at ~2m CPU
+  (idle, not computing) — a real, reproducible stuck state in dsh's own turn continuation, not a UI
+  rendering glitch. Not root-caused this session (would need to trace inside dsh's own turn-loop
+  internals, which this investigation did not reach) — filed here as a known, open, high-priority
+  follow-up rather than guessed at further. `create_agent` (and presumably every other function
+  call) still executes for real; only the CONVERSATION'S continuation after that hangs.
+
 ## Part C — remove the custom harness & dead web apps
 
 - [x] **Decouple `@lmthing/ui` from `@lmthing/core` (keep ui in full). DONE, brought forward.**

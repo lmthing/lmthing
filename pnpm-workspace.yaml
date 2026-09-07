@@ -26,8 +26,16 @@ catalog:
   '@types/node': ^24
   dotenv: ^16.6.1
   typescript: ^5
-  vite: npm:@voidzero-dev/vite-plus-core@latest
-  vite-plus: latest
+  # Pinned, NOT "latest": @voidzero-dev/vite-plus-core@0.3.0 (and vite-plus@0.3.0, which depends on
+  # it) introduced a per-platform optional-dependency split for its rolldown native binding
+  # (@voidzero-dev/vite-plus-linux-x64-gnu etc., absent from 0.2.1 and earlier) that fails to
+  # resolve under pnpm — "Cannot find native binding... npm has a bug related to optional
+  # dependencies" — breaking EVERY vite-plus-based build (confirmed live: studio and com both
+  # failed this way in real CI once something finally touched pnpm-lock.yaml/sdk/org enough to
+  # force a rebuild — a latent break, not something introduced by that particular change). 0.2.1
+  # predates the split and has no such optional deps at all; pin here until upstream fixes 0.3.0.
+  vite: npm:@voidzero-dev/vite-plus-core@0.2.1
+  vite-plus: 0.2.1
   vitest: npm:@voidzero-dev/vite-plus-test@latest
 
 catalogMode: prefer
@@ -35,6 +43,10 @@ catalogMode: prefer
 overrides:
   vite: 'catalog:'
   vitest: 'catalog:'
+  # Every package.json in this monorepo specifies "vite-plus": "latest" literally (not
+  # "catalog:"), so without this override the catalog pin above is dead — each package would
+  # still independently re-resolve the real "latest" dist-tag (0.3.0, broken) on its own.
+  vite-plus: 'catalog:'
 
 peerDependencyRules:
   allowAny:

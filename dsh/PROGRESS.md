@@ -86,18 +86,19 @@ integration.
     unknown db config key rejected, non-array `tables` rejected, empty `api:call.allow` rejected —
     all previously silently accepted).
 
-  **Known pre-existing issue (not caused by this change, not fixed here):** a live *running*
-  `dsh --profile <name> "<message>"` invocation fails with `MISSING_CREDENTIAL: llm-deepseek: no
-  API key for provider route "deepseek-official"` even against the keyless-mock-configured
-  `lmthing`/`tasklist-demo` profiles, whose patches correctly set `agent-default-model` to
-  `lmthing-mock`. Reproduces identically on `tasklist-demo` (untouched by this change), so it's
-  environmental, not a regression — likely something in the real `~/.dsh` global settings/
-  credentials dir (dated 2026-08-22, predating this session) taking precedence over the profile's
-  own patch. The `dsh/.dsh-home/profiles/lmthing` profile directory itself had also gone missing
-  at some point (this session rebuilt it from the `tasklist-demo` profile's known-good template —
-  `package.json`/`cordis.yml`/`pnpm-workspace.yaml` — since `.dsh-home` is gitignored, local-only
-  state). Whoever picks up A1b/A2/A3 should resolve this credential-precedence issue first, since
-  every later live-verification step in this track depends on a working keyless mock run.
+  **Pre-existing issue found AND FIXED (local-only, nothing to commit):** the live smoke test above
+  failed with `MISSING_CREDENTIAL: llm-deepseek: no API key for provider route "deepseek-official"`
+  even against the keyless-mock-configured `lmthing`/`tasklist-demo` profiles. Root cause: a
+  gitignored, machine-local `dsh/.dsh-home/settings.yaml` (the `settings` plugin's persisted
+  user-editable store — normally written by the web UI's Models page) had a stale
+  `agent-default-model: {provider: deepseek-official, …}` entry left over from an earlier
+  real-provider run, which takes priority OVER a profile's own `cordis.patch.yml` on every boot.
+  Fixed by clearing that one stale key from the local file (not a repo change — `.dsh-home` is
+  gitignored). Confirmed both documented Phase 2 behaviors now work end to end: `echo: hello`
+  delegates to the echo specialist correctly, and `remember`/`recall` round-trip correctly. The
+  `dsh/.dsh-home/profiles/lmthing` profile directory itself had also gone missing at some point;
+  this session rebuilt it from the `tasklist-demo` profile's known-good template
+  (`package.json`/`cordis.yml`/`pnpm-workspace.yaml`).
   Exhaustive line-level comparison done (agent frontmatter keys byte-identical everywhere;
   capability id lists, function/component/knowledge/tasklist loading, error philosophy, and
   frontmatter strictness all differ — see design decisions below). Design calls locked in:

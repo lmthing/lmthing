@@ -11,6 +11,9 @@ importers:
       '@deepseek-ai/dsh':
         specifier: 0.1.1-rc.2
         version: 0.1.1-rc.2(7adf779e9bedfb2e97ced92905792931)
+      '@lmthing/dsh-preset-roster':
+        specifier: workspace:*
+        version: link:packages/preset-roster
       '@lmthing/dsh-space':
         specifier: workspace:*
         version: link:packages/space
@@ -35,6 +38,9 @@ importers:
       '@lmthing/dsh-space-tasklist':
         specifier: workspace:*
         version: link:packages/space-tasklist
+      '@lmthing/dsh-subagent-preset':
+        specifier: workspace:*
+        version: link:packages/subagent-preset
       yaml:
         specifier: ^2.6.0
         version: 2.9.0
@@ -47,6 +53,12 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: 0.1.1-rc.2
         version: 0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-attachment@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-brand@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/dsh-timeout@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)))
+
+  packages/preset-roster:
+    dependencies:
+      yaml:
+        specifier: ^2.6.0
+        version: 2.9.0
 
   packages/space:
     dependencies:
@@ -108,12 +120,6 @@ importers:
       '@lmthing/dsh-space-format':
         specifier: workspace:*
         version: link:../space-format
-      '@lmthing/dsh-space-functions':
-        specifier: workspace:*
-        version: link:../space-functions
-      '@lmthing/dsh-space-persona':
-        specifier: workspace:*
-        version: link:../space-persona
 
   packages/space-format:
     dependencies:
@@ -191,6 +197,27 @@ importers:
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
+
+  packages/subagent-preset:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.6)(@deepseek-ai/cordis-plugin-loader@1.0.2)
+      '@deepseek-ai/dsh-agent':
+        specifier: 0.1.1-rc.2
+        version: 0.1.1-rc.2(c1537a8836b04097f168b024f1e38d85)
+      '@deepseek-ai/dsh-agent-presets':
+        specifier: 0.1.1-rc.2
+        version: 0.1.1-rc.2(5200ead8959daeaefdf3dd69ba905368)
+      '@deepseek-ai/dsh-llm':
+        specifier: 0.1.1-rc.2
+        version: 0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-attachment@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-brand@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/dsh-timeout@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)))
+      '@deepseek-ai/dsh-session':
+        specifier: 0.1.1-rc.2
+        version: 0.1.1-rc.2(a4e4bb24a1f3580ac25e11cfa3c6b8cc)
+      '@deepseek-ai/dsh-subagent':
+        specifier: 0.1.1-rc.2
+        version: 0.1.1-rc.2(41d5ff529e06289e51a68d84fe32d51b)
 
 packages:
 

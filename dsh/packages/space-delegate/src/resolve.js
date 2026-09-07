@@ -1,5 +1,4 @@
 import { loadSpace } from '@lmthing/dsh-space-format'
-import { buildPersonaText } from '@lmthing/dsh-space-persona'
 
 /**
  * Resolve one agent's `canDelegateTo` (a tri-state — see space-format's
@@ -22,65 +21,51 @@ export function resolveDelegateTargets(agent, registry) {
 }
 
 /**
- * Build the mount specs the delegator's plugin needs for each resolved
- * target, given dsh's actual in-process subagent model: a spawned/forked
- * child JOINS THE PARENT'S OWN PRESET rather than mounting a distinct one
- * (dsh-subagent README, "Composing a child agent"). There is no dsh
- * mechanism for "run a child under a completely different preset" at
- * delegation time — `persona` and `toolFilter` only override and narrow what
- * the parent already has registered.
+ * Build the mount specs the delegator's plugin needs for each resolved target — Part A2's
+ * isolated-preset design (see dsh/PROGRESS.md), replacing the original union-of-tools bridge this
+ * doc comment used to describe.
  *
- * So a faithful bridge has to make the target's OWN tools reachable from the
- * delegator's scope first (mounting `@lmthing/dsh-space-functions` scoped to
- * the target), then mount one `@deepseek-ai/dsh-tool-subagent` per target
- * that gives the delegated call a distinct persona and narrows
- * (`toolFilter`) down to exactly that target's own functions. This means a
- * delegator's preset ends up holding the UNION of its own + every allowed
- * target's functions, narrowed only at call time — a real fidelity gap
- * against LMThing's per-agent-isolated capability model, noted in
- * dsh/packages/README.md. Pure and unit-testable without Cordis — the
- * plugin's `apply()` is a thin wrapper turning each spec into two
- * `ctx.plugin()` calls.
+ * dsh's STOCK in-process subagent drivers only support `composeFrom()` — a spawned/forked child
+ * JOINS THE PARENT'S OWN standing composition (`@deepseek-ai/dsh-subagent`'s own README, "Composing
+ * a child agent"); there is no built-in "run a child under a DIFFERENT preset" at delegation time.
+ * `@lmthing/dsh-subagent-preset` fixes that: it's a `SubagentProvider` that, after the child is
+ * published (but before it's sent anything), calls `ctx.agentPresets.recompose(childCtx,
+ * targetPresetId)` to re-link it onto the TARGET's own standing preset — see that package's doc
+ * comment for the exact mechanism and why it's safe (recompose is valid while an agent "has
+ * produced nothing"; publication is not production).
+ *
+ * One provider instance targets exactly one preset (there's no per-call "extra config" slot on
+ * `SubagentStartRequest` to carry a target id through), so each resolved target gets its OWN
+ * uniquely-named provider (`lmthing-preset-<slug>`) plus its own `@deepseek-ai/dsh-tool-subagent`
+ * row bound to it. Neither row carries `persona`/`toolFilter` any more — the target's own preset
+ * (mounted by `@lmthing/dsh-preset-roster`) already supplies both, so the delegator's OWN preset no
+ * longer needs the target's functions mounted into its scope at all. This is the real fix: a
+ * delegator's preset holds only ITS OWN tools + the `delegate_*` launchers, never the union.
+ *
+ * Pure and unit-testable without Cordis — the plugin's `apply()` turns each spec into a provider
+ * registration + one `ctx.plugin()` call.
  *
  * @param {{ slug: string, canDelegateTo?: string[] }} delegatorAgent
- * @param {Record<string, { agent: { slug: string, config: { functions: string[] }, charterBody: string, instructBody: string }, spaceDir: string }>} registry
- * @returns {{ slug: string, functionsConfig: { spaceDir: string, agentSlug: string } | null, subagentConfig: object }[]}
+ * @param {Record<string, { agent: { slug: string }, spaceDir: string }>} registry
+ * @returns {{ slug: string, providerName: string, subagentConfig: object }[]}
  */
 export function resolveDelegateMounts(delegatorAgent, registry) {
   const targets = resolveDelegateTargets(delegatorAgent, registry)
-  const mounts = []
-
-  for (const slug of targets) {
-    const { agent: target, spaceDir } = registry[slug]
-
-    const hasFunctions = target.config.functions.length > 0
-    const subagentConfig = {
-      provider: 'spawn',
+  return targets.map((slug) => ({
+    slug,
+    providerName: `lmthing-preset-${slug}`,
+    subagentConfig: {
+      provider: `lmthing-preset-${slug}`,
       toolName: `delegate_${slug}`,
-      persona: buildPersonaText(target),
-    }
-    // An empty allow-list is rejected by dsh-tools ("empty filters reject") —
-    // a target with no functions of its own is reached with no narrowing
-    // (inherits the delegator's full toolset) rather than muted entirely.
-    if (hasFunctions) {
-      subagentConfig.toolFilter = { allow: target.config.functions }
-    }
-
-    mounts.push({
-      slug,
-      functionsConfig: hasFunctions ? { spaceDir, agentSlug: target.slug } : null,
-      subagentConfig,
-    })
-  }
-
-  return mounts
+    },
+  }))
 }
 
 /**
  * @param {string} spaceDir
  * @param {string} agentSlug
  * @param {Record<string, { agent: object, spaceDir: string }>} registry
- * @returns {Promise<{ slug: string, functionsConfig: { spaceDir: string, agentSlug: string } | null, subagentConfig: object }[]>}
+ * @returns {Promise<{ slug: string, providerName: string, subagentConfig: object }[]>}
  */
 export async function resolveDelegateMountsForSpace(spaceDir, agentSlug, registry) {
   const space = await loadSpace(spaceDir)

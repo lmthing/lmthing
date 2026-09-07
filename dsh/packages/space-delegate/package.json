@@ -3,15 +3,13 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Self-loading dsh plugin: given { spaceDir, agentSlug, registry }, maps canDelegateTo onto @deepseek-ai/dsh-tool-subagent mounts. See dsh/packages/README.md for the architectural nuance this package works around (dsh in-process subagents JOIN the parent's own preset rather than mounting a distinct one).",
+  "description": "Self-loading dsh plugin: given { spaceDir, agentSlug, registry }, maps canDelegateTo onto @deepseek-ai/dsh-tool-subagent mounts bound to each target's own lmthing-preset-<slug> provider (@lmthing/dsh-subagent-preset) — true per-agent isolation, Part A2 of dsh/PROGRESS.md.",
   "main": "src/index.js",
   "scripts": {
     "test": "node --test"
   },
   "dependencies": {
-    "@lmthing/dsh-space-format": "workspace:*",
-    "@lmthing/dsh-space-functions": "workspace:*",
-    "@lmthing/dsh-space-persona": "workspace:*"
+    "@lmthing/dsh-space-format": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.1",

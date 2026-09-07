@@ -28,23 +28,22 @@ test('resolveDelegateTargets: empty list means no delegation', () => {
   assert.deepEqual(resolveDelegateTargets(none, { x: { agent: none, spaceDir: '/x' }, ...registry }), [])
 })
 
-test('resolveDelegateMounts: one mount per target, functionsConfig using the TARGET\'s own spaceDir, narrowed toolFilter', () => {
+test('resolveDelegateMounts: one mount per target, bound to the target\'s own lmthing-preset-<slug> provider (Part A2 isolation, no functionsConfig/toolFilter/persona any more)', () => {
   const mounts = resolveDelegateMounts(thing, registry)
   assert.equal(mounts.length, 1)
 
   const [mount] = mounts
   assert.equal(mount.slug, 'echo')
-  assert.deepEqual(mount.functionsConfig, { spaceDir: '/system-echo', agentSlug: 'echo' })
-  assert.equal(mount.subagentConfig.provider, 'spawn')
+  assert.equal(mount.providerName, 'lmthing-preset-echo')
+  assert.equal(mount.subagentConfig.provider, 'lmthing-preset-echo')
   assert.equal(mount.subagentConfig.toolName, 'delegate_echo')
-  assert.deepEqual(mount.subagentConfig.toolFilter, { allow: ['echoBack'] })
-  assert.match(mount.subagentConfig.persona, /echo specialist/)
+  assert.equal(mount.subagentConfig.toolFilter, undefined, 'narrowing is the target preset\'s job now, not a per-call toolFilter')
+  assert.equal(mount.subagentConfig.persona, undefined, 'the target preset supplies its own persona now')
 })
 
-test('resolveDelegateMounts: a target with no functions gets no toolFilter and no functionsConfig (unnarrowed, not muted)', () => {
+test('resolveDelegateMounts: a target with no functions of its own still gets exactly one mount (nothing to narrow — the preset itself has none)', () => {
   const delegatesToBystander = { slug: 'x', canDelegateTo: ['bystander'] }
   const mounts = resolveDelegateMounts(delegatesToBystander, { x: { agent: delegatesToBystander, spaceDir: '/x' }, ...registry })
   assert.equal(mounts.length, 1)
-  assert.equal(mounts[0].functionsConfig, null)
-  assert.equal(mounts[0].subagentConfig.toolFilter, undefined)
+  assert.equal(mounts[0].providerName, 'lmthing-preset-bystander')
 })

@@ -1,0 +1,14 @@
+{
+  "name": "@lmthing/dsh-preset-roster",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Generates one @deepseek-ai/dsh-agent-presets roster directory (one preset per agent, each mounting @lmthing/dsh-space) from a space registry. Part A2 of the migration: the roster that makes per-agent capability isolation possible.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "yaml": "^2.6.0"
+  }
+}

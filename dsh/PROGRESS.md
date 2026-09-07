@@ -131,7 +131,103 @@ integration.
   10. **Frontmatter strictness**: adopt mcp's stricter parsing (throw on unterminated `---` fence
       or non-mapping frontmatter) as the new default — only turns silent misparses into loud
       errors; matches the repo's existing fail-loud conventions elsewhere.
-- [ ] **A2 — `dsh-agent-presets` roster** for per-agent capability isolation (spike-gated).
+- [x] **A2 — `dsh-agent-presets` roster for per-agent capability isolation. DONE, live-verified.**
+  The single highest-risk item in the whole plan (flagged for an early spike) — now fully working
+  and confirmed via a real browser session, not just headless mock output.
+
+  **Design, as built** (three new/changed packages):
+  - **`@lmthing/dsh-preset-roster`** (new) — `generatePresetRoster(rosterDir, agents, registry)`
+    writes one `<rosterDir>/<slug>/agent.cordis.yml` per agent, each mounting exactly
+    `@lmthing/dsh-space { spaceDir, agentSlug, registry }` (registry is REQUIRED — see the real bug
+    below). Written to `$DSH_HOME/.agent-presets/`, NOT a repo-tracked directory: the `dsh` CLI's
+    own `composeProfile` (in `@deepseek-ai/dsh`'s `profile-boot-*.js`) unconditionally REPLACES an
+    `agent-presets` row's `roots` config with just the shipped preset root, discarding any custom
+    `roots` a patch declares — confirmed by reading the actual source. `$DSH_HOME/.agent-presets/`
+    is `AgentPresets`'s own separate `includeUserRoot` mechanism (default `true`), the sanctioned
+    way to add presets.
+  - **`@lmthing/dsh-subagent-preset`** (new) — a `SubagentProvider` that composes each in-process
+    child from a NAMED PRESET, not the parent's own composition. A deliberate, minimal fork of
+    `@deepseek-ai/dsh-subagent-in-process-driver`'s `startInProcessRun`/`drivePublishedRun`/
+    `readResult` (that package exports none of its private helpers). The one real change: `setup
+    (childCtx)` calls `ctx.agentPresets.composeFrom(childCtx, parent.ctx)` (required first bind,
+    per `dsh-agent-presets`' own README: "a subagent's child joins its parent's standing
+    composition through composeFrom(), never through mount()" — composeFrom is the only bind that
+    fits inside a synchronous creation window), then — AFTER `parent.ctx.agents.create({...})`
+    resolves but BEFORE `drivePublishedRun` sends the child anything — `await
+    ctx.agentPresets.recompose(handle.agent.ctx, targetPresetId)` re-links the child onto the
+    TARGET's own preset instead. `recompose()`'s own doc is explicit this is valid "only while the
+    agent has produced nothing" and "the caller owns that check" — publication is not production,
+    so this window satisfies it. `handle.agent.ctx: Context` (confirmed from `@deepseek-ai/dsh-
+    agent`'s own type declarations) is the scope-tagged context the presets service needs — the
+    SAME fiber `setup(childCtx)` ran in. Also exports `registerPresetSubagentProviders(ctx,
+    targets)` / a mountable plugin wrapper (`lmthing-subagent-preset-roster`) that registers one
+    `lmthing-preset-<slug>` provider per target — MUST be mounted once, globally, at the profile
+    level, not per-delegator: `ctx.subagents.registerProvider()` registers into a single
+    process-global map and throws `DUPLICATE_PROVIDER` on a second registration under the same
+    name, which would happen if two different delegators both listed the same target and each
+    tried to register its provider itself.
+  - **`@lmthing/dsh-space-delegate`** (rewritten) — no longer mounts the target's own
+    `space-functions` into the delegator's scope, no `persona`/`toolFilter` narrowing. Each
+    resolved target gets one `@deepseek-ai/dsh-tool-subagent` row bound to `provider: 'lmthing-
+    preset-<slug>'` — that's it. The delegator's preset now holds ONLY its own tools + the
+    `delegate_*` launchers, never the union.
+
+  **A real, structural finding that reshaped the design mid-build:** `dsh-headless` (the bundle
+  this whole track's `lmthing` profile used) has NO mechanism to preset-compose its OWN top-level
+  agent — confirmed by grepping every installed `@deepseek-ai/dsh-*` package for `agentPresets`
+  usage. That composition call (`composeAgent()`'s `await presets.mount(agentCtx, resolvedId)`)
+  lives ONLY in `@deepseek-ai/dsh-host-apiproxy`, a `dsh-web-app`-only dependency (the web/API
+  session-creation layer). Consequence: **true per-agent isolation is only achievable via the web
+  bundle.** `scripts/assemble-lmthing-profile.mjs` now branches on bundle:
+  - **Web bundle** (`lmthing-web`): patches `dsh-web-app`'s own pre-existing `agent-presets` row
+    (`config: {default: 'thing'}` — a plain top-level `{id, config}` patch, NOT another `insert`;
+    a second `insert` with the same id is a hard `duplicate loader entry id` error, confirmed
+    live). `dsh-host-apiproxy` then auto-mounts the "thing" preset for every fresh top-level
+    session — nothing else needs mounting at the top level.
+  - **Headless bundle** (`lmthing`): keeps mounting `@lmthing/dsh-space` for THING directly at the
+    top level (global scope, `mountPersona: false` + the global persona patch) exactly as before
+    A2. Delegation still works (the child still recomposes correctly), but isolation is NOT
+    complete there — THING's globally-scoped tools remain visible to every scope, including a
+    recomposed child's, since the global layer is always inherited regardless of preset chain.
+    Documented, permanent, and acceptable: headless is a dev/CI convenience, never the shipped
+    surface (Part B serves the web bundle at lmthing.chat).
+
+  **A real bug found and fixed mid-build:** the roster generator's config for `@lmthing/dsh-space`
+  originally omitted `registry` entirely (`{spaceDir, agentSlug}` only). Since `space-delegate`
+  reads `config.registry ?? {}`, every preset-mounted agent silently resolved ZERO delegation
+  targets — `delegate_echo` never registered, no thrown error anywhere. Caught via live testing
+  (not by any unit test, since the omission was structurally "valid", just empty) — fixed by
+  threading the full registry through `generatePresetRoster`'s third parameter; regression test
+  added (`preset-roster/test/index.test.js`) asserting every generated preset's config carries the
+  complete registry, not an empty one.
+
+  **Live verification (the actual proof, via a real browser session over chrome-devtools MCP
+  against the `lmthing-web` profile — NOT headless mock output alone):**
+  - THING's own tool schema (from the real session log, `request/header.tools`):
+    `['delegate_echo', 'forget', 'recall', 'recallAll', 'remember']` — its own 4 functions + the
+    delegate launcher.
+  - The delegated echo child's own tool schema: **`['echoBack']` — exactly one tool, its own.**
+    Confirmed by grepping the child's full system prompt text too: `remember`/`recall`/`forget`/
+    `delegate_echo` appear NOWHERE in it. Zero leakage of the parent's tools or persona — the
+    original union-of-tools fidelity gap this whole effort exists to fix is closed.
+  - Both agents' own custom persona/charter text is present in their respective system prompts
+    (confirmed by searching the FULL text, not just a truncated prefix — the first ~400 chars of
+    every dsh-web-app session is stock harness boilerplate, which caused a false "persona is
+    missing" alarm mid-investigation before the full text was checked).
+  - `pnpm -r test` across the whole dsh workspace: still 100% green after all A2 changes (existing
+    `space-delegate` tests updated for the new mount shape — no `functionsConfig`/`toolFilter`/
+    `persona` fields any more, replaced by `providerName`/`lmthing-preset-<slug>`).
+
+  **Operational notes hit along the way** (useful for whoever runs this again): a long-lived `dsh
+  --profile web` server must be started via a real background job (`run_in_background`/`nohup` with
+  a persistent shell), never a `timeout -s KILL <n>` wrapper — a bash timeout killed the server
+  mid-browser-session more than once. Browser `localStorage`/`sessionStorage` can pin a POISONED
+  session id across page reloads (one that's permanently `agent-busy`, "owned by subagent
+  routing", from an earlier aborted attempt) — clearing storage AND reloading is not always enough
+  if the id is also cached server-side against a shared `$DSH_HOME/sessions/`; deleting the shared
+  `.dsh-home/sessions/` directory (pure local test litter, gitignored) resolved it. `dsh`'s own
+  `pkill`/`pgrep -f` pattern matching can false-positive against the shell wrapper's OWN command
+  line text — verify a real dsh process is gone with an exact-argv check, not just exit code.
 - [ ] **A3 — fix the `lmthing-web` profile** to boot natively (no `--patch` workaround).
 - [ ] **A4 — real component UI rendering** (`@lmthing/dsh-client-space-components`, reusing
       `@lmthing/ui`'s `render-descriptor.tsx` catalog).

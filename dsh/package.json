@@ -23,6 +23,8 @@
     "@lmthing/dsh-space-knowledge": "workspace:*",
     "@lmthing/dsh-space-components": "workspace:*",
     "@lmthing/dsh-space": "workspace:*",
+    "@lmthing/dsh-preset-roster": "workspace:*",
+    "@lmthing/dsh-subagent-preset": "workspace:*",
     "yaml": "^2.6.0"
   },
   "pnpm": {

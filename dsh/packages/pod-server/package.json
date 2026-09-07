@@ -1,0 +1,17 @@
+{
+  "name": "@lmthing/dsh-pod-server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Production compute-pod entrypoint (Part B1, see dsh/PROGRESS.md): binds 0.0.0.0 for the K8s Service/probe, spawns dsh bound to loopback only (dsh itself refuses --host 0.0.0.0 — see the module doc comment in src/index.js), reverse-proxies HTTP+WebSocket to it, and answers /api/health for the Deployment's startupProbe. Zero new npm dependencies: the HTTP/WS proxying is hand-rolled over node:http and node:net.",
+  "main": "src/index.js",
+  "bin": {
+    "lmthing-pod-server": "src/index.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "yaml": "^2.6.0"
+  }
+}

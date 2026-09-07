@@ -324,11 +324,75 @@ integration.
     proving the react-shim fix itself in Node by injecting a fake `globalThis.__LMTHING_REACT__`,
     and one proving the shim fails loud — not silently — when the global is unset).
 - [x] **A5 — explicitly NOT in scope.** No system-space migration.
-- [ ] **A6 — assemble the production `lmthing` web profile.**
+- [x] **A6 — assemble the production `lmthing` web profile.** Closed out as a byproduct of B1
+  (below): `assemble-lmthing-profile.mjs`'s `lmthing-web` output (host + client + agent planes) now
+  boots for real inside a from-scratch container with a real (LiteLLM-routed) model, proving the
+  full pipeline end-to-end — see B1's verification for the actual runs.
 
 ## Part B — serve the dsh web UI as lmthing.chat
 
-- [ ] B1 — pod runs dsh instead of `lmthing serve`.
+- [x] **B1 — pod runs dsh instead of `lmthing serve`. DONE, live-verified (Docker).**
+  - **Two load-bearing facts, confirmed by reading source (not assumed):** (1) `dsh --profile web`
+    hard-refuses `--host 0.0.0.0` ("intentionally not supported yet for safety: it would expose
+    remote code execution to the network" — `@deepseek-ai/dsh-web-app`'s own `startup.js`); (2) dsh
+    ships **no** `/api/health` (or any health/status) route anywhere (grepped every installed
+    `@deepseek-ai/dsh-*` package). Both mean the existing `compute.ts` startupProbe
+    (`GET /api/health` on the container's exposed port, anonymous caller) cannot be satisfied by
+    dsh directly.
+  - **Fix — new `@lmthing/dsh-pod-server` package** (`dsh/packages/pod-server/`), the new image's
+    CMD: binds `0.0.0.0:$PORT` itself, spawns `dsh --profile lmthing-web --host 127.0.0.1` as a
+    child, hand-rolls an HTTP + WebSocket reverse proxy to it (`src/proxy.js` — no `http-proxy`
+    dependency: `http.request` piping for normal requests, a manual raw-socket upgrade replay for
+    WS), and answers `/api/health` with a **live** TCP probe of the child's port on every request
+    (not a cached flag — a mid-session dsh crash must flip health immediately, since the Deployment
+    has no separate liveness probe). The wrapper exits with the child's own exit code so the
+    container exits too and kubelet's normal restart policy applies.
+  - **`$DSH_HOME` bootstrap** (`src/profile-bootstrap.js`): a fresh PVC has neither the
+    `lmthing-web` profile's own tiny pnpm project (`package.json` + `cordis.yml` +
+    `pnpm-workspace.yaml`, previously a hand-crafted local-dev-only file — Part A3) nor its
+    `node_modules` (`link:` deps need `pnpm install`, which the local dev flow had always run by
+    hand and which this migration's own tests never exercised). The wrapper now writes all three
+    files and runs `pnpm install` in that directory on first boot only (idempotent — a later boot
+    skips straight to just regenerating `cordis.patch.yml` + the agent-presets roster via the
+    existing `assemble-lmthing-profile.mjs`, safe to rerun every time per its own header comment).
+    **Real bug this caught, that no unit test would have** (found only by actually booting the
+    wrapper against the real workspace): the very first attempt failed outright —
+    `ERR_MODULE_NOT_FOUND '@lmthing/dsh-llm-mock'` etc. — because nothing had ever run `pnpm
+    install` for a freshly-materialized profile directory before.
+  - **Model routing to LiteLLM — no new plugin needed.** `@deepseek-ai/dsh-llm-pi-ai` ships
+    mounted-but-dormant as part of `dsh-base` itself (confirmed by reading its `cordis.patch.yml`:
+    zero provider routes until a `providers:` config section exists) — so wiring a real model is a
+    plain top-level `--patch` overlay (same mechanism `run-web.sh --real`'s local dev flow already
+    used), not a new package or profile dependency. The gateway already injects
+    `LMTHINGCLOUD_BASE_URL`/`LMTHINGCLOUD_API_KEY` into every pod's env
+    (`cloud/gateway/src/lib/compute.ts#litellmEnvDefaults`) — the generated patch's `apiKeyEnv:
+    LMTHINGCLOUD_API_KEY` only ever names that variable; the credential value itself never touches
+    a file (test-asserted: `assert.ok(!patch.includes(secretValue))`). Two more real, live-only bugs
+    fixed along the way: `--patch` must be positioned *before* `--host/--port/--no-open` on the dsh
+    command line (placed after, dsh's own cmdline parser rejects it: `error: unknown option
+    '--patch'`); and `dsh-llm-pi-ai`'s `api` field is a closed enum
+    (`openai-completions`|`openai-responses`|`anthropic-messages`) — plain `"openai"` is refused by
+    cordis config validation, `"openai-completions"` (LiteLLM's `/v1` wire shape) is correct.
+  - **New `devops/argocd/compute/Dockerfile.dsh`** — a from-scratch multi-stage image built from
+    the `dsh/` workspace (build context = `dsh/`, not `sdk/org/`), `pnpm install --frozen-lockfile`
+    from the committed lockfile (Part A0's pin), runtime stage keeps `corepack prepare pnpm@10.17.1
+    --activate` (needed at **runtime**, not just build time — the profile bootstrap above runs
+    `pnpm install` again inside the running container against the PVC). Deliberately a **separate,
+    non-default image name** (e.g. `compute-dsh`) — `compute.ts` already resolves `COMPUTE_IMAGE`
+    purely from env/CI-set vars with zero code changes needed, so this ships as a pure opt-in
+    canary with no risk to the default `compute` image any real user pod runs today.
+  - **Verified live** (`docker build` + `docker run`, real container, no source bind-mounts):
+    booted from a bare PVC (bind-mounted `/data`) with zero network access needed post-build;
+    `/api/health` correctly 503 during the ~2-3s dsh boot window and 200 once actually up; the
+    proxied root page byte-for-byte **identical** (`diff` against the direct loopback response) to
+    dsh's own real served HTML; a container **restart** reused the already-materialized profile
+    (no re-`pnpm install`, straight to a healthy boot) proving PVC persistence works; and, separately,
+    booted again with fake `LMTHINGCLOUD_BASE_URL`/`LMTHINGCLOUD_API_KEY` env vars to confirm the
+    real-provider patch generates correctly and dsh accepts the resulting config (cordis validation
+    passes; no live LiteLLM endpoint was actually reachable from this sandbox, so a real model
+    reply was not exercised — that needs the in-cluster canary, next).
+  - **Not yet done:** pushing this image to ACR / wiring it into `build-images.yml`; an actual
+    in-cluster canary pod exercising a real LiteLLM round-trip (only local Docker verified so far).
 - [ ] B2 — auth handshake shell (cookie JWT mint).
 - [ ] B3 — Envoy routes/policies for lmthing.chat → pod.
 - [ ] B4 — image/deploy wiring + canary, then cutover.

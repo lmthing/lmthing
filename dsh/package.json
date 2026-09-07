@@ -11,7 +11,8 @@
     "dsh": "dsh",
     "tracer:headless": "dsh --profile headless",
     "assemble:lmthing-profile": "node scripts/assemble-lmthing-profile.mjs lmthing",
-    "assemble:lmthing-web-profile": "node scripts/assemble-lmthing-profile.mjs lmthing-web"
+    "assemble:lmthing-web-profile": "node scripts/assemble-lmthing-profile.mjs lmthing-web",
+    "pod-server": "node packages/pod-server/src/index.js"
   },
   "devDependencies": {
     "@deepseek-ai/dsh": "0.1.1-rc.2",
@@ -26,6 +27,7 @@
     "@lmthing/dsh-preset-roster": "workspace:*",
     "@lmthing/dsh-subagent-preset": "workspace:*",
     "@lmthing/dsh-client-space-components": "workspace:*",
+    "@lmthing/dsh-pod-server": "workspace:*",
     "yaml": "^2.6.0"
   },
   "pnpm": {

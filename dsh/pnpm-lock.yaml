@@ -11,6 +11,9 @@ importers:
       '@deepseek-ai/dsh':
         specifier: 0.1.1-rc.2
         version: 0.1.1-rc.2(7adf779e9bedfb2e97ced92905792931)
+      '@lmthing/dsh-client-brand':
+        specifier: workspace:*
+        version: link:packages/client-brand
       '@lmthing/dsh-client-space-components':
         specifier: workspace:*
         version: link:packages/client-space-components
@@ -53,6 +56,16 @@ importers:
       yaml:
         specifier: ^2.6.0
         version: 2.9.0
+
+  packages/client-brand:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.6)(@deepseek-ai/cordis-plugin-loader@1.0.2)
+    devDependencies:
+      esbuild:
+        specifier: 0.27.0
+        version: 0.27.0
 
   packages/client-space-components:
     dependencies:

@@ -23,6 +23,7 @@ test('bootstrapProfile: writes a link-only profile package.json (Part A3 shape) 
       '@lmthing/dsh-subagent-preset',
       '@lmthing/dsh-client-space-components',
       '@lmthing/dsh-default-workspace',
+      '@lmthing/dsh-client-brand',
     ])
     // The Part A3 fix this must never regress: no direct @deepseek-ai/dsh-web-app dep.
     assert.ok(!('@deepseek-ai/dsh-web-app' in pkg.dependencies))

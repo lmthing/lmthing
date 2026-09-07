@@ -555,6 +555,36 @@ Host/Origin trust-fence bug); none of them were reachable from a loopback/local 
   follow-up rather than guessed at further. `create_agent` (and presumably every other function
   call) still executes for real; only the CONVERSATION'S continuation after that hangs.
 
+### Branding — LMThing colors + logo in the dsh web UI (started, per user direction)
+
+New `@lmthing/dsh-client-brand` (mirrors `client-space-components`'s package shape exactly — host
+no-op + a real esbuild-bundled `src/client.jsx`), inserted into the web profile AFTER the shipped
+`@deepseek-ai/dsh-client-ui-brand-official` (order matters — see below).
+
+- **Colors**: `--dsw-alias-brand-primary`/`-invert` overridden via an injected `<style>` tag with
+  `@lmthing/css`'s own `primary`/`primary-foreground` tokens (`#15505c` light / `#6aa8b4` dark —
+  `tokens.json`, not invented here). Confirmed live (read the actual computed stylesheet rules
+  before writing this) that this ONE variable is what every primary button/accent traces back to
+  (`--dsw-alias-button-primary-fill: var(--dsw-alias-brand-primary)`).
+- **Logo + wordmark**: replaces the shipped whale mark with an "lm" mark in the brand primary
+  color, and the wordmark with "lm" (muted) + "thing" lettered in `@lmthing/css`'s frozen `logo-1..5`
+  hues per letter (t/h/i/n/g) — matching that token file's own documented intent ("WORDMARK ONLY —
+  letter 't', yellow... Consumed solely by elements/branding/cozy-text").
+- **A real bug found live, fixed before shipping**: registering the three slots
+  (`sidebar.brand.mark`, `sidebar.brand.name`, `conversation.hero.brand.mark`) with no explicit
+  priority threw at boot — `"already has a registration at priority 0 (registered by z5) —
+  register at a different priority to shadow it (lowest renders)"` — slots are NOT simply
+  last-registration-wins as reading the shipped brand-official bundle's source suggested; an
+  explicit lower `priority` (`-1`) is required to shadow the shipped default. Confirmed fixed live:
+  a fresh Docker boot + a real chrome-devtools screenshot shows the teal "lm" mark (sidebar +
+  hero), the colored "lm**thing**" wordmark, and teal primary buttons; toggling
+  `body[data-ds-dark-theme]` in the live page resolves the dark variant correctly (`#6aa8b4`); zero
+  console errors.
+- **Scope, honestly**: this recolors the ONE variable confirmed to drive the primary accent
+  end-to-end, not every color in the UI — a `--dsw-static-deepseek-*`-referencing accent
+  (`--dsw-specific-sidebar-nav-item-active-accent`, at least) is NOT yet touched. A real start on
+  "move the web UI to LMThing colors", not a claimed full reskin.
+
 ## Part C — remove the custom harness & dead web apps
 
 - [x] **Decouple `@lmthing/ui` from `@lmthing/core` (keep ui in full). DONE, brought forward.**

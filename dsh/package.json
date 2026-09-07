@@ -29,6 +29,7 @@
     "@lmthing/dsh-client-space-components": "workspace:*",
     "@lmthing/dsh-pod-server": "workspace:*",
     "@lmthing/dsh-default-workspace": "workspace:*",
+    "@lmthing/dsh-client-brand": "workspace:*",
     "yaml": "^2.6.0"
   },
   "pnpm": {

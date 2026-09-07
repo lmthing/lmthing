@@ -142,6 +142,10 @@ if (topLevelUsesPreset) {
     name: '@lmthing/dsh-default-workspace',
     config: { path: join(dshHome, '..', 'workspace'), title: 'LMThing' },
   })
+  // LMThing branding — must be inserted AFTER the base web bundle's own
+  // @deepseek-ai/dsh-client-ui-brand-official (Cordis slots are last-registration-wins for a given
+  // name; confirmed live by reading that package's shipped client.js — same three slot names).
+  insert.push({ id: 'lmthing-client-brand', name: '@lmthing/dsh-client-brand' })
 } else {
   // Headless bundle: dsh-headless ships no agent-presets row at all (insert fresh), and no
   // auto-mount exists for the top-level agent either, so mount @lmthing/dsh-space for THING

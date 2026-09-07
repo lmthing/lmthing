@@ -228,7 +228,32 @@ integration.
   `.dsh-home/sessions/` directory (pure local test litter, gitignored) resolved it. `dsh`'s own
   `pkill`/`pgrep -f` pattern matching can false-positive against the shell wrapper's OWN command
   line text — verify a real dsh process is gone with an exact-argv check, not just exit code.
-- [ ] **A3 — fix the `lmthing-web` profile** to boot natively (no `--patch` workaround).
+- [x] **A3 — fix the `lmthing-web` profile to boot natively. DONE, live-verified.**
+  Reproduced the exact documented failure first (`dsh --profile lmthing-web` + a real browser
+  session → "This turn failed. Cannot read properties of undefined (reading 'prepare')" on the
+  first tool call). Root cause confirmed: `.dsh-home/profiles/lmthing-web/package.json` pinned
+  `@deepseek-ai/dsh-web-app` (and, once A2 needed it, `@deepseek-ai/dsh-agent-presets`) as
+  **direct** dependencies — the stock `web` profile's own `package.json` lists only `@lmthing/*`
+  link deps, letting `dsh-base`/`dsh-web-app` resolve "two-anchored" from the installation as
+  bundles instead. The extra direct pins created a second module identity for the dsh-* host
+  graph; a host-plane singleton then resolved `undefined` across that boundary on the first tool
+  call — exactly matching the originally-hypothesized root cause from the plan.
+  **Fix:** removed both extra direct deps from `lmthing-web`'s `package.json` (kept
+  `@deepseek-ai/dsh-web-app` only in `dsh.profile.bundles`; `@deepseek-ai/dsh-agent-presets`
+  resolves transitively via the hoisted linker without a direct pin), `pnpm install` inside the
+  profile directory.
+  **Live-verified** (real browser session, chrome-devtools MCP, booting `dsh --profile
+  lmthing-web` directly — no `--patch` overlay): a `remember` tool call succeeds
+  (`{"ok":true}`, previously the exact failure point), and a full cross-agent `delegate_echo`
+  round-trip succeeds (`[echo specialist] A3 native profile works`, "1 subagent" shown).
+  `scripts/run-web.sh` updated to boot `--profile lmthing-web` directly, dropping the
+  stock-`web`-plus-`--patch` workaround entirely; `dsh/packages/README.md` updated (status section
+  + roadmap now reflect A0-A3 done, and explicitly note the 12 remaining system spaces + the
+  data/project-app half are OUT OF SCOPE per the user's direction, not gaps to fill).
+  Likely provenance of the original bug, for anyone bootstrapping a new profile the same way:
+  `dsh plugin --profile <name> add @deepseek-ai/dsh-web-app` (the natural way to add a bundle to a
+  fresh profile) adds it as a direct dependency by default — the shipped stock profiles were
+  hand-crafted to avoid this; a normal bootstrap doesn't know to remove it afterward.
 - [ ] **A4 — real component UI rendering** (`@lmthing/dsh-client-space-components`, reusing
       `@lmthing/ui`'s `render-descriptor.tsx` catalog).
 - [x] **A5 — explicitly NOT in scope.** No system-space migration.

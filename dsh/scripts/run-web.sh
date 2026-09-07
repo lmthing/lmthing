@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# Launch the web UI with THING's ported content. See dsh/packages/README.md
-# ("The lmthing-web profile is broken; use --patch on the stock web profile
-# instead") for why this doesn't use `dsh --profile lmthing-web`.
+# Launch the web UI with THING's ported content, natively via `dsh --profile lmthing-web` — no
+# --patch-on-stock-web workaround needed any more (Part A3, see dsh/PROGRESS.md: the profile's
+# package.json must list ONLY @lmthing/* link deps under "dependencies", matching the stock `web`
+# profile's own shape — the root cause was a duplicate module identity from also pinning
+# @deepseek-ai/dsh-web-app as a direct dependency, which `dsh plugin --profile <name> add
+# @deepseek-ai/dsh-web-app` adds automatically when bootstrapping a fresh profile this way; remove
+# it from dependencies after bootstrapping, keeping it only in dsh.profile.bundles).
 #
 # Usage:
 #   ./scripts/run-web.sh                    # keyless (lmthing-mock, trigger phrases only)
@@ -12,7 +16,7 @@ DSH_DIR="$(pwd)"
 
 node scripts/assemble-lmthing-profile.mjs lmthing-web >/dev/null
 
-PATCHES=(--patch "$DSH_DIR/.dsh-home/profiles/lmthing-web/cordis.patch.yml")
+PATCHES=()
 if [[ "${1:-}" == "--real" ]]; then
   if [[ -z "${LMTHING_CLOUD_API_KEY:-}" ]]; then
     echo "error: --real requires LMTHING_CLOUD_API_KEY to be set" >&2
@@ -22,4 +26,4 @@ if [[ "${1:-}" == "--real" ]]; then
 fi
 
 echo "Starting — open http://127.0.0.1:3081 in your browser once it's up."
-DSH_HOME="$DSH_DIR/.dsh-home" npx --prefix "$DSH_DIR" dsh --profile web "${PATCHES[@]}" --port 3081 --no-open
+DSH_HOME="$DSH_DIR/.dsh-home" npx --prefix "$DSH_DIR" dsh --profile lmthing-web "${PATCHES[@]}" --port 3081 --no-open

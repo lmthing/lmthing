@@ -174,12 +174,11 @@ LMTHING_CLOUD_API_KEY=... ./scripts/run-web.sh --real   # or omit --real for the
 ```
 
 Then open http://127.0.0.1:3081. This boots THING with the same ported content as headless, but
-as a real multi-turn chat session. Live-verified against DeepSeek-V4-Flash-0731 with the current
-plugin family: `remember`/`recall` persisting across turns, and — after self-correcting from one
-wrong-shaped first attempt — a real `delegate_echo` call spawning the echo specialist subagent and
-returning its exact stamped response. See "The `lmthing-web` profile is broken" below for why this
-script targets the stock `web` profile via `--patch` rather than `dsh --profile lmthing-web`
-directly.
+as a real multi-turn chat session, natively via `dsh --profile lmthing-web` (Part A3 fixed the
+profile — see "The `lmthing-web` profile is broken" below, now resolved). Live-verified against
+DeepSeek-V4-Flash-0731 with the current plugin family: `remember`/`recall` persisting across turns,
+and — after self-correcting from one wrong-shaped first attempt — a real `delegate_echo` call
+spawning the echo specialist subagent and returning its exact stamped response.
 
 ### Reproduce (tasklist / knowledge / components demos)
 
@@ -212,30 +211,31 @@ lossless JSON`, not a silently-wrong answer. Fixed by returning `null` instead. 
 example of the kind of bug this format extension (dsh tools need real output schemas) will keep
 catching that LMThing's original raw-sandbox-injection format never could.
 
-### The `lmthing-web` profile is broken (root cause not found — real bug or environment, unclear)
+### The `lmthing-web` profile is broken — FIXED (Part A3, see dsh/PROGRESS.md)
 
-`dsh --profile lmthing-web ...` reproducibly fails on **every** tool call — including a completely
-unmodified `todo_write` — with `Cannot read properties of undefined (reading 'prepare')`, thrown
-outside the normal tool-execution error handling (no `tool/result` is ever logged; the whole turn
-dies). This is **not** a bug in this port: extensive isolation testing (each proved live, via the
-real model over the actual browser UI, using `chrome-devtools` MCP) established:
+`dsh --profile lmthing-web ...` used to reproducibly fail on **every** tool call — including a
+completely unmodified `todo_write` — with `Cannot read properties of undefined (reading
+'prepare')`, thrown outside the normal tool-execution error handling (no `tool/result` was ever
+logged; the whole turn died). Root cause found: `.dsh-home/profiles/lmthing-web/package.json`
+additionally pinned `"@deepseek-ai/dsh-web-app": "0.1.1-rc.2"` (and, once Part A2 needed it,
+`"@deepseek-ai/dsh-agent-presets"`) as **direct** dependencies — the stock `web` profile's own
+`package.json` lists ONLY `@lmthing/*` link deps under `dependencies`, letting `dsh-base`/
+`dsh-web-app` resolve "two-anchored" from the installation as bundles instead. The extra direct
+pins created a second module identity for the dsh-* host graph; a host-plane singleton service
+then resolved as `undefined` across that identity boundary on the first tool call. Likely
+provenance: `dsh plugin --profile <name> add @deepseek-ai/dsh-web-app` (the natural way to
+bootstrap a fresh profile with a given bundle) adds the bundle package as a direct dependency by
+default — the stock shipped profiles were hand-crafted to avoid this, a subtlety a normal
+bootstrap doesn't know to avoid.
 
-- A completely stock `dsh --profile web` (no patches at all beyond wiring a real provider) works.
-- Every one of our customizations works **individually** applied to stock `web`: the persona
-  override alone, our custom tools alone (one, then all four), and the `delegate_echo`
-  tool-subagent row alone (proving actual cross-space delegation live over the web UI).
-- The **full combination** — persona + all tools + subagent + the `watch: false` overrides —
-  also works, applied to stock `web` as a `--patch` overlay.
-- Yet a profile **named** `lmthing-web`, holding line-for-line the same generated
-  `cordis.patch.yml`, fails every time — including after a full `rm -rf` + recreate from scratch.
-
-So the content is provably correct; something about booting a *separately-named* profile with this
-composition is broken, and the cause wasn't found (not a leftover file anywhere `grep`-able under
-`.dsh-home`, not a package-version mismatch between the two profile directories). Workaround (what
-`scripts/run-web.sh` does): apply `lmthing-web`'s generated `cordis.patch.yml` as a `--patch`
-overlay on the stock `web` profile instead of booting a profile named `lmthing-web` directly. Worth
-reporting upstream once this repo's issue tracker is checked; developer preview, 9 days old at the
-time this was found.
+**Fix:** remove `@deepseek-ai/dsh-web-app` and `@deepseek-ai/dsh-agent-presets` from
+`lmthing-web`'s `package.json` `dependencies` (keep `@deepseek-ai/dsh-web-app` only in
+`dsh.profile.bundles`; `@deepseek-ai/dsh-agent-presets` is a `dsh-web-app` transitive dependency
+already, resolvable via the hoisted linker without a direct pin), then `pnpm install` inside the
+profile directory. Live-verified via a real browser session (`chrome-devtools` MCP): both a
+`remember` tool call and a full `delegate_echo` cross-agent delegation now succeed booting `dsh
+--profile lmthing-web` **directly, with no `--patch` overlay** — `scripts/run-web.sh` no longer
+needs the stock-`web`-plus-patch workaround.
 
 ## Architecture notes worth knowing before touching this
 
@@ -306,18 +306,36 @@ dsh/
   .dsh-home/              # gitignored — local Harness home for this track
 ```
 
-## Roadmap (not started)
+## Status: Part A (dsh/PROGRESS.md) — production-migration hardening, in progress
 
-See the plan file's current sections: the project-authoring capability model (db/views/api/
-connections/events — no dsh analog exists), `client-space-components` (real Web Client UI
-rendering — a distinct, further-out concern from `space-components`, which only lets the model
-*declare* a component + props, never renders one), the remaining 12 system spaces, and a real
-`dsh-agent-presets` roster once multiple named/switchable presets are needed (this would also let
-`space-persona` drop its `mountPersona: false` escape hatch). Also still open: `webSearch`/
-`webFetch`/`todoWrite`/`todoRead` from `system-global` were not ported (need the render service / no
-dsh equivalent decided yet); `space-components`'s prop extractor doesn't resolve a named-interface
-type reference or recurse into nested object types (the latter is the actually-common fallback case,
-see the Phase 3 status section above); `space-knowledge` doesn't preload a three-part ref's body
-into its system-prompt section the way LMThing's original does (every fetch still goes through the
-tool); and the `ask/` component directory (`store/projects/homes/spaces/*/components/ask/`) is
-invisible to `space-format`'s `loadComponents`, which only reads `view/`/`form/`.
+This track is being graduated to production (retiring `@lmthing/core`, the original QuickJS
+runtime — see `dsh/PROGRESS.md` for the full plan). Done so far: **A0** (dsh pinned hard, exact
+versions), **A1** (the three space-format parsers unified into one canonical
+`@lmthing/dsh-space-format`), **A2** (a real `@deepseek-ai/dsh-agent-presets` roster —
+`@lmthing/dsh-preset-roster` + `@lmthing/dsh-subagent-preset` — giving TRUE per-agent capability
+isolation for delegated children, replacing the union-of-tools bridge this file used to describe;
+`space-persona`'s `mountPersona: false` escape hatch is now only needed for the headless bundle's
+unscoped top-level agent, not for anything preset-mounted), and **A3** (the `lmthing-web` profile
+boots natively now — see below, root cause found and fixed).
+
+## Roadmap (deliberately out of scope, or not started)
+
+**Explicitly out of scope for this migration** (per the user's direction, not a gap to fill): the
+remaining 12 system spaces are NOT being ported — this effort ships the harness + space-format
+integration machinery, not a translation of LMThing's real content. The project-authoring
+capability model (db/views/api/connections/events — no dsh analog exists) is likewise out of
+scope; agents/chat/orchestration only.
+
+**Still genuinely open:** `client-space-components` (real Web Client UI rendering — a distinct,
+further-out concern from `space-components`, which only lets the model *declare* a component +
+props, never renders one — Part A4). `webSearch`/`webFetch`/`todoWrite`/`todoRead` from
+`system-global` were not ported (need the render service / no dsh equivalent decided yet, and
+`todoWrite`/`todoRead` may just map to dsh's own stock `todo_write` tool instead of a port).
+`space-components`'s prop extractor doesn't resolve a named-interface type reference or recurse
+into nested object types (the latter is the actually-common fallback case, see the Phase 3 status
+section above). `space-knowledge` doesn't preload a three-part ref's body into its system-prompt
+section the way LMThing's original does (every fetch still goes through the tool). The `ask/`
+component directory (`store/projects/homes/spaces/*/components/ask/`) is invisible to
+`space-format`'s `loadComponents`, which only reads `view/`/`form/` (confirmed: this isn't a
+dsh-specific gap — core's own original loader never read `ask/` either; there is no `ask/` concept
+in the real on-disk format, per `org/docs/format/space/components/README.md`).

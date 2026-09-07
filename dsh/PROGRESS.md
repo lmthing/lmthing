@@ -323,7 +323,11 @@ integration.
   - `pnpm -r test`: 206 checks, 0 failures (space-components: 8 new bundler tests, incl. one
     proving the react-shim fix itself in Node by injecting a fake `globalThis.__LMTHING_REACT__`,
     and one proving the shim fails loud — not silently — when the global is unset).
-- [x] **A5 — explicitly NOT in scope.** No system-space migration.
+- [x] **A5 — superseded by explicit user direction.** Originally "no system-space migration" —
+  the user later explicitly directed creating a real default agent (see `system-thing` below,
+  committed separately) with functions to author new agent spaces, and a full lmthing.chat
+  cutover. This is NOT a migration of the 14 real `sdk/org/libs/core/system-spaces/*` (still out
+  of scope, still not touched) — `system-thing` is new content authored directly for dsh.
 - [x] **A6 — assemble the production `lmthing` web profile.** Closed out as a byproduct of B1
   (below): `assemble-lmthing-profile.mjs`'s `lmthing-web` output (host + client + agent planes) now
   boots for real inside a from-scratch container with a real (LiteLLM-routed) model, proving the
@@ -393,27 +397,91 @@ integration.
     reply was not exercised — that needs the in-cluster canary, next).
   - **Not yet done:** pushing this image to ACR / wiring it into `build-images.yml`; an actual
     in-cluster canary pod exercising a real LiteLLM round-trip (only local Docker verified so far).
-- [ ] B2 — auth handshake shell (cookie JWT mint).
-- [ ] B3 — Envoy routes/policies for lmthing.chat → pod.
-- [~] **B4 — image/deploy wiring + canary, then cutover.**
-  - [x] **Canary CI wiring — DONE, live-verified in real GitHub Actions.** Added a `compute-dsh`
-    entry to `.github/workflows/build-images.yml`'s matrix (triggered by `dsh/**` or
-    `devops/argocd/compute/Dockerfile.dsh`, context = `dsh/`), plus `dsh/.dockerignore`
-    (`node_modules`, `.dsh-home` — local test scaffolding must never enter a build context).
-    Deliberately given an **empty `manifest` field**: `update-manifests` normally rewrites the
-    matching `devops/argocd/core/*.yaml` (and, for `compute` specifically, patches
-    `COMPUTE_IMAGE_TAG`/`COMPUTE_IMAGE_DIGEST` in `gateway.yaml` — the value every real user pod
-    resolves its image from) — a guard (`if not manifest: skip`) makes this entry push-only, so nothing
-    live changes. Verified for real: pushed the commit, watched
-    `gh run view <id>` end-to-end — `detect` matched **only** `compute-dsh` (the other 13 images
-    correctly untouched), `build` pushed `lmthingacr.azurecr.io/compute-dsh:<sha>` +
-    `:latest` in 1m25s, `update-manifests` ran and correctly emitted its skip message with **zero**
-    git diff (confirmed: no `ci: update image tags... [skip ci]` commit landed on `main`).
-  - **Not yet done:** an actual in-cluster canary Deployment/pod running this image against real
-    LiteLLM (needs a `COMPUTE_IMAGE` override for one test namespace — cluster access is available,
-    this session just hasn't spun one up yet); the cutover itself (B-cutover: pointing
-    `COMPUTE_IMAGE_TAG` at this image for real users) is explicitly held for a separate, confirmed
-    step per the migration plan's own risk ranking — not something to do inside a "canary" commit.
+- [x] **B — cutover for lmthing.chat. DONE.** (Went further than the plan's original "canary
+  first" sequencing: the user explicitly directed a full, immediate cutover — "Cut lmthing.chat
+  over now" — after reviewing the blast-radius tradeoffs below.)
+
+  **Architecture correction made along the way (caught before pushing anything, not after):** the
+  original plan assumed swapping the shared `compute` image (the one every per-user pod already
+  runs) would be the cutover mechanism — `cloud/gateway/src/lib/compute.ts`'s `COMPUTE_IMAGE`
+  hardcodes the image NAME, only the tag/digest is env-parametrized, so this looked like a clean,
+  minimal swap. It is NOT: reading `chat-policies.yaml`'s own comment ("identical logic to
+  computer-lua-routing") confirmed that studio, computer, team, AND app all proxy their `/api/*` to
+  the exact SAME per-user Service a chat request resolves to (`lmthing.user-<id>.svc.cluster.local
+  :8080`) — one pod serves every surface for a given user, not one pod per surface. Swapping
+  `compute` to dsh would have silently broken all four of those surfaces the moment their `/api/*`
+  calls stopped reaching the old `@lmthing/cli` REST API they're written against — none of which
+  the user asked to touch. **Fix: dsh runs as a genuinely SEPARATE, additive per-user
+  Deployment+Service (`lmthing-dsh`), not a replacement.** Only lmthing.chat's own Lua routing
+  points at it; every other surface's routing, and the original `compute` image/Deployment, are
+  completely untouched.
+
+  - **`cloud/gateway/src/lib/compute.ts`**: new `dshDeployment(p, pod)`/`dshService(p)` (mirrors
+    `deployment()`/`service()`'s shape) plus `ensureDshResources(p, pod)`, called from `createPod`
+    (new users), the `ensurePod` existing-pod branch, and `wakePod` (so a pre-existing user's first
+    touch after this deploy — whichever path it comes through — provisions `lmthing-dsh` too).
+    Two deliberate simplifications for this first cutover, not oversights:
+    - **`emptyDir`, not a second PersistentVolumeClaim.** A real PVC would double per-user storage
+      cost, and `user-data`'s `ReadWriteOnce` access mode can't be shared with a second pod anyway.
+      Session/created-space persistence across a `lmthing-dsh` pod restart is a real, accepted gap
+      until it's actually needed.
+    - **No scale-to-zero.** The old cli's self-idle heartbeat (`LMTHING_SELF_IDLE`) is
+      `@lmthing/cli`-specific; `lmthing-dsh` stays at `replicas: 1` once created. Confirmed safe by
+      reading `scalePod`/`sweepIdlePods`: both hardcode the path `deployments/lmthing/scale`, so
+      the existing idle-sweep backstop cannot reach (and therefore cannot break) `lmthing-dsh`
+      either — this was a real risk to check, not an assumption.
+    - `DSH_TRUSTED_HOST=lmthing.chat` is injected as a container env var — dsh's own DNS-rebinding
+      fence (`isTrustedApiRequest`) needs the exact Host Envoy forwards, confirmed live via Docker
+      (`--trusted-host lmthing.chat` in the boot log, healthy startup).
+    - Verified: `pnpm exec tsc --noEmit` clean; `compute.test.ts` — 3 new tests (separate
+      deployment+service actually provisioned, `emptyDir` not the PVC, `DSH_TRUSTED_HOST` present)
+      plus all 17 pre-existing tests green (20/20; confirms the historical `compute`/`lmthing`
+      resource shape truly is untouched).
+  - **New `@lmthing/chat-auth`** (top-level `chat-auth/`, modeled directly on `space/`'s Vite app
+    structure): the JWT-free login/handoff shell. Reuses the EXISTING, already-live cross-domain
+    SSO bridge (`@lmthing/auth`'s `AuthProvider`/`useAuth`, identical to every other surface — a
+    fork investigated this bridge in depth: code exchange via `POST /sso/create`/`exchange`, no
+    cross-domain cookies possible since lmthing.com/.chat/etc. are separate registrable domains,
+    session lands in `localStorage`) and `@lmthing/ui`'s existing `LoginScreen` component — no new
+    auth logic written, only glue. `src/Shell.tsx`: once `useAuth()` reports authenticated, mirrors
+    the token into the `access_token` cookie (a copy of the retiring `apps/web`'s
+    `setPodSessionCookie` — that app's own last remaining caller of this pattern) and does a real
+    `window.location.href = '/'` navigation (not client-side routing — the destination is a
+    completely different server, the user's `lmthing-dsh` pod). No `@tanstack/react-router`: the
+    whole app is one view, so file-based routing/`routeTree.gen.ts` would be pure overhead.
+  - **`devops/argocd/envoy/{chat-routes,chat-policies}.yaml`**, rewritten wholesale — NOT a novel
+    design: modeled line-for-line on `app-routes.yaml`/`app-policies.yaml`'s already-live pattern,
+    which solves the identical problem for project-app pages (chosen specifically because it's
+    proven in production, not theorized). `chat-jwt`'s SecurityPolicy is `optional: true` with
+    `cookies: [access_token]` added; a token-less request reaches `chat-lua-routing` instead of
+    being 401'd at the filter, which now redirects a DOCUMENT navigation (`sec-fetch-dest:
+    document`) with no `x-user-id` to `/auth/` (chat-auth) instead of answering a bare 401 — every
+    other token-less request (dsh's own same-origin `/api/*` fetches, assets) still 401s, since
+    none of those have a legitimate "go sign in" recovery. The document catch-all
+    (`chat-document-proxy`, replacing the old JWT-free `chat-static`) and `/api/*`
+    (`chat-api-proxy`) both route to `dynamic-user-backend`, whose Lua-constructed upstream is now
+    `lmthing-dsh.user-<id>.svc.cluster.local:8080` (one line changed from the pre-cutover string).
+    `chat-app-proxy` (the old in-process project-app render) is deleted — dsh has no equivalent
+    feature. `devops/argocd/core/chat.yaml` (the old static `chat` Service) is deleted; new
+    `devops/argocd/core/chat-auth.yaml` replaces it (tiny nginx static Deployment, same shape).
+  - **CI (`build-images.yml`)**: `compute-dsh` (context `dsh/`, `devops/argocd/compute/
+    Dockerfile.dsh`) and `chat-auth` (context `.`, `chat-auth/Dockerfile`) as their own matrix
+    entries — `compute` itself is UNCHANGED (still builds from `sdk/org`, still serves studio/
+    computer/team/app). `compute-dsh` has no k8s manifest to regex-patch (compute.ts builds its pod
+    inline, same as `compute`), so `update-manifests` special-cases it exactly like it already
+    does for `compute`, patching new `COMPUTE_DSH_IMAGE_TAG`/`COMPUTE_DSH_IMAGE_DIGEST` entries
+    added to `gateway.yaml`. `chat-auth` gets a normal manifest patch. Verified: YAML parses; the
+    embedded Python (build-matrix filtering AND the update-manifests patch, including the new
+    `compute-dsh` gateway.yaml regex) dry-run correctly against a real copy of `gateway.yaml`.
+  - **A near-miss worth recording**: local (and Docker) builds of `chat-auth` failed with a
+    `vite-plus`/`rolldown` "cannot find native binding" error. Traced to the ROOT — `git diff` on
+    the reverted, committed `pnpm-lock.yaml` showed `space` (an untouched, already-working
+    production app) resolves the exact same `@voidzero-dev/vite-plus-core@0.3.0` that fails to
+    build in this sandbox — confirming it's a pre-existing local/Docker-sandbox network limitation
+    (a platform-specific optional-dependency binary that real CI, with full registry access,
+    already fetches fine today), not a defect introduced by chat-auth's own files. Verification
+    for this piece rides on the real GitHub Actions run instead (same method already used
+    successfully for the compute-dsh canary build).
 
 ## Part C — remove the custom harness & dead web apps
 

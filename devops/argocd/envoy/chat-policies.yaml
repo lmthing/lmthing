@@ -1,12 +1,12 @@
-# Dynamic per-user routing for lmthing.chat.
+# Dynamic per-user routing for lmthing.chat (Part B cutover — see chat-routes.yaml's header and
+# dsh/PROGRESS.md). Mirrors app-policies.yaml's already-live optional-JWT + Lua-redirect pattern:
+# a token-less request reaches Lua (no x-user-id), which bounces a DOCUMENT navigation to /auth/
+# (the chat-auth shell) instead of a raw 401, and still 401s a token-less API/asset call.
 #
 # The shared infrastructure resources (`dynamic-user-backend` Backend and the
-# `rewrite-host-from-header` HTTPRouteFilter) are declared once in
-# computer-policies.yaml and reused here — they are cluster singletons in the
-# gateway namespace, so they are NOT redeclared.
+# `rewrite-host-from-header` HTTPRouteFilter) are declared once in computer-policies.yaml and
+# reused here — they are cluster singletons in the gateway namespace, so they are NOT redeclared.
 
-# Lua script: extracts user ID from JWT claim, constructs per-user upstream.
-# Identical logic to computer-lua-routing, bound to the chat dynamic routes.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyExtensionPolicy
 metadata:
@@ -17,11 +17,9 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: chat-api-proxy
-    # The in-process app render's data calls (/app/<project>/api/*) route to the same
-    # per-user pod as /api — see chat-app-proxy in chat-routes.yaml.
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
-      name: chat-app-proxy
+      name: chat-document-proxy
   lua:
     - type: Inline
       inline: |
@@ -30,6 +28,20 @@ spec:
 
           local user_id = request_handle:headers():get("x-user-id")
           if user_id == nil then
+            -- The JWT policy is `optional` (see chat-jwt below), so a token-less request reaches
+            -- here instead of being 401'd by the filter itself; an INVALID token is still rejected
+            -- there. A DOCUMENT navigation (typing lmthing.chat, a bookmark, a shared link) can't
+            -- carry a Bearer header and, with no access_token cookie yet, has no user id to route
+            -- a pod with — bounce it to the login/handoff shell instead of a bare 401 (identical
+            -- reasoning to app-lua-routing's own comment). Every other request (dsh's own /api/*
+            -- fetches, assets) stays 401 — those never have a legitimate "go sign in" recovery.
+            if request_handle:headers():get("sec-fetch-dest") == "document" then
+              request_handle:respond(
+                {[":status"] = "302", ["location"] = "/auth/", ["content-type"] = "text/plain"},
+                ""
+              )
+              return
+            end
             request_handle:respond(
               {[":status"] = "401", ["content-type"] = "text/plain"},
               "missing user_id claim"
@@ -45,7 +57,10 @@ spec:
             return
           end
 
-          local upstream = "lmthing.user-" .. user_id .. ".svc.cluster.local:8080"
+          -- lmthing-dsh, NOT lmthing: chat is the only surface routed to the dsh Deployment —
+          -- see cloud/gateway/src/lib/compute.ts#dshDeployment's own doc comment for why this
+          -- must stay a separate Service from every other surface's upstream.
+          local upstream = "lmthing-dsh.user-" .. user_id .. ".svc.cluster.local:8080"
           request_handle:headers():replace("x-dynamic-host-header", upstream)
 
           -- Stash context for the activator (envoy_on_response can't read request
@@ -107,9 +122,10 @@ spec:
         end
 
 ---
-# JWT validation — extracts `sub` claim as x-user-id header.
-# Reuses computer's exact extractFrom (Authorization header + access_token query
-# param) and claimToHeaders mapping. No cookie source. Bound to the /api proxy.
+# JWT validation — extracts `sub` claim as x-user-id header. Reuses computer's exact
+# claimToHeaders mapping. `optional: true` — see chat-lua-routing's own comment above for why
+# (identical reasoning to app-jwt, which this is modeled on): an INVALID token is still rejected
+# here; only a MISSING one passes through for Lua to redirect (document) or 401 (everything else).
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: SecurityPolicy
 metadata:
@@ -120,36 +136,12 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: chat-api-proxy
-    # Same JWT validation for the in-process app render's /app/<project>/api/* calls.
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
-      name: chat-app-proxy
+      name: chat-document-proxy
   # ── CORS ──────────────────────────────────────────────────────────────────
-  #
-  # The desktop app is the FIRST client whose origin is not this host. `apps/web` is served from
-  # the same origin as the pod, so it never triggers a preflight; React Native does not implement
-  # CORS at all. A Tauri webview does, and its origin is a custom scheme.
-  #
-  # Every pod call carries `Authorization`, which makes the request non-simple, so the browser
-  # sends an `OPTIONS` preflight first — and a preflight carries NO credentials, by definition.
-  # Without this block the JWT filter answered it `401 Jwt is missing` before the pod ever saw it,
-  # and the desktop app sat on "Starting your workspace…" forever with the pod healthy and serving.
-  #
-  # Envoy Gateway runs the CORS filter ahead of JWT and answers the preflight directly, so this
-  # does not weaken authentication: the actual GET/POST still has to present a valid token.
-  #
-  # `*`, and NOT because an allowlist was too much trouble. The desktop's origin on macOS and
-  # Linux is `tauri://localhost` — a custom scheme — and the SecurityPolicy CRD validates
-  # allowOrigins against `^(\*|https?://...)$`, so a custom scheme is not expressible at all.
-  #
-  # What makes `*` safe here is the line below it. Authentication is a BEARER TOKEN, never a
-  # cookie, so nothing is sent ambiently: a hostile page can issue a request to this host and will
-  # get a 401, because it has no token to attach and `allowCredentials: false` forbids the browser
-  # from sending one. `*` widens who may ASK, not who may be answered.
-  #
-  # allowCredentials must therefore stay false. Turning it on is what would make `*` dangerous —
-  # and the browser refuses that combination anyway, which is a good reason not to rely on the
-  # refusal.
+  # See app-policies.yaml's app-jwt for the full rationale (desktop's tauri:// origin can't be
+  # allowlisted; `*` is safe because auth here is a token, never an ambiently-sent credential).
   cors:
     allowOrigins:
       - "*"
@@ -158,17 +150,19 @@ spec:
     maxAge: "1h"
     allowCredentials: false
   jwt:
+    optional: true
     providers:
       - name: gateway
         # @lmthing/auth carries the gateway-issued HS256 token (no iss/aud).
-        # Validate the HMAC signature against a local JWKS (oct key) sourced from
-        # the gateway-jwt-jwks ConfigMap, created out-of-band so the signing
-        # secret never enters git.
         extractFrom:
           headers:
             - name: Authorization
               valuePrefix: "Bearer "
           params:
+            - access_token
+          # Platform session for the document navigation + dsh's own same-origin /api/* fetches
+          # (neither can/does carry a Bearer header) — the chat-auth shell sets this after login.
+          cookies:
             - access_token
         claimToHeaders:
           - claim: sub

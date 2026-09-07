@@ -247,6 +247,25 @@ describe("createPod — user principal (regression: unchanged shape)", () => {
     const probe = sent("/deployments")!.body.spec.template.spec.containers[0].startupProbe;
     expect(probe.httpGet.path).toBe("/api/health");
   });
+
+  it("also provisions a SEPARATE lmthing-dsh deployment+service (lmthing.chat's dsh pod)", () => {
+    const deploymentPosts = calls.filter((c) => c.method === "POST" && c.path.includes("/deployments"));
+    const servicePosts = calls.filter((c) => c.method === "POST" && c.path.includes("/services"));
+    expect(deploymentPosts.map((c) => c.body.metadata.name)).toEqual(["lmthing", "lmthing-dsh"]);
+    expect(servicePosts.map((c) => c.body.metadata.name)).toEqual(["lmthing", "lmthing-dsh"]);
+  });
+
+  it("lmthing-dsh does NOT mount the user-data PVC (emptyDir — separate resource, see compute.ts)", () => {
+    const dshDep = calls.find((c) => c.method === "POST" && c.path.includes("/deployments") && c.body.metadata.name === "lmthing-dsh")!.body;
+    const volumes = dshDep.spec.template.spec.volumes;
+    expect(volumes).toEqual([{ name: "data", emptyDir: {} }]);
+  });
+
+  it("lmthing-dsh carries the Host dsh's own trust fence needs", () => {
+    const dshDep = calls.find((c) => c.method === "POST" && c.path.includes("/deployments") && c.body.metadata.name === "lmthing-dsh")!.body;
+    const env = dshDep.spec.template.spec.containers[0].env;
+    expect(env).toContainEqual({ name: "DSH_TRUSTED_HOST", value: "lmthing.chat" });
+  });
 });
 
 describe("createPod — team principal", () => {

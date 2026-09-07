@@ -349,6 +349,15 @@ spec:
             # COMPUTE_IMAGE_TAG and the compute-prepull DaemonSet image.
             - name: COMPUTE_IMAGE_DIGEST
               value: "sha256:e909b871804d3ce6f1b75c7dffbe2cf2f6bb09376bca51e159371ad3665ce8f9"
+            # The SECOND per-user pod, dsh, serving lmthing.chat only (Part B cutover — see
+            # cloud/gateway/src/lib/compute.ts#dshDeployment and dsh/PROGRESS.md). Mirrors
+            # COMPUTE_IMAGE_TAG/DIGEST's own lockstep update by CI, but for the separate
+            # `compute-dsh` image/manifest entry in build-images.yml. Empty until the first
+            # successful compute-dsh build fills it in.
+            - name: COMPUTE_DSH_IMAGE_TAG
+              value: ""
+            - name: COMPUTE_DSH_IMAGE_DIGEST
+              value: ""
           resources:
             requests:
               memory: "128Mi"

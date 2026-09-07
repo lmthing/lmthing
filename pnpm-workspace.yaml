@@ -1,6 +1,7 @@
 packages:
   - blog
   - casa
+  - chat-auth
   - com
   - space
   - social

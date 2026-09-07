@@ -443,6 +443,106 @@ function service(p: PodPrincipal) {
   };
 }
 
+// The dsh (DeepSeek Harness) compute pod — a SECOND, per-user Deployment/Service serving
+// lmthing.chat ONLY (Part B cutover, see dsh/PROGRESS.md). Studio/computer/team/app all proxy to
+// the ORIGINAL "lmthing" Service above (confirmed: their Lua routing builds the identical
+// `lmthing.user-<id>.svc.cluster.local:8080` upstream chat's own Lua used to) — swapping that
+// shared pod's image to dsh would silently break every one of them the moment its /api/* stopped
+// being the old @lmthing/cli REST API. dsh runs alongside it instead, under its own name
+// ("lmthing-dsh"), so only lmthing.chat's own Lua (which points at THIS Service) is affected.
+//
+// Deliberately NOT persistent (emptyDir, not a PVC): a second per-user PersistentVolumeClaim would
+// double storage cost for every free-tier user, and dsh's own PVC-mode ReadWriteOnce data volume
+// can only be attached by one pod at a time anyway — adding a real one is follow-up work once
+// lmthing.chat's session/space persistence actually needs to survive a pod restart, not a
+// precondition for this first cutover. Also deliberately NOT scale-to-zero: the old cli's
+// self-idle heartbeat (LMTHING_SELF_IDLE) is @lmthing/cli-specific and dsh has no equivalent yet —
+// this pod stays at replicas: 1 once created. Both are known, documented interim costs, not bugs.
+export const COMPUTE_DSH_IMAGE_TAG = process.env.COMPUTE_DSH_IMAGE_TAG ?? "";
+const COMPUTE_DSH_IMAGE_DIGEST = process.env.COMPUTE_DSH_IMAGE_DIGEST ?? "";
+const COMPUTE_DSH_IMAGE = LOCAL_DEV
+  ? (process.env.COMPUTE_DSH_IMAGE ?? "compute-dsh:local")
+  : COMPUTE_DSH_IMAGE_DIGEST
+    ? `${ACR_REGISTRY}/compute-dsh@${COMPUTE_DSH_IMAGE_DIGEST}`
+    : `${ACR_REGISTRY}/compute-dsh:latest`;
+const COMPUTE_DSH_IMAGE_PULL_POLICY =
+  !LOCAL_DEV && COMPUTE_DSH_IMAGE_DIGEST ? "IfNotPresent" : "Always";
+// The Host every dsh /api call must present to satisfy its own DNS-rebinding fence
+// (`isTrustedApiRequest` — see dsh/PROGRESS.md Part B2). A platform constant, not per-principal:
+// only lmthing.chat ever reaches this Deployment.
+const DSH_TRUSTED_HOST = "lmthing.chat";
+
+function dshDeployment(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_CONFIG) {
+  return {
+    apiVersion: "apps/v1",
+    kind: "Deployment",
+    metadata: {
+      name: "lmthing-dsh",
+      namespace: nsOf(p),
+    },
+    spec: {
+      replicas: 1,
+      selector: { matchLabels: { app: "compute-dsh" } },
+      template: {
+        metadata: { labels: { app: "compute-dsh", ...principalLabels(p) } },
+        spec: {
+          ...(LOCAL_DEV ? {} : { imagePullSecrets: [{ name: PULL_SECRET_NAME }] }),
+          ...poolPlacement(),
+          terminationGracePeriodSeconds: 45,
+          containers: [
+            {
+              name: "compute-dsh",
+              image: COMPUTE_DSH_IMAGE,
+              imagePullPolicy: COMPUTE_DSH_IMAGE_PULL_POLICY,
+              ports: [{ containerPort: 8080 }],
+              resources: {
+                requests: { memory: pod.memRequest ?? pod.mem, cpu: pod.cpuRequest ?? pod.cpu },
+                limits: { memory: pod.mem, cpu: pod.cpu },
+              },
+              env: [{ name: "DSH_TRUSTED_HOST", value: DSH_TRUSTED_HOST }],
+              envFrom: [{ secretRef: { name: "user-env", optional: true } }],
+              volumeMounts: [{ name: "data", mountPath: "/data" }],
+              // Same startup-probe-only reasoning as the primary deployment above — dsh's own
+              // pod-server answers this (see dsh/packages/pod-server/src/proxy.js).
+              startupProbe: {
+                httpGet: { path: "/api/health", port: 8080 },
+                initialDelaySeconds: 0,
+                periodSeconds: 1,
+                timeoutSeconds: 5,
+                failureThreshold: 120,
+              },
+            },
+          ],
+          volumes: [{ name: "data", emptyDir: {} }],
+        },
+      },
+    },
+  };
+}
+
+function dshService(p: PodPrincipal) {
+  return {
+    apiVersion: "v1",
+    kind: "Service",
+    metadata: { name: "lmthing-dsh", namespace: nsOf(p) },
+    spec: {
+      type: LOCAL_DEV ? "NodePort" : "ClusterIP",
+      selector: { app: "compute-dsh" },
+      ports: [{ port: 8080, targetPort: 8080 }],
+    },
+  };
+}
+
+/** Idempotently ensures the dsh Deployment+Service exist for a principal — conflict (already
+ *  exists) is treated as success, matching every other resource-creation call in this file. */
+async function ensureDshResources(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_CONFIG): Promise<void> {
+  const ns = nsOf(p);
+  const depResult = await k8s(`/apis/apps/v1/namespaces/${ns}/deployments`, "POST", dshDeployment(p, pod));
+  console.log(depResult === "conflict" ? `dsh deployment in ${ns} already exists, skipping` : `Created dsh deployment in ${ns}`);
+  const svcResult = await k8s(`/api/v1/namespaces/${ns}/services`, "POST", dshService(p));
+  console.log(svcResult === "conflict" ? `dsh service in ${ns} already exists, skipping` : `Created dsh service in ${ns}`);
+}
+
 function envSecret(p: PodPrincipal, vars: Record<string, string>) {
   const data: Record<string, string> = {};
   for (const [k, v] of Object.entries(vars)) {
@@ -822,6 +922,9 @@ export async function createPod(
   } else {
     console.log(`Created service in ${ns}`);
   }
+
+  // dsh (lmthing.chat only) — see ensureDshResources's own doc comment.
+  await ensureDshResources(p, pod);
 }
 
 /**
@@ -872,6 +975,9 @@ export async function ensurePod(
     // First use — provision the full namespace + resources
     await createPod(p, pod);
   } else {
+    // Pre-existing pod, provisioned before the dsh cutover — ensure lmthing-dsh exists too
+    // (idempotent; createPod above already covers brand-new users).
+    await ensureDshResources(p, pod);
     // Patch resources + env + pod-shape to match current config (handles tier
     // changes AND migrates existing pods onto the P1–P4 spec — Burstable requests,
     // NODE_OPTIONS, readiness probe, grace, pool placement, digest image — on the
@@ -1023,9 +1129,15 @@ export async function wakePod(p: PodPrincipal, pod: PodConfig): Promise<void> {
   );
   if (!dep) {
     await createPod(p, pod);
-  } else if ((dep.spec?.replicas ?? 0) === 0) {
-    await scalePod(p, 1);
-    console.log(`[activator] woke scaled-to-zero pod for ${ns}`);
+  } else {
+    // dsh never scales to zero (see ensureDshResources), so nothing to "wake" there — just
+    // make sure it exists at all, for a pre-existing user whose first touch since the dsh
+    // cutover happens to be a wake instead of a normal /ensure.
+    await ensureDshResources(p, pod);
+    if ((dep.spec?.replicas ?? 0) === 0) {
+      await scalePod(p, 1);
+      console.log(`[activator] woke scaled-to-zero pod for ${ns}`);
+    }
   }
   // Stamp the idle-sweep backstop clock — a wake means the principal is active.
   try {

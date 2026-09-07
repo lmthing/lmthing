@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: chat
+  name: chat-auth
   namespace: lmthing
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: chat
+      app: chat-auth
   template:
     metadata:
       labels:
-        app: chat
+        app: chat-auth
     spec:
       imagePullSecrets:
         - name: acr-pull-secret
       containers:
-        - name: chat
-          image: lmthingacr.azurecr.io/chat:1e9282e
+        - name: chat-auth
+          image: lmthingacr.azurecr.io/chat-auth:1e9282e
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
@@ -32,11 +32,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: chat
+  name: chat-auth
   namespace: lmthing
 spec:
   selector:
-    app: chat
+    app: chat-auth
   ports:
     - port: 80
       targetPort: 80

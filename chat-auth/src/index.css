@@ -1,0 +1,16 @@
+/*
+ * Design-system tokens only — this app has no custom Tailwind-styled markup of its own (just
+ * `LoginScreen`, a Tamagui component), but `theme.css` still needs to be loaded so its CSS custom
+ * properties (`--background`, `--foreground`, …) exist for the base rules below. See
+ * `space/src/index.css` for the fuller version other surfaces need (they carry real Tailwind
+ * utility classNames; this one doesn't).
+ */
+@import "@lmthing/css/theme.css";
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans, TypeMates Cera Round Pro Bold, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

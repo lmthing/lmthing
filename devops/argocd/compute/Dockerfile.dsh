@@ -1,13 +1,18 @@
-# Compute pod image running the dsh (DeepSeek Harness) production profile instead of the retired
-# `lmthing serve` (@lmthing/cli) QuickJS runtime — Part B1, see dsh/PROGRESS.md.
+# dsh (DeepSeek Harness) compute pod image — the SECOND per-user Deployment/Service
+# (`lmthing-dsh`), serving lmthing.chat ONLY (Part B cutover, see dsh/PROGRESS.md).
 #
 # Build context note: the Docker build context must be the `dsh/` workspace root
 # (i.e. `docker build -f devops/argocd/compute/Dockerfile.dsh dsh/`).
 #
-# CANARY IMAGE: built and pushed under its own name (e.g. `compute-dsh`), never as `compute` — see
-# cloud/gateway/src/lib/compute.ts (COMPUTE_IMAGE resolves purely from env/CI-set vars, so this image
-# is opt-in per pod via COMPUTE_IMAGE override, with zero code changes there). Do not point the
-# default `compute` image at this Dockerfile until the B-cutover step.
+# Pushed as its own image (`compute-dsh`), NEVER as `compute` — studio, computer, team, and app all
+# proxy `/api/*` to the SAME per-user Service the existing `compute` image serves (confirmed by
+# reading chat-policies.yaml's own comment: "identical logic to computer-lua-routing" builds the
+# IDENTICAL upstream `lmthing.user-<id>.svc.cluster.local:8080` for every one of them). Swapping
+# `compute` itself to dsh would silently break every one of those surfaces the moment this pod's
+# `/api/*` stopped being the old @lmthing/cli REST API — they were never asked to move. So dsh runs
+# as a genuinely SEPARATE Deployment+Service per user (`lmthing-dsh`, see
+# cloud/gateway/src/lib/compute.ts#dshDeployment/dshService), and only chat-lua-routing's upstream
+# construction points at it; every other surface's routing is untouched.
 #
 # Why a wrapper process (@lmthing/dsh-pod-server) is the CMD, not `dsh` directly: dsh refuses to
 # bind any host but loopback (`--host 0.0.0.0` is intentionally rejected — confirmed by reading

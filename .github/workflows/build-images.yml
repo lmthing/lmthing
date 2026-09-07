@@ -18,9 +18,10 @@ on:
       - 'cloud/gateway/**'
       - 'sdk/org'
       - 'sdk/org/**'
-      - 'devops/argocd/compute/Dockerfile'
       - 'dsh/**'
+      - 'devops/argocd/compute/Dockerfile'
       - 'devops/argocd/compute/Dockerfile.dsh'
+      - 'chat-auth/**'
       - 'com/**'
       - 'social/**'
       - 'store/**'
@@ -96,18 +97,19 @@ jobs:
               - 'sdk/org'
               - 'sdk/org/**'
               - 'devops/argocd/compute/Dockerfile'
-            # Canary image (Part B1/B4, see dsh/PROGRESS.md) — builds from the dsh/ workspace
-            # itself, deliberately NOT wired into COMPUTE_IMAGE_TAG/gateway.yaml (see
-            # update-manifests below): opt-in only, until the B-cutover step points a real
-            # pod at it.
+            # The SECOND per-user pod, dsh, serving lmthing.chat only (Part B cutover — see
+            # cloud/gateway/src/lib/compute.ts#dshDeployment, dsh/PROGRESS.md). A genuinely
+            # separate image/Deployment from `compute` above, not a replacement for it — studio/
+            # computer/team/app all still run the @lmthing/cli image `compute` builds.
             compute_dsh:
               - 'dsh/**'
               - 'devops/argocd/compute/Dockerfile.dsh'
-            studio:
+            chat_auth:
               - *root
+              - 'chat-auth/**'
               - 'sdk/org'
               - 'sdk/org/**'
-            chat:
+            studio:
               - *root
               - 'sdk/org'
               - 'sdk/org/**'
@@ -174,8 +176,8 @@ jobs:
           COMPUTER: ${{ steps.changes.outputs.computer }}
           COMPUTE: ${{ steps.changes.outputs.compute }}
           COMPUTE_DSH: ${{ steps.changes.outputs.compute_dsh }}
+          CHAT_AUTH: ${{ steps.changes.outputs.chat_auth }}
           STUDIO: ${{ steps.changes.outputs.studio }}
-          CHAT: ${{ steps.changes.outputs.chat }}
           COM: ${{ steps.changes.outputs.com }}
           SOCIAL: ${{ steps.changes.outputs.social }}
           STORE: ${{ steps.changes.outputs.store }}
@@ -201,11 +203,18 @@ jobs:
             {"image": "gateway",  "dockerfile": "cloud/gateway/Dockerfile",        "context": "cloud/gateway", "manifest": "devops/argocd/core/gateway.yaml",              "changed": changed("gateway")},
             {"image": "computer", "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/computer.yaml",             "changed": changed("computer")},
             {"image": "compute",  "dockerfile": "devops/argocd/compute/Dockerfile","context": "sdk/org",       "manifest": "devops/argocd/core/compute-pod-template.yaml", "changed": changed("compute")},
-            # Canary (Part B1/B4): pushed to ACR only, no manifest to update — nothing live
-            # references it yet. See update-manifests below.
+            # The dsh pod for lmthing.chat (Part B cutover) — a genuinely separate image/Deployment
+            # from `compute` above (see cloud/gateway/src/lib/compute.ts#dshDeployment). No k8s
+            # manifest to regex-patch (there isn't one — compute.ts builds the pod inline like
+            # `compute` itself); update-manifests special-cases this image name below instead,
+            # same as it already does for `compute`'s own COMPUTE_IMAGE_TAG/DIGEST.
             {"image": "compute-dsh", "dockerfile": "devops/argocd/compute/Dockerfile.dsh", "context": "dsh", "manifest": "", "changed": changed("compute_dsh")},
+            {"image": "chat-auth", "dockerfile": "chat-auth/Dockerfile", "context": ".", "manifest": "devops/argocd/core/chat-auth.yaml", "changed": changed("chat_auth")},
             {"image": "studio",   "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/studio.yaml",               "changed": changed("studio")},
-            {"image": "chat",     "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/chat.yaml",                 "changed": changed("chat")},
+            # The old JWT-free static "chat" shell is retired (Part B cutover) — lmthing.chat's
+            # document route now goes straight to the user's dsh pod (the `compute` image above);
+            # chat-auth (above) is the new, much smaller JWT-free piece. devops/argocd/core/
+            # chat.yaml is deleted, so this entry is deleted too, not left pointing at a dead manifest.
             {"image": "com",      "dockerfile": "com/Dockerfile",                  "context": ".",             "manifest": "devops/argocd/core/com.yaml",                  "changed": changed("com")},
             {"image": "social",   "dockerfile": "social/Dockerfile",               "context": ".",             "manifest": "devops/argocd/core/social.yaml",               "changed": changed("social")},
             {"image": "store",    "dockerfile": "store/Dockerfile",                "context": ".",             "manifest": "devops/argocd/core/store.yaml",                "changed": changed("store")},
@@ -503,6 +512,30 @@ jobs:
               continue
             manifest = entry["manifest"]
             image = entry["image"]
+
+            # No k8s manifest — compute.ts builds this pod inline, same as `compute` itself.
+            # Patch COMPUTE_DSH_IMAGE_TAG/DIGEST in gateway.yaml directly instead (mirrors the
+            # compute-specific branch below).
+            if image == "compute-dsh":
+              digest = digests.get(image)
+              gw = "devops/argocd/core/gateway.yaml"
+              with open(gw) as f:
+                gw_content = f.read()
+              gw_new = re.sub(
+                r'(- name: COMPUTE_DSH_IMAGE_TAG\s*\n\s+value:\s*)"[^"]*"',
+                rf'\g<1>"{sha}"',
+                gw_content,
+              )
+              if digest:
+                gw_new = re.sub(
+                  r'(- name: COMPUTE_DSH_IMAGE_DIGEST\s*\n\s+value:\s*)"[^"]*"',
+                  rf'\g<1>"{digest}"',
+                  gw_new,
+                )
+              with open(gw, "w") as f:
+                f.write(gw_new)
+              continue
+
             if not manifest:
               print(f"Skipping manifest update for {image} — canary/opt-in image, nothing live references it yet")
               continue

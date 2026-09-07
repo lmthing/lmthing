@@ -538,7 +538,39 @@ function dshService(p: PodPrincipal) {
 async function ensureDshResources(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_CONFIG): Promise<void> {
   const ns = nsOf(p);
   const depResult = await k8s(`/apis/apps/v1/namespaces/${ns}/deployments`, "POST", dshDeployment(p, pod));
-  console.log(depResult === "conflict" ? `dsh deployment in ${ns} already exists, skipping` : `Created dsh deployment in ${ns}`);
+  if (depResult === "conflict") {
+    // Unlike the primary deployment, this one never scales to zero, so there's no "wake" moment to
+    // piggyback a patch onto — pick up a new compute-dsh build (or a resource/env change) on every
+    // ensure instead. A strategic-merge patch that changes nothing is a no-op (no roll).
+    await k8s(
+      `/apis/apps/v1/namespaces/${ns}/deployments/lmthing-dsh`,
+      "PATCH",
+      {
+        spec: {
+          template: {
+            spec: {
+              ...poolPlacement(),
+              containers: [
+                {
+                  name: "compute-dsh",
+                  image: COMPUTE_DSH_IMAGE,
+                  imagePullPolicy: COMPUTE_DSH_IMAGE_PULL_POLICY,
+                  resources: {
+                    requests: { memory: pod.memRequest ?? pod.mem, cpu: pod.cpuRequest ?? pod.cpu },
+                    limits: { memory: pod.mem, cpu: pod.cpu },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+      "application/strategic-merge-patch+json",
+    );
+    console.log(`dsh deployment in ${ns} already exists, patched to current image/shape`);
+  } else {
+    console.log(`Created dsh deployment in ${ns}`);
+  }
   const svcResult = await k8s(`/api/v1/namespaces/${ns}/services`, "POST", dshService(p));
   console.log(svcResult === "conflict" ? `dsh service in ${ns} already exists, skipping` : `Created dsh service in ${ns}`);
 }

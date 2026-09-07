@@ -73,11 +73,21 @@ export const AGENT_FRONTMATTER_ALLOWED_KEYS = [
   'canDelegateTo', 'dependencies', 'capabilities', 'model', 'triggers',
 ] as const;
 
-/** The recognized `capabilities:` grant ids. An unknown id MUST fail the load. */
+/**
+ * The recognized `capabilities:` grant ids. An unknown id MUST fail the load.
+ *
+ * Kept in lockstep with `sdk/org/libs/core/src/spaces/capabilities.ts` / `@lmthing/dsh-space-format`
+ * (all 20 real ids, not the docs-quoted 14 — `org/docs/format/space/agents/capabilities.md`'s "14
+ * recognized capability ids" line is itself stale). This package stays standalone (zero
+ * @lmthing/*-dependency, per package.json) so the list is a native literal here, not an import —
+ * but it should describe the same real vocabulary a space author can actually declare, whether or
+ * not this MCP server acts on every one of them.
+ */
 export const CAPABILITY_IDS = [
   'db:read', 'db:write', 'db:schema', 'views:write', 'api:write', 'hooks:write',
   'knowledge:write', 'self:author', 'project:manage', 'api:call', 'connections:use',
-  'store:read', 'store:install', 'events:emit',
+  'store:read', 'store:install', 'events:emit', 'fs:scratch', 'fs:local:read',
+  'fs:local:write', 'browser:cdp', 'team:read', 'team:post',
 ] as const;
 
 // ---------------------------------------------------------------- functions

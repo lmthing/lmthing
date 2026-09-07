@@ -68,4 +68,41 @@ describe('space format loader', () => {
     assert.equal(space.manifest, null);
     assert.ok(space.unsupported.some((item) => item.path === 'tasklists/work/01-old.ts'));
   });
+
+  // Capability validation depth, brought into alignment with
+  // sdk/org/libs/core/src/spaces/capabilities.ts / @lmthing/dsh-space-format (reimplemented
+  // natively here — this package stays standalone, zero @lmthing/* dependencies).
+
+  test('recognizes the full 20-id capability vocabulary, not the stale 14', async () => {
+    const root = await scratch(); await agent(root, 'capabilities: [fs:scratch, browser:cdp, team:read]');
+    const space = await loadSpace(root);
+    assert.deepEqual(space.agents[0]!.capabilities.map((c) => c.id).sort(), ['browser:cdp', 'fs:scratch', 'team:read']);
+  });
+
+  test('rejects an unknown key inside a db:read config (previously accepted silently)', async () => {
+    const root = await scratch(); await agent(root, "capabilities: [{'db:read': {bogus: true}}]");
+    await assert.rejects(loadSpace(root), (error: unknown) => {
+      const messages = (error as { problems: { message: string }[] }).problems.map((p) => p.message).join('\n');
+      assert.match(messages, /disallowed config key/);
+      return true;
+    });
+  });
+
+  test('rejects a non-array "tables" value inside a db:write config', async () => {
+    const root = await scratch(); await agent(root, "capabilities: [{'db:write': {tables: 'not-an-array'}}]");
+    await assert.rejects(loadSpace(root), (error: unknown) => {
+      const messages = (error as { problems: { message: string }[] }).problems.map((p) => p.message).join('\n');
+      assert.match(messages, /must be a list of table names/);
+      return true;
+    });
+  });
+
+  test('rejects an empty "allow" list on api:call (previously accepted silently)', async () => {
+    const root = await scratch(); await agent(root, "capabilities: [{'api:call': {allow: []}}]");
+    await assert.rejects(loadSpace(root), (error: unknown) => {
+      const messages = (error as { problems: { message: string }[] }).problems.map((p) => p.message).join('\n');
+      assert.match(messages, /non-empty "allow" list/);
+      return true;
+    });
+  });
 });

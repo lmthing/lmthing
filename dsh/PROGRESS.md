@@ -53,12 +53,38 @@ integration.
     `dsh` CLI smoke test is currently blocked by unrelated, pre-existing environment drift (see
     "Known pre-existing issue" below) — confirmed NOT caused by this change (reproduces identically
     on an untouched sibling profile, `tasklist-demo`).
-  - [ ] **A1b — not started.** Repoint `mcp/src/format/*` to consume `@lmthing/dsh-space-format` as
-    a thin adapter (mcp keeps its own project/id/ref addressing, array-based `Agent`/`SpaceFn`
-    projection, `Problem[]`-accumulation error model, and `extractorFor` schema seam — none of
-    which belong in the base package). Deferred as its own change so mcp's full 9-file test suite
-    (`format.load`, `server.discovery`, `server.delegation`, `server.taskrun`, `live.stdio`, …) is
-    verified independently, not bundled into A1a's risk.
+  - [x] **A1b — DONE, scope corrected from the original plan wording.** The plan said "repoint
+    `mcp/src/format/*` to import [the unified package]" — but `mcp/package.json`'s own description
+    is explicit: *"Standalone: zero @lmthing/* dependencies."* Actually adding an import would
+    violate that deliberate, real design property of a working piece of the system. Corrected
+    interpretation: bring mcp's own standalone parser's BEHAVIOR into alignment with A1a's design
+    decisions via native reimplementation (no new dependency), not code-sharing.
+    - `mcp/src/format/types.ts`: `CAPABILITY_IDS` widened from the stale 14-id list (which
+      `org/docs/format/space/agents/capabilities.md` itself still quotes — confirmed independently
+      stale, a pre-existing doc/code drift bug, out of scope to fix here) to the real 20-id
+      vocabulary.
+    - `mcp/src/format/capabilities.ts`: `BARE_ONLY` widened to match (+6 desktop/team ids); ported
+      the deeper per-capability config validation (unknown-key rejection, array-of-strings
+      enforcement, non-empty-list requirements for `api:call`/`connections:use`) natively — closing
+      the real fidelity gap from design decision #2, entirely within mcp's own zero-dependency code
+      and its own `Capability[]` return shape / error style.
+    - `mcp/src/format/frontmatter.ts`: **zero changes needed** — mcp's own version already IS the
+      stricter behavior A1a adopted (mcp was the donor here, not the receiver).
+    - **Deliberately left alone**: `load.ts`/`knowledge.ts`/`tasklist.ts`/`dag.ts`/`write.ts` — these
+      implement mcp's own presentational shape (array-based `Agent`/`Space`, ref-addressing,
+      `Problem[]`-accumulation across the WHOLE load rather than throw-on-first, `extractorFor`
+      schema derivation) which is fundamentally and deliberately different from the runtime shape
+      the dsh plugins need. A real, confirmed requirement (`format.load.test.ts`'s "fails loudly
+      with every independent frontmatter problem") needs true multi-problem accumulation, which the
+      base package's throw-immediately `loadSpace` doesn't do (and shouldn't gain, per A1a's own
+      design decision #9 — that mode was deliberately deferred, and mcp's zero-dependency
+      constraint means it wouldn't have been consumable here anyway). Rewriting mcp's whole
+      orchestration to share code would be real risk for a component that isn't on the critical
+      path to serving lmthing.chat.
+    **Verified:** `pnpm typecheck` clean; full mcp test suite 54/54 (50 pre-existing + 4 new
+    regression tests proving the deepened validation: full capability vocabulary recognized,
+    unknown db config key rejected, non-array `tables` rejected, empty `api:call.allow` rejected —
+    all previously silently accepted).
 
   **Known pre-existing issue (not caused by this change, not fixed here):** a live *running*
   `dsh --profile <name> "<message>"` invocation fails with `MISSING_CREDENTIAL: llm-deepseek: no

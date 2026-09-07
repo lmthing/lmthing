@@ -25,22 +25,32 @@ const dshBin = join(dshRoot, 'node_modules', '.bin', 'dsh')
 const PORT = Number(process.env.PORT ?? 8080)
 const DSH_INTERNAL_PORT = Number(process.env.DSH_INTERNAL_PORT ?? 38080)
 const DSH_HOME = process.env.DSH_HOME ?? '/data/.dsh-home'
+// Writable root for agents THING (or another agent) creates via create_agent/write_knowledge —
+// see dsh/system-spaces/system-thing/functions/*.js. Deliberately NOT under DSH_HOME (dsh's own
+// internal state) — a distinct, simpler tree a human could inspect without touching dsh internals.
+const LMTHING_USER_SPACES_ROOT = process.env.LMTHING_USER_SPACES_ROOT ?? '/data/spaces'
+// Host Envoy forwards to this pod (e.g. "lmthing.chat") — required for dsh's own DNS-rebinding
+// fence (`isTrustedApiRequest`, dsh-client-connection) to accept /api calls proxied from a public
+// hostname instead of loopback; confirmed by reading that package's source (Part B2, see
+// dsh/PROGRESS.md). Unset in local/dev, where the caller genuinely IS loopback already.
+const DSH_TRUSTED_HOST = process.env.DSH_TRUSTED_HOST
 
 async function main() {
-  const { patchPaths } = await bootstrapProfile({ dshRoot, dshHome: DSH_HOME })
+  const { patchPaths } = await bootstrapProfile({ dshRoot, dshHome: DSH_HOME, userSpacesRoot: LMTHING_USER_SPACES_ROOT })
 
   // --patch must precede --host/--port/--no-open — confirmed live: dsh's cmdline
   // parser rejects `--patch` placed after them ("error: unknown option '--patch'"),
   // matching the working order already used by scripts/run-web.sh's --real path.
   const args = ['--profile', 'lmthing-web']
   for (const p of patchPaths) args.push('--patch', p)
+  if (DSH_TRUSTED_HOST) args.push('--trusted-host', DSH_TRUSTED_HOST)
   args.push('--host', '127.0.0.1', '--port', String(DSH_INTERNAL_PORT), '--no-open')
 
   console.log(`[pod-server] starting dsh: ${dshBin} ${args.join(' ')}`)
   const child = spawn(dshBin, args, {
     cwd: dshRoot,
     stdio: 'inherit',
-    env: { ...process.env, DSH_HOME },
+    env: { ...process.env, DSH_HOME, LMTHING_USER_SPACES_ROOT },
   })
 
   let shuttingDown = false

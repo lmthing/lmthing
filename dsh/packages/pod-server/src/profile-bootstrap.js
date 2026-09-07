@@ -52,8 +52,15 @@ async function exists(path) {
  * @param {string} opts.dshRoot - the dsh workspace root baked into this image.
  * @param {string} opts.dshHome - the persistent (PVC-backed) DSH_HOME.
  * @param {string} [opts.model] - LiteLLM model id; defaults to the fleet default (LM_MODEL_M's target).
+ * @param {string} [opts.userSpacesRoot] - where THING's create_agent/write_knowledge functions write
+ *   new agent spaces. Only ensured to exist here — NOT yet scanned/mounted as additional presets on
+ *   boot (a created space is real on disk and independently loadSpace()-able, but isn't wired as a
+ *   THING delegate target or a separately reachable top-level agent yet — deliberately deferred,
+ *   see dsh/PROGRESS.md's "system-thing" section for the scope boundary and why).
  */
-export async function bootstrapProfile({ dshRoot, dshHome, model = 'DeepSeek-V4-Flash-0731' }) {
+export async function bootstrapProfile({ dshRoot, dshHome, model = 'DeepSeek-V4-Flash-0731', userSpacesRoot }) {
+  if (userSpacesRoot) await mkdir(userSpacesRoot, { recursive: true })
+
   const profileDir = join(dshHome, 'profiles', 'lmthing-web')
   await mkdir(profileDir, { recursive: true })
 

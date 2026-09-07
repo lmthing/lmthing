@@ -61,7 +61,10 @@ import { generatePresetRoster } from '@lmthing/dsh-preset-roster'
 const here = dirname(fileURLToPath(import.meta.url))
 const dshDir = join(here, '..')
 const systemSpacesDir = join(dshDir, 'system-spaces')
-const userThingDir = join(systemSpacesDir, 'user-thing')
+// The real production default agent (knowledge + functions for authoring new agent spaces — see
+// dsh/PROGRESS.md, "system-thing"). `user-thing` (the Phase-1 toy trim) stays on disk only for the
+// other demo profiles (assemble-tasklist-demo-profile.mjs etc.) that still reference it directly.
+const systemThingDir = join(systemSpacesDir, 'system-thing')
 const systemEchoDir = join(systemSpacesDir, 'system-echo')
 
 const profileName = process.argv[2] ?? 'lmthing'
@@ -75,16 +78,16 @@ const rosterDir = join(dshHome, '.agent-presets')
 // module doc comment, step 4.
 const topLevelUsesPreset = profileName !== 'lmthing'
 
-const userThingSpace = await loadSpace(userThingDir)
+const systemThingSpace = await loadSpace(systemThingDir)
 const systemEchoSpace = await loadSpace(systemEchoDir)
 
-const thing = userThingSpace.agents.thing
+const thing = systemThingSpace.agents.thing
 const echo = systemEchoSpace.agents.echo
-if (!thing) throw new Error(`expected a "thing" agent in ${userThingDir}`)
+if (!thing) throw new Error(`expected a "thing" agent in ${systemThingDir}`)
 if (!echo) throw new Error(`expected an "echo" agent in ${systemEchoDir}`)
 
 const registry = {
-  thing: { agent: thing, spaceDir: userThingDir },
+  thing: { agent: thing, spaceDir: systemThingDir },
   echo: { agent: echo, spaceDir: systemEchoDir },
 }
 
@@ -137,9 +140,9 @@ if (topLevelUsesPreset) {
   insert.push({
     id: 'thing-space',
     name: '@lmthing/dsh-space',
-    config: { spaceDir: userThingDir, agentSlug: 'thing', registry, mountPersona: false },
+    config: { spaceDir: systemThingDir, agentSlug: 'thing', registry, mountPersona: false },
   })
-  patch.push({ id: 'system-prompt', config: { persona: await resolvePersonaText(userThingDir, 'thing') } })
+  patch.push({ id: 'system-prompt', config: { persona: await resolvePersonaText(systemThingDir, 'thing') } })
 }
 
 patch.push({ insert })

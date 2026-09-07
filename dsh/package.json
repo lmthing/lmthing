@@ -28,6 +28,7 @@
     "@lmthing/dsh-subagent-preset": "workspace:*",
     "@lmthing/dsh-client-space-components": "workspace:*",
     "@lmthing/dsh-pod-server": "workspace:*",
+    "@lmthing/dsh-default-workspace": "workspace:*",
     "yaml": "^2.6.0"
   },
   "pnpm": {

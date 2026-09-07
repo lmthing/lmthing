@@ -1,0 +1,14 @@
+{
+  "name": "@lmthing/dsh-default-workspace",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Pre-registers a fixed workspace at boot (Part B, see dsh/PROGRESS.md) so the dsh web UI never needs its interactive directory picker — host.pickDirectory/listDirectory are hard-pinned to loopback and always 403 when dsh is reached via Envoy, meaning NO session can start without this.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.1"
+  }
+}

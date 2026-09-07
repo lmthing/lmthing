@@ -335,6 +335,31 @@ integration.
 
 ## Part B — serve the dsh web UI as lmthing.chat
 
+- **Two critical, session-blocking bugs found ONLY by a real live browser test against production
+  (no unit test could have caught either — both are cross-cutting mount/schema failures, not logic
+  bugs in isolation):**
+  1. **The web UI cannot compose a message at all without an active workspace**, and picking one
+     interactively calls `host.pickDirectory`/`listDirectory` — hard-pinned to loopback (Part B2's
+     own trust-fence finding), so it always 403s once dsh is reached via Envoy instead of loopback.
+     lmthing.chat was **completely unusable** — not degraded, not missing a feature — until fixed.
+     **Fix:** new `@lmthing/dsh-default-workspace` (`dsh/packages/default-workspace/`), a tiny
+     plugin calling the documented-idempotent `ctx.workspaceRegistry.create(path, title)` once at
+     boot, wired into the web bundle's `insert` list in `assemble-lmthing-profile.mjs` — no picker
+     needed, a workspace already exists. Path is a sibling of `dshHome` (`/data/.dsh-home` →
+     `/data/workspace` in production).
+  2. **`list_created_spaces`'s `outputSchema` had a nested object type (`spaces[].{...}`) with no
+     `additionalProperties`**, which dsh's JSON-schema conversion refuses outright: "unsupported
+     JSON schema: ...additionalProperties must be explicitly true or false". Preset mounting is
+     all-or-nothing, so this ONE malformed function schema silently broke every function on THING —
+     the real, underlying cause of the workspace selection itself appearing to fail in the very
+     first browser test (console: `SessionCreateError: ...preset "thing" failed to mount`). Fixed
+     by adding `additionalProperties: false` to that nested schema.
+  - Verified together, live, in Docker + a real chrome-devtools browser session (not curl): the
+    "Choose a workspace to start" placeholder became a real composable "Describe what you want to
+    build" input with zero console errors, a message sent successfully, THING responded, session
+    hierarchy/log/tabs all rendered — the whole pipeline genuinely works end to end. (Ran against
+    the keyless `lmthing-mock` provider locally, which only echoes — the real
+    create-a-space-for-real test needs the production LiteLLM-routed model; that's next.)
 - [x] **B1 — pod runs dsh instead of `lmthing serve`. DONE, live-verified (Docker).**
   - **Two load-bearing facts, confirmed by reading source (not assumed):** (1) `dsh --profile web`
     hard-refuses `--host 0.0.0.0` ("intentionally not supported yet for safety: it would expose

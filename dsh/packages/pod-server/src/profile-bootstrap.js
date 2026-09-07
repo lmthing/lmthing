@@ -87,6 +87,7 @@ export async function bootstrapProfile({ dshRoot, dshHome, model = 'DeepSeek-V4-
             '@lmthing/dsh-space': linkDep('space'),
             '@lmthing/dsh-subagent-preset': linkDep('subagent-preset'),
             '@lmthing/dsh-client-space-components': linkDep('client-space-components'),
+            '@lmthing/dsh-default-workspace': linkDep('default-workspace'),
           },
           dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] } },
         },

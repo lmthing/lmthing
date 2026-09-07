@@ -14,6 +14,9 @@ importers:
       '@lmthing/dsh-client-space-components':
         specifier: workspace:*
         version: link:packages/client-space-components
+      '@lmthing/dsh-default-workspace':
+        specifier: workspace:*
+        version: link:packages/default-workspace
       '@lmthing/dsh-pod-server':
         specifier: workspace:*
         version: link:packages/pod-server
@@ -60,6 +63,12 @@ importers:
       esbuild:
         specifier: 0.27.0
         version: 0.27.0
+
+  packages/default-workspace:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.6)(@deepseek-ai/cordis-plugin-loader@1.0.2)
 
   packages/llm-mock:
     dependencies:

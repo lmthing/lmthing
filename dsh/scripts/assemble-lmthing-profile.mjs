@@ -131,6 +131,17 @@ if (topLevelUsesPreset) {
   // once, globally (not per-agent): it renders ANY `display` call by wire tool name, regardless of
   // which agent/preset made it.
   insert.push({ id: 'lmthing-client-space-components', name: '@lmthing/dsh-client-space-components' })
+  // Required, not optional (Part B, see dsh/PROGRESS.md): the web UI's own client refuses to
+  // render a composable chat session with no active workspace, and picking one interactively needs
+  // host.pickDirectory/listDirectory — hard-pinned to loopback, so it always 403s once dsh is
+  // reached via Envoy instead of loopback. A sibling of dshHome (so /data/.dsh-home → /data/
+  // workspace in production; a local repo-relative dir in dev) — a real, persistent directory the
+  // agent's own file/bash tools can use, kept apart from LMTHING_USER_SPACES_ROOT's authored spaces.
+  insert.push({
+    id: 'lmthing-default-workspace',
+    name: '@lmthing/dsh-default-workspace',
+    config: { path: join(dshHome, '..', 'workspace'), title: 'LMThing' },
+  })
 } else {
   // Headless bundle: dsh-headless ships no agent-presets row at all (insert fresh), and no
   // auto-mount exists for the top-level agent either, so mount @lmthing/dsh-space for THING

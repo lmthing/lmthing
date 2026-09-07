@@ -22,6 +22,12 @@ export const outputSchema = {
           agents: { type: 'array', items: { type: 'string' }, required: true },
           knowledgeTopics: { type: 'array', items: { type: 'string' }, required: true },
         },
+        // Required, not stylistic — confirmed live: dsh's JSON-schema conversion refuses to mount
+        // ANY agent preset holding a function whose nested-object schema omits this, failing with
+        // "unsupported JSON schema: ...additionalProperties must be explicitly true or false" —
+        // and since preset mounting is all-or-nothing, this one missing field broke every function
+        // on the agent, not just this one.
+        additionalProperties: false,
       },
     },
   },

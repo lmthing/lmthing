@@ -68,7 +68,7 @@ spec:
         - name: acr-pull-secret
       containers:
         - name: gateway
-          image: lmthingacr.azurecr.io/gateway:b8df661
+          image: lmthingacr.azurecr.io/gateway:4953d9f
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -355,9 +355,9 @@ spec:
             # `compute-dsh` image/manifest entry in build-images.yml. Empty until the first
             # successful compute-dsh build fills it in.
             - name: COMPUTE_DSH_IMAGE_TAG
-              value: "6d02613"
+              value: "4953d9f"
             - name: COMPUTE_DSH_IMAGE_DIGEST
-              value: "sha256:eda0248d8de4a93d63eebec4eaf8304d0ae18a3ff85c53daf6aa059869a89c2b"
+              value: "sha256:329c0ff7c7df0b43c5bff8d85be8cf3674ce190a24ade47cc176778a062642f3"
           resources:
             requests:
               memory: "128Mi"

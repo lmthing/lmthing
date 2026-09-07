@@ -124,6 +124,10 @@ if (topLevelUsesPreset) {
   // dsh-host-apiproxy then mounts the "thing" preset (which itself mounts @lmthing/dsh-space for
   // THING) automatically for every fresh top-level session — nothing more to insert.
   patch.push({ id: 'agent-presets', config: { default: 'thing' } })
+  // Part A4: real component UI rendering — browser-only, so only the web bundle needs it. Mounted
+  // once, globally (not per-agent): it renders ANY `display` call by wire tool name, regardless of
+  // which agent/preset made it.
+  insert.push({ id: 'lmthing-client-space-components', name: '@lmthing/dsh-client-space-components' })
 } else {
   // Headless bundle: dsh-headless ships no agent-presets row at all (insert fresh), and no
   // auto-mount exists for the top-level agent either, so mount @lmthing/dsh-space for THING

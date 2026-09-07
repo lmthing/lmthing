@@ -1,0 +1,37 @@
+{
+  "name": "@lmthing/dsh-client-space-components",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Real component UI rendering for @lmthing/dsh-space-components' display tool (Part A4). Host half is a no-op plugin (exists so the row is an 'enabled Loader entry'); the browser half (exports['./client']) imports the server-bundled per-component ES module the host thread through output.presentationMeta, and renders it — no eval/new Function in the browser.",
+  "main": "src/index.js",
+  "exports": {
+    ".": {
+      "default": "./src/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": ["@deepseek-ai/dsh-client-ui-slots"],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "esbuild": "0.27.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.1"
+  },
+  "files": [
+    "src/index.js",
+    "lib/client.js"
+  ]
+}

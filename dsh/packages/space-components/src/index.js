@@ -1,6 +1,7 @@
 import { defineTool, parameterSchemaSpecToJsonSchema, validateArgs } from '@deepseek-ai/dsh-tools'
 import { resolveComponents } from './resolve.js'
 import { extractPropsSchema } from './props-schema.js'
+import { bundleComponent } from './bundle.js'
 
 /**
  * Self-loading dsh plugin (architecture pivot, see dsh/packages/README.md):
@@ -55,15 +56,23 @@ export const inject = ['tools']
 const MAX_WARNINGS = 10
 
 export async function apply(ctx, config) {
+  const onWarn = (message) => ctx.logger?.warn?.(`space-components: ${message}`) ?? console.warn(`[space-components] ${message}`)
   const components = await resolveComponents(config.spaceDir, config.agentSlug)
   if (components.length === 0) return
 
-  /** @type {Map<string, { kind: string, schema: Record<string, object> | null }>} */
+  /** @type {Map<string, { kind: string, schema: Record<string, object> | null, code: string | null }>} */
   const byName = new Map()
   for (const component of components) {
     byName.set(component.name, {
       kind: component.kind,
       schema: compileableSchema(component.source, component.name),
+      // Part A4 (see dsh/PROGRESS.md): a real, standalone browser ES module for this component,
+      // base64-encoded — bundled ONCE here (not per call) and threaded to the client via
+      // `output.presentationMeta` below, for @lmthing/dsh-client-space-components to `import()` as
+      // a real module (no eval/new Function in the browser). Fail-soft, same convention as prop
+      // typing above: an esbuild failure loses REAL rendering for this one component (the client
+      // falls back to a generic card), never the `display` tool itself.
+      code: await bundleComponentSafely(component.name, component.source, onWarn),
     })
   }
 
@@ -115,6 +124,18 @@ export async function apply(ctx, config) {
           ...(value.warnings.length > 0 ? ['', 'Prop warnings:', ...value.warnings.map((w) => `- ${w}`)] : []),
         ].join('\n'),
       }],
+      // Part A4: the tool-private channel to the client — "threaded verbatim from the tool/result
+      // event" into `ToolResult.meta` (dsh-tools' own doc comment on `presentationMeta`), which
+      // `@lmthing/dsh-client-space-components` reads via `ToolCallOwnerProps.block.meta` to
+      // `import()` the real bundled component. `code: null` (bundling failed, or fell through —
+      // unreachable via the model, same as the `!entry` guard in execute()) tells the client to
+      // fall back to its generic card instead of the tool's own text summary.
+      presentationMeta: (_args, value) => ({
+        component: value.component,
+        kind: value.kind,
+        props: value.props,
+        code: byName.get(value.component)?.code ?? null,
+      }),
     },
     presentCall: (args) => ({
       card: 'generic',
@@ -147,6 +168,22 @@ export async function apply(ctx, config) {
       }
     },
   }))
+}
+
+/**
+ * Fail-soft wrapper around {@link bundleComponent}: an esbuild failure (a component with a real
+ * syntax error, or an import esbuild can't resolve outside the space's own directory) never fails
+ * the whole `display` tool registration — it just means that ONE component can't render for real
+ * client-side, which the client-side fallback (a generic card) already covers.
+ * @returns {Promise<string | null>}
+ */
+async function bundleComponentSafely(name, source, onWarn) {
+  try {
+    return await bundleComponent(name, source)
+  } catch (error) {
+    onWarn(`component "${name}" failed to bundle for client rendering, falling back to a generic card: ${error instanceof Error ? error.message : String(error)}`)
+    return null
+  }
 }
 
 /**

@@ -254,8 +254,75 @@ integration.
   `dsh plugin --profile <name> add @deepseek-ai/dsh-web-app` (the natural way to add a bundle to a
   fresh profile) adds it as a direct dependency by default — the shipped stock profiles were
   hand-crafted to avoid this; a normal bootstrap doesn't know to remove it afterward.
-- [ ] **A4 — real component UI rendering** (`@lmthing/dsh-client-space-components`, reusing
-      `@lmthing/ui`'s `render-descriptor.tsx` catalog).
+- [x] **A4 — real component UI rendering. DONE, live-verified. Scope corrected from the plan.**
+  The plan named `@lmthing/ui`'s `render-descriptor.tsx` catalog for reuse — investigation found
+  this was based on a mistaken premise: that catalog renders a DIFFERENT LMThing feature (the
+  `display()` global's generic `{type,props,children}` descriptor TREE, via `parseDescriptorPayload`
+  imported from `@lmthing/core/ui` — the package being retired), not "look up a NAMED,
+  space-authored `.tsx` FILE and render it", which is what `space-components`' `display` tool
+  actually bridges. Confirmed independently: `space-components`' own doc comment already said "its
+  own docs note space-authored `view` components are never actually rendered as real React in the
+  current product either" — there was no existing renderer anywhere to reuse for this. Asked the
+  user how to scope it; chose **server-side per-component bundling** (esbuild, real files, no
+  client-side code-eval surface) over a client-side TSX-transpiler-plus-eval approach.
+
+  **Design, as built:**
+  - **`@lmthing/dsh-space-components`** (extended): a new `src/bundle.js#bundleComponent(name,
+    source)` esbuild-bundles each declared component's real TSX source into a standalone browser
+    ES module ONCE at `apply()` time (fail-soft — a bundling failure loses real rendering for that
+    ONE component, never the `display` tool itself), base64-encoded. Threaded to the client via
+    `output.presentationMeta(args, value)` — a real `dsh-tools` contract ("Pure replayable
+    presentation projection... threaded verbatim from the tool/result event" into `ToolResult.meta`)
+    — as `{component, kind, props, code}`.
+  - **`@lmthing/dsh-client-space-components`** (new): the browser half. Host side is a genuine
+    no-op plugin (`function apply() {}`) — exists only so the package is an "enabled Loader entry",
+    confirmed by reading a REAL shipped example byte-for-byte
+    (`@deepseek-ai/dsh-client-ui-skill/lib/index.js`, identical pattern). The browser half
+    (`src/client.jsx`, built to `lib/client.js`) registers into `tool.call.toolview` keyed `display`
+    (`@deepseek-ai/dsh-client-ui-tool`'s real extension point) and, on a settled call with a real
+    `block.meta.code`, does the ONE dynamic `import('data:text/javascript;base64,'+code)` this
+    whole feature exists to perform — a real ES module load through the browser's own loader,
+    never `eval`/`new Function`. Wrapped in a real React error boundary (a broken space-authored
+    component degrades to an inline message, never crashes the transcript). Falls back to a
+    generic card (component name + JSON props) when there's no bundle yet or bundling failed.
+  - **A real, load-bearing finding along the way**: the naive design (mark `react` `external` in
+    the esbuild output, matching a normal bundler's convention) reproducibly failed LIVE with
+    `Failed to resolve module specifier "react"`. Root cause: dsh's web client is not a plain
+    browser module graph with an import map — its own module system
+    (`@deepseek-ai/dsh-client-modules`, "Lazy CJS model") resolves every package via a custom
+    `window.__ModuleLoader__` + synchronous `require()` inside a generated factory closure; there
+    is no browser-native resolution for a bare `"react"` specifier anywhere on the page, so a real
+    ES module `import()`ed from a `data:` URL (which carries no import map of its own) can never
+    resolve it. **Fixed** with a custom esbuild plugin (`onResolve`/`onLoad`) that shims the bare
+    `react` import to a virtual module reading `globalThis.__LMTHING_REACT__` — set by the client
+    bundle to the EXACT SAME React instance it obtained via its own `require('react')` (confirmed
+    by reading `@deepseek-ai/dsh-client-ui-skill`'s real built bundle byte-for-byte to learn the
+    exact `window.__ModuleLoader__.load({id, factory: (require) => {...}})` envelope shape a
+    `dsh.client` bundle must use — plain esbuild `format: 'cjs'` output wrapped in that envelope,
+    since the real `@deepseek-ai/dsh-client-*` packages build with `tsdown`, not esbuild directly,
+    but the OUTPUT SHAPE is what the Loader actually requires, not the tool that produced it).
+    `jsx: 'transform'` (classic `.createElement(...)` output) used deliberately over the automatic
+    runtime so only the single `react` specifier needs shimming.
+  - Wired into the production `lmthing-web` profile (web bundle only — browser-only feature,
+    mounted once, globally, not per-agent) via `scripts/assemble-lmthing-profile.mjs`.
+
+  **Live verification (real browser session, chrome-devtools MCP, against a dedicated
+  `components-demo-web` profile mounting `system-components-demo`'s `EchoCard` component):**
+  - `display! Hello real render` → the transcript shows "Hello real render" / "live-verified" /
+    "×2" / "demo" — `EchoCard.tsx`'s OWN JSX structure, not the generic fallback card (which would
+    show raw JSON).
+  - Confirmed via direct DOM inspection: a real `<p class="text-sm text-foreground">Hello real
+    render</p>` inside a real `<div class="rounded-md border border-border bg-card p-3">` with 4
+    children — byte-for-byte matching `EchoCard.tsx`'s actual JSX tree and classNames. Unstyled
+    (Tailwind's CSS isn't loaded in the dsh shell) but structurally and behaviorally exact — a
+    real, documented, separate follow-up (loading the design-token/Tailwind CSS into the client
+    shell), not a rendering-mechanism gap.
+  - Re-verified on the FULL production `lmthing-web` profile with A2/A3 all mounted together:
+    boots cleanly, THING's own `echo:` delegation still works end to end
+    (`delegate_echo` → `[echo specialist]`) — no conflict between the three parts.
+  - `pnpm -r test`: 206 checks, 0 failures (space-components: 8 new bundler tests, incl. one
+    proving the react-shim fix itself in Node by injecting a fake `globalThis.__LMTHING_REACT__`,
+    and one proving the shim fails loud — not silently — when the global is unset).
 - [x] **A5 — explicitly NOT in scope.** No system-space migration.
 - [ ] **A6 — assemble the production `lmthing` web profile.**
 
@@ -268,7 +335,21 @@ integration.
 
 ## Part C — remove the custom harness & dead web apps
 
-- [ ] Decouple `@lmthing/ui` from `@lmthing/core` (keep ui in full).
+- [x] **Decouple `@lmthing/ui` from `@lmthing/core` (keep ui in full). DONE, brought forward.**
+  Delegated to a subagent (per user direction) while A4 was in progress. Every `@lmthing/core`/
+  `@lmthing/core/ui` import in `libs/ui/src` (confined to the `chat/` subtree) was either vendored
+  (type-only: `TraceEvent`/`TraceAttachment`/`NodeKind`/`NodeStatus`/`NodeDetail` → new
+  `chat/store/trace-protocol.ts`) or ported natively, faithfully, in full (runtime values:
+  `isRenderableType`/`parseDescriptorPayload` + the `CATALOG_BY_NAME` table they need → new
+  `chat/components/{descriptor-protocol,component-catalog}.ts`; `isFormDescriptor`/`flattenForm`/
+  `coerceValue`/`defaultFor`/`FieldSpec` → new `chat/components/forms/form-protocol.ts`). Nothing
+  stubbed or dropped. `@lmthing/core` removed from `libs/ui/package.json`; every subtree
+  (`chat/studio/computer/dashboard/team/view/platform`) left intact, per the explicit constraint.
+  Verified: `pnpm --filter @lmthing/ui typecheck` clean (one pre-existing, unrelated vitest-type
+  error confirmed via `git stash` to predate this change); `pnpm --filter @lmthing/ui test` 799/799
+  passing; `pnpm lint:tokens` clean; the 7 product SPAs confirmed to only ever import
+  `@lmthing/ui/{theme,elements/*,components/auth/*}`, never anything touched here.
+  Committed in both `sdk/org` (`0aa2501a`) and the parent gitlink (`713df28b`), both pushed.
 - [ ] Delete `libs/core`, `libs/cli`, `apps/web`, `apps/app-shell`, `scenarios` (+ desktop/mobile
       decision).
 - [ ] Docs + CI gate updates (`org/docs`, `build-images.yml`, `design-tokens.yml`).

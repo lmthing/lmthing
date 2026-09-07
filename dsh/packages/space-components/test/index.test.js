@@ -146,6 +146,29 @@ test('output.render and the presenters project the component name and pretty pro
   })
 })
 
+test('Part A4: presentationMeta carries a real, importable bundle for the client to render', async () => {
+  const ctx = stubCtx()
+  await plugin.apply(ctx, { spaceDir: NEWSROOM_DIR, agentSlug: 'synthesizer' })
+  const tool = ctx.registered[0]
+
+  const args = { component: 'ArticlePreview', props: { title: 'ok' } }
+  const value = await tool.execute(args, {})
+  const meta = tool.output.presentationMeta(args, value)
+
+  assert.equal(meta.component, 'ArticlePreview')
+  assert.equal(meta.kind, 'view')
+  assert.deepEqual(meta.props, { title: 'ok' })
+
+  // The real proof this is a genuine bundle, not an opaque string: decode it and confirm it's a
+  // real ES module with a default export and no leftover JSX syntax. (Not `import()`ed here — the
+  // real component imports `react`, which plain Node has no package for; `bundle.test.js` proves
+  // the import-ability property end to end with a react-free fixture instead.)
+  assert.equal(typeof meta.code, 'string')
+  const code = Buffer.from(meta.code, 'base64').toString('utf8')
+  assert.match(code, /as default/)
+  assert.ok(!code.includes('<div'), 'JSX syntax must not survive into the bundle')
+})
+
 test('a component whose props do not statically extract falls back to open props', async () => {
   // The researcher's ResearchPreview DOES extract, so this pins the fallback
   // path with a synthetic space instead: a named-interface-typed component.

@@ -395,7 +395,25 @@ integration.
     in-cluster canary pod exercising a real LiteLLM round-trip (only local Docker verified so far).
 - [ ] B2 — auth handshake shell (cookie JWT mint).
 - [ ] B3 — Envoy routes/policies for lmthing.chat → pod.
-- [ ] B4 — image/deploy wiring + canary, then cutover.
+- [~] **B4 — image/deploy wiring + canary, then cutover.**
+  - [x] **Canary CI wiring — DONE, live-verified in real GitHub Actions.** Added a `compute-dsh`
+    entry to `.github/workflows/build-images.yml`'s matrix (triggered by `dsh/**` or
+    `devops/argocd/compute/Dockerfile.dsh`, context = `dsh/`), plus `dsh/.dockerignore`
+    (`node_modules`, `.dsh-home` — local test scaffolding must never enter a build context).
+    Deliberately given an **empty `manifest` field**: `update-manifests` normally rewrites the
+    matching `devops/argocd/core/*.yaml` (and, for `compute` specifically, patches
+    `COMPUTE_IMAGE_TAG`/`COMPUTE_IMAGE_DIGEST` in `gateway.yaml` — the value every real user pod
+    resolves its image from) — a guard (`if not manifest: skip`) makes this entry push-only, so nothing
+    live changes. Verified for real: pushed the commit, watched
+    `gh run view <id>` end-to-end — `detect` matched **only** `compute-dsh` (the other 13 images
+    correctly untouched), `build` pushed `lmthingacr.azurecr.io/compute-dsh:<sha>` +
+    `:latest` in 1m25s, `update-manifests` ran and correctly emitted its skip message with **zero**
+    git diff (confirmed: no `ci: update image tags... [skip ci]` commit landed on `main`).
+  - **Not yet done:** an actual in-cluster canary Deployment/pod running this image against real
+    LiteLLM (needs a `COMPUTE_IMAGE` override for one test namespace — cluster access is available,
+    this session just hasn't spun one up yet); the cutover itself (B-cutover: pointing
+    `COMPUTE_IMAGE_TAG` at this image for real users) is explicitly held for a separate, confirmed
+    step per the migration plan's own risk ranking — not something to do inside a "canary" commit.
 
 ## Part C — remove the custom harness & dead web apps
 

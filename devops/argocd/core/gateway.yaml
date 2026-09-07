@@ -355,9 +355,9 @@ spec:
             # `compute-dsh` image/manifest entry in build-images.yml. Empty until the first
             # successful compute-dsh build fills it in.
             - name: COMPUTE_DSH_IMAGE_TAG
-              value: "4953d9f"
+              value: "1860d92"
             - name: COMPUTE_DSH_IMAGE_DIGEST
-              value: "sha256:329c0ff7c7df0b43c5bff8d85be8cf3674ce190a24ade47cc176778a062642f3"
+              value: "sha256:f98e1e6d614a19f70da1ad74ef31698aa8076676c616777856262f06410d4002"
           resources:
             requests:
               memory: "128Mi"

@@ -13,7 +13,7 @@ resources:
   - compute-pod-template.yaml
   - compute-prepull.yaml
   - studio.yaml
-  - chat.yaml
+  - chat-auth.yaml
   - com.yaml
   - social.yaml
   - store.yaml

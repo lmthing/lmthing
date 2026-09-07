@@ -53,6 +53,27 @@ test('proxy: forwards a normal GET request to the backend, preserving status and
   }
 })
 
+test('proxy: rewrites Host to loopback and strips Origin before forwarding (dsh trust-fence fix, see module doc comment)', async () => {
+  let seenHeaders
+  const backend = http.createServer((req, res) => {
+    seenHeaders = req.headers
+    res.end('ok')
+  })
+  const backendPort = await listen(backend)
+  const proxy = createPodServer({ backendPort })
+  const port = await listen(proxy)
+  try {
+    await fetch(`http://127.0.0.1:${port}/api/agentPreset.list`, {
+      headers: { host: 'lmthing-dsh.user-123.svc.cluster.local:8080', origin: 'https://lmthing.chat' },
+    })
+    assert.equal(seenHeaders.host, `127.0.0.1:${backendPort}`)
+    assert.equal(seenHeaders.origin, undefined)
+  } finally {
+    proxy.close()
+    backend.close()
+  }
+})
+
 test('proxy: returns 502 when the backend refuses the connection', async () => {
   const proxy = createPodServer({ backendPort: 1 })
   const port = await listen(proxy)
@@ -64,15 +85,17 @@ test('proxy: returns 502 when the backend refuses the connection', async () => {
   }
 })
 
-test('proxy: upgrades (WebSocket-style) are replayed to the backend over a raw socket', async () => {
+test('proxy: upgrades (WebSocket-style) are replayed to the backend over a raw socket, with Host rewritten to loopback and Origin stripped', async () => {
   // A raw TCP "backend" that hand-answers the HTTP Upgrade handshake, so this
   // test exercises the proxy's manual upgrade-replay path (src/proxy.js) without
   // depending on a real WebSocket library.
+  let receivedRequestLine = ''
   const backend = net.createServer((socket) => {
     let buf = ''
     socket.on('data', (chunk) => {
       buf += chunk.toString('utf8')
       if (buf.includes('\r\n\r\n')) {
+        receivedRequestLine = buf
         socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n')
         socket.write('hello-from-backend')
       }
@@ -94,13 +117,16 @@ test('proxy: upgrades (WebSocket-style) are replayed to the backend over a raw s
       client.on('error', reject)
       client.on('connect', () => {
         client.write(
-          'GET /ws HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n' +
+          'GET /ws HTTP/1.1\r\nHost: lmthing-dsh.user-123.svc.cluster.local:8080\r\n' +
+            'Origin: https://lmthing.chat\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n' +
             'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n',
         )
       })
     })
     assert.match(received, /101 Switching Protocols/)
     assert.match(received, /hello-from-backend/)
+    assert.match(receivedRequestLine, new RegExp(`Host: 127\\.0\\.0\\.1:${backendPort}`))
+    assert.ok(!/Origin:/i.test(receivedRequestLine), 'Origin must be stripped, not just left stale, on the loopback hop')
     client.destroy()
   } finally {
     proxy.close()

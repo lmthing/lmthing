@@ -360,6 +360,26 @@ integration.
     hierarchy/log/tabs all rendered — the whole pipeline genuinely works end to end. (Ran against
     the keyless `lmthing-mock` provider locally, which only echoes — the real
     create-a-space-for-real test needs the production LiteLLM-routed model; that's next.)
+- **Third critical bug, found against REAL production traffic (neither Docker test above hit it —
+  loopback has no Envoy in front of it):** every single `/api/*` call 403'd on lmthing.chat, not
+  just privileged ones — `agentPreset.list`, `host.describe`, the `events.mux`/`events.host`
+  WebSocket upgrades, everything. Root cause: Envoy's `rewrite-host-from-header` HTTPRouteFilter —
+  the SAME mechanism that makes dynamic per-user routing possible at all — rewrites the `Host`
+  header to the per-user Service DNS name (`lmthing-dsh.user-<id>.svc.cluster.local:8080`) before
+  it ever reaches the pod. `--trusted-host lmthing.chat` (Part B2's original fix) can never match
+  this — it's dynamic per user, unenumerable in a static CLI flag — so dsh's DNS-rebinding fence
+  (`isTrustedApiRequest`) rejected everything as an untrusted Host. **Fixed at the right layer
+  instead**: `@lmthing/dsh-pod-server`'s proxy (`src/proxy.js`) now rewrites `Host` to
+  `127.0.0.1:<port>` — loopback, which dsh trusts unconditionally, no allowlist needed — and
+  **strips** `Origin` (not just leaves it stale) on the hop to dsh, since `isTrustedApiRequest`
+  also requires `Origin`'s host to equal `Host` whenever Origin is present; an absent Origin skips
+  that check entirely, and stripping it is safe precisely because Envoy + the JWT/cookie policy
+  already gated who could reach this process before this hop happens. `--trusted-host` and the
+  `DSH_TRUSTED_HOST` env var/deployment field are removed entirely — dead code once the real fix
+  landed. Verified live in Docker: `agentPreset.list` POSTed with a fake per-user Host + a real
+  `Origin: https://lmthing.chat` now returns the actual preset list (`thing`, `echo`, `standard`,
+  …) instead of `403 forbidden`. Two new tests in `proxy.test.js` pin the exact rewrite for both
+  the plain-HTTP and the raw-socket upgrade path.
 - [x] **B1 — pod runs dsh instead of `lmthing serve`. DONE, live-verified (Docker).**
   - **Two load-bearing facts, confirmed by reading source (not assumed):** (1) `dsh --profile web`
     hard-refuses `--host 0.0.0.0` ("intentionally not supported yet for safety: it would expose

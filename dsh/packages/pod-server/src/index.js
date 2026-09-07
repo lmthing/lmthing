@@ -29,11 +29,6 @@ const DSH_HOME = process.env.DSH_HOME ?? '/data/.dsh-home'
 // see dsh/system-spaces/system-thing/functions/*.js. Deliberately NOT under DSH_HOME (dsh's own
 // internal state) — a distinct, simpler tree a human could inspect without touching dsh internals.
 const LMTHING_USER_SPACES_ROOT = process.env.LMTHING_USER_SPACES_ROOT ?? '/data/spaces'
-// Host Envoy forwards to this pod (e.g. "lmthing.chat") — required for dsh's own DNS-rebinding
-// fence (`isTrustedApiRequest`, dsh-client-connection) to accept /api calls proxied from a public
-// hostname instead of loopback; confirmed by reading that package's source (Part B2, see
-// dsh/PROGRESS.md). Unset in local/dev, where the caller genuinely IS loopback already.
-const DSH_TRUSTED_HOST = process.env.DSH_TRUSTED_HOST
 
 async function main() {
   const { patchPaths } = await bootstrapProfile({ dshRoot, dshHome: DSH_HOME, userSpacesRoot: LMTHING_USER_SPACES_ROOT })
@@ -41,9 +36,16 @@ async function main() {
   // --patch must precede --host/--port/--no-open — confirmed live: dsh's cmdline
   // parser rejects `--patch` placed after them ("error: unknown option '--patch'"),
   // matching the working order already used by scripts/run-web.sh's --real path.
+  //
+  // No --trusted-host: confirmed live that it CANNOT work here anyway — Envoy's
+  // rewrite-host-from-header filter (the same mechanism that dynamically routes to a per-user pod
+  // at all) already rewrites the Host header this process receives to the per-user Service DNS
+  // name (`lmthing-dsh.user-<id>.svc.cluster.local:8080`), which is dynamic per user and can never
+  // be enumerated in a static --trusted-host list. Fixed at the proxy layer instead: src/proxy.js
+  // rewrites Host to loopback (and strips Origin) on the hop to dsh, which dsh's own DNS-rebinding
+  // fence trusts unconditionally, needing no hostname allowlist at all. See its doc comment.
   const args = ['--profile', 'lmthing-web']
   for (const p of patchPaths) args.push('--patch', p)
-  if (DSH_TRUSTED_HOST) args.push('--trusted-host', DSH_TRUSTED_HOST)
   args.push('--host', '127.0.0.1', '--port', String(DSH_INTERNAL_PORT), '--no-open')
 
   console.log(`[pod-server] starting dsh: ${dshBin} ${args.join(' ')}`)

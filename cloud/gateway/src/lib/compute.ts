@@ -467,10 +467,6 @@ const COMPUTE_DSH_IMAGE = LOCAL_DEV
     : `${ACR_REGISTRY}/compute-dsh:latest`;
 const COMPUTE_DSH_IMAGE_PULL_POLICY =
   !LOCAL_DEV && COMPUTE_DSH_IMAGE_DIGEST ? "IfNotPresent" : "Always";
-// The Host every dsh /api call must present to satisfy its own DNS-rebinding fence
-// (`isTrustedApiRequest` — see dsh/PROGRESS.md Part B2). A platform constant, not per-principal:
-// only lmthing.chat ever reaches this Deployment.
-const DSH_TRUSTED_HOST = "lmthing.chat";
 
 function dshDeployment(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_CONFIG) {
   return {
@@ -499,7 +495,6 @@ function dshDeployment(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_CONFIG) {
                 requests: { memory: pod.memRequest ?? pod.mem, cpu: pod.cpuRequest ?? pod.cpu },
                 limits: { memory: pod.mem, cpu: pod.cpu },
               },
-              env: [{ name: "DSH_TRUSTED_HOST", value: DSH_TRUSTED_HOST }],
               envFrom: [{ secretRef: { name: "user-env", optional: true } }],
               volumeMounts: [{ name: "data", mountPath: "/data" }],
               // Same startup-probe-only reasoning as the primary deployment above — dsh's own

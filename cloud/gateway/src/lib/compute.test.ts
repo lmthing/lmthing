@@ -261,11 +261,6 @@ describe("createPod — user principal (regression: unchanged shape)", () => {
     expect(volumes).toEqual([{ name: "data", emptyDir: {} }]);
   });
 
-  it("lmthing-dsh carries the Host dsh's own trust fence needs", () => {
-    const dshDep = calls.find((c) => c.method === "POST" && c.path.includes("/deployments") && c.body.metadata.name === "lmthing-dsh")!.body;
-    const env = dshDep.spec.template.spec.containers[0].env;
-    expect(env).toContainEqual({ name: "DSH_TRUSTED_HOST", value: "lmthing.chat" });
-  });
 });
 
 describe("createPod — team principal", () => {

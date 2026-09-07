@@ -17,6 +17,21 @@
  * be reflected immediately, and a startupProbe with failureThreshold=120 keeps
  * polling long after the first successful connect, so staleness would silently
  * paper over a real crash.
+ *
+ * Host/Origin rewriting (confirmed live, the hard way — see dsh/PROGRESS.md Part B):
+ * dsh's own DNS-rebinding fence (`isTrustedApiRequest`) checks the `Host` header against a
+ * `--trusted-host` allowlist, but the actual `Host` a request carries by the time it reaches this
+ * process is NOT the public one a browser used (`lmthing.chat`) — Envoy's `rewrite-host-from-header`
+ * filter (the SAME mechanism that dynamically routes to a per-user pod at all) already rewrote it
+ * to the per-user Service DNS name (`lmthing-dsh.user-<id>.svc.cluster.local:8080`), which
+ * `--trusted-host` can never enumerate (it's dynamic per user). Fix: since this process IS a
+ * genuine loopback caller of dsh (the hop below is over 127.0.0.1), present dsh with the loopback
+ * Host it actually trusts unconditionally — `isTrustedApiRequest` treats loopback specially,
+ * needing no `trustedHosts` entry at all. The paired `Origin` header must be stripped, not just
+ * left as `https://lmthing.chat`: `isTrustedApiRequest` also requires `new URL(origin).host ===
+ * host` when Origin is present, and rewriting only one of the pair would fail that check instead.
+ * An absent Origin skips it entirely — safe here, since Envoy + the JWT/cookie policy already
+ * gated who could reach this process before this hop ever happens.
  */
 import http from 'node:http'
 import net from 'node:net'
@@ -54,8 +69,10 @@ export function createPodServer({ backendPort, backendHost = '127.0.0.1' }) {
       return
     }
 
+    const headers = { ...req.headers, host: `${backendHost}:${backendPort}` }
+    delete headers.origin
     const upstream = http.request(
-      { host: backendHost, port: backendPort, method: req.method, path: req.url, headers: req.headers },
+      { host: backendHost, port: backendPort, method: req.method, path: req.url, headers },
       (upstreamRes) => {
         res.writeHead(upstreamRes.statusCode ?? 502, upstreamRes.headers)
         upstreamRes.pipe(res)
@@ -75,7 +92,12 @@ export function createPodServer({ backendPort, backendHost = '127.0.0.1' }) {
     const upstreamSocket = net.connect({ host: backendHost, port: backendPort }, () => {
       const rawHeaders = req.rawHeaders
       const headerLines = []
-      for (let i = 0; i < rawHeaders.length; i += 2) headerLines.push(`${rawHeaders[i]}: ${rawHeaders[i + 1]}`)
+      for (let i = 0; i < rawHeaders.length; i += 2) {
+        const name = rawHeaders[i]
+        const lower = name.toLowerCase()
+        if (lower === 'origin') continue
+        headerLines.push(lower === 'host' ? `Host: ${backendHost}:${backendPort}` : `${name}: ${rawHeaders[i + 1]}`)
+      }
       upstreamSocket.write(`${req.method} ${req.url} HTTP/1.1\r\n${headerLines.join('\r\n')}\r\n\r\n`)
       if (head?.length) upstreamSocket.write(head)
       upstreamSocket.pipe(clientSocket)

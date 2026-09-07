@@ -543,17 +543,33 @@ Host/Origin trust-fence bug); none of them were reachable from a loopback/local 
   `/data/spaces/weather-helper/agents/weather-helper/{charter,instruct}.md`, content genuinely
   matching what was asked (not templated filler). **This is the deliverable the user's live test
   was asking for, and it works.**
-- **A fourth, NOT-yet-fixed bug found in the same session**: after the tool call executes, the
-  turn never continues — the UI sits at "Deep diving…" indefinitely (confirmed hung, not just slow:
-  survived a full page reload, `Ran for 2m 15s` before being manually stopped). A SECOND, unrelated
-  follow-up message in the same session ("Did that work?") hit the identical hang, with **zero**
-  new `POST /v1/chat/completions` reaching LiteLLM (confirmed via `kubectl logs` on both LiteLLM
-  replicas — only the ONE original completion call is there, ever) and the pod sitting at ~2m CPU
-  (idle, not computing) — a real, reproducible stuck state in dsh's own turn continuation, not a UI
-  rendering glitch. Not root-caused this session (would need to trace inside dsh's own turn-loop
-  internals, which this investigation did not reach) — filed here as a known, open, high-priority
-  follow-up rather than guessed at further. `create_agent` (and presumably every other function
-  call) still executes for real; only the CONVERSATION'S continuation after that hangs.
+- **A fourth, NOT-yet-fixed bug, found in the same session — re-characterized in a follow-up
+  autonomous pass (more evidence gathered, still not root-caused):** a real-model turn sometimes
+  hangs at "Deep diving…" indefinitely (confirmed hung, not just slow: survived a full page reload,
+  `Ran for 2m 15s` before being manually stopped; zero new `POST /v1/chat/completions` reaches
+  LiteLLM while hung — confirmed via `kubectl logs` on both replicas — and the pod sits at ~2m CPU,
+  idle, not computing).
+  - **Originally suspected**: specific to continuing a conversation *after a tool call*. **Refuted**:
+    reproduced the identical hang with a brand-new session's very first message, containing no tool
+    call at all ("What is 2+2? Answer in one word.").
+  - **Then suspected**: deterministic on a session's first-ever message (a classic
+    subscribe-before-process race — client sends before it's subscribed to the response stream).
+    **Also refuted**: a THIRD fresh "New Session" — same pod, same model, same everything — had its
+    first message succeed immediately (`TTFT 0.7s`). So it is a genuine intermittent race, not a
+    reliably-reproducible first-message bug.
+  - **What IS confirmed**: the isolation/delegation machinery itself is not the cause — reproduced
+    a full cross-agent delegation (`delegate_echo` → `echoBack` → a final continuation reply) with
+    the keyless mock provider, completely locally (loopback, no Envoy), and it completed cleanly
+    end-to-end (`1 turns · 2 steps`, no hang). So this is specific to the real-model/production
+    path (LiteLLM via `dsh-llm-pi-ai`, and/or the WebSocket hop through Envoy), not a defect in any
+    of this migration's own plugins. And once hung, a plain "Stop generating" + resend in the SAME
+    session reliably recovers and completes normally — a real, usable workaround for anyone hitting
+    it live right now.
+  - **Not root-caused** — genuinely intermittent races need either server-side instrumentation
+    (dsh's own `--trace` NDJSON output, not yet captured for a hung turn) or many more repeated
+    trials to correlate against a specific condition, neither of which this pass reached. Filed
+    here, refined, as the next concrete step: capture a `--trace` log across enough real turns to
+    catch one hanging, rather than guessing further from the browser side alone.
 
 ### Branding — LMThing colors + logo in the dsh web UI (started, per user direction)
 

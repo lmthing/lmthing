@@ -113,7 +113,7 @@ window.__ModuleLoader__.load({
       );
       ctx.slots.inject(
         "settings.onboarding",
-        () => ctx.slots.register({ name: "settings.onboarding", id: "welcome-notice", order: -100 }, NoWelcomeNotice)
+        () => ctx.slots.register({ name: "settings.onboarding", id: "welcome-notice", order: -200 }, NoWelcomeNotice)
       );
     }
     

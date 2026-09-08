@@ -145,10 +145,16 @@ function injectFavicon() {
  * That's a deliberate trust boundary (don't let a non-loopback page durably rewrite server-side
  * settings), not a bug — nothing to fix there, and nothing we should try to spoof.
  * No host-side config exists to disable the step (`dsh-client-ui-settings-models`'s host `apply()`
- * is a no-op). Re-registering the SAME `id` under the same list slot replaces the shipped entry
- * rather than adding a second one — confirmed live: this component renders instead of
- * `WelcomeNotice`, and since it returns `null` immediately, the onboarding sequence just skips
- * straight past it.
+ * is a no-op). **Correction, found live in production 2026-09-08**: same `id` alone does NOT
+ * replace the shipped entry — the shipped `WelcomeNotice` registers with the EXACT same
+ * `{id: "welcome-notice", order: -100}` this component originally copied, so both landed at
+ * identical id+order and cordis threw "list slot settings.onboarding already has an entry with id
+ * welcome-notice ... register at a different priority to shadow it (lowest renders)" as an
+ * uncaught error on every session (the popup happened to still render suppressed regardless, by
+ * accident — dsh's own registration guard evidently still let the FIRST successful registration
+ * win, and ours occasionally raced ahead — but this must not be relied on). Same fix shape as
+ * `sidebar.brand.mark` below: a DIFFERENT order (lower wins) is what actually shadows, matching
+ * dsh's own error text.
  */
 function NoWelcomeNotice() {
   return null
@@ -176,6 +182,6 @@ export function apply(ctx) {
     ),
   )
   ctx.slots.inject('settings.onboarding', () =>
-    ctx.slots.register({ name: 'settings.onboarding', id: 'welcome-notice', order: -100 }, NoWelcomeNotice),
+    ctx.slots.register({ name: 'settings.onboarding', id: 'welcome-notice', order: -200 }, NoWelcomeNotice),
   )
 }

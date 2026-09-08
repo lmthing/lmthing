@@ -426,6 +426,31 @@ deleted) whenever it goes idle `compute.ts:79-88`, `:733`, `:981-1035`. A pod is
 namespace-and-all when a Stripe subscription is *deleted* (`deletePod`,
 `cloud/gateway/src/routes/webhook.ts:76-103`).
 
+**`lmthing-dsh` (lmthing.chat) — always-on, image kept current by a background sync, not `/ensure`**
+`compute.ts#dshDeployment/dshService/ensureDshResources`: a second, additive per-user
+Deployment+Service (`app: compute-dsh`) running the DeepSeek Harness web process behind
+`@lmthing/dsh-pod-server` (see `dsh/PROGRESS.md`), serving `lmthing.chat` only — every other
+surface's routing and the primary `compute` Deployment are untouched. Unlike the primary pod:
+- **Never scales to zero** (`replicas: 1` once created) and Envoy's per-user Lua routing talks to
+  it directly, never through the gateway's `/ensure`/`/wake` endpoints — so there is no natural
+  "wake" moment for `ensureDshResources`'s own conflict-patch (image/resources/`startupProbe`) to
+  piggyback on the way the primary pod's patch does on every scale-up.
+- **`syncDshImages`** (`compute.ts`) is the backstop: a `claimTick("dsh-image-sync", ...)`-gated
+  background tick, every 10 minutes, enumerating the same `lmthing.cloud/type=compute`-labeled
+  namespaces as the idle-sweep, patching only the `lmthing-dsh` deployments whose image actually
+  differs from `COMPUTE_DSH_IMAGE` (bounded concurrency, so a fleet-wide catch-up after a release
+  doesn't restart every dsh pod on a node at once). Added after a live incident (2026-09-08): three
+  users' pods were found running week-old images with no automatic path to update them.
+- **`/data` is `emptyDir`, not a PVC** — deliberate, to avoid doubling per-user storage cost (the
+  primary pod's `user-data` PVC is `ReadWriteOnce`, unshareable). Session/created-space persistence
+  across a `lmthing-dsh` restart is an accepted gap.
+- **Node capacity note**: dsh's own file-watcher (chokidar) opens one inotify instance per watched
+  subdirectory of its profile's `node_modules`, and every container on a node shares the host's
+  per-UID inotify instance ceiling. `fs.inotify.max_user_instances` is raised to `1024`
+  (`devops/ansible/roles/k8s_postinstall`) after a live incident where the stock default (128) was
+  exceeded by ordinary dsh-pod churn, crash-looping pods on `EMFILE` — including previously-healthy
+  ones, since the ceiling is node-wide, not per-pod.
+
 **RBAC** — the gateway runs as ServiceAccount `gateway` (namespace `lmthing`) bound to ClusterRole
 `lmthing-compute-manager`, which grants create/delete on namespaces, services, configmaps, PVCs,
 secrets (+update/patch), and deployments (+scale) cluster-wide, plus read on pods/events

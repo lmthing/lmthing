@@ -1,4 +1,21 @@
 ---
+# Each dsh-serving compute-dsh pod runs a chokidar recursive watcher over its own profile's
+# node_modules tree (one inotify instance per watched subdirectory, not one for the whole tree —
+# confirmed by reading chokidar's own source). Every container on this node shares the host's
+# per-UID inotify instance ceiling (they all run as the same default container UID), so as the
+# number of concurrently-running dsh pods grew, the stock Ubuntu default (128) was exhausted —
+# observed live 2026-09-08: 146 inotify fds already held node-wide, well past the ceiling, causing
+# every dsh pod (new AND previously-healthy ones alike) to crash-loop on EMFILE. Not a per-pod
+# code bug — a node capacity setting. 1024 mirrors the common recommendation for file-watcher-heavy
+# Node.js workloads (e.g. the same guidance given for VS Code/webpack watch-mode on Linux).
+- name: Raise fs.inotify.max_user_instances for chokidar-heavy dsh compute pods
+  ansible.posix.sysctl:
+    name: fs.inotify.max_user_instances
+    value: "1024"
+    sysctl_set: true
+    state: present
+    reload: true
+
 - name: Create kubeconfig directory for the remote SSH user
   ansible.builtin.file:
     path: "/home/{{ ansible_user }}/.kube"

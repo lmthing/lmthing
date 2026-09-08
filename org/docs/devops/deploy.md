@@ -58,12 +58,13 @@ Four jobs, in order:
 | gateway | `cloud/gateway/Dockerfile` | `cloud/gateway` | `devops/argocd/core/gateway.yaml` |
 | computer | `sdk/org/apps/web/Dockerfile` | `.` | `devops/argocd/core/computer.yaml` |
 | compute | `devops/argocd/compute/Dockerfile` | `sdk/org` | `devops/argocd/core/compute-pod-template.yaml` |
+| compute-dsh | `devops/argocd/compute/Dockerfile.dsh` | `dsh` | *(none — `compute.ts` builds the `lmthing-dsh` pod inline, same as `compute` itself; `update-manifests` special-cases this image name)* |
+| chat-auth | `chat-auth/Dockerfile` | `.` | `devops/argocd/core/chat-auth.yaml` |
 | studio | `sdk/org/apps/web/Dockerfile` | `.` | `devops/argocd/core/studio.yaml` |
-| chat | `sdk/org/apps/web/Dockerfile` | `.` | `devops/argocd/core/chat.yaml` |
 | team | `sdk/org/apps/web/Dockerfile` | `.` | `devops/argocd/core/team.yaml` |
-| com/social/store/org/space/blog/casa | `<app>/Dockerfile` | `.` | `devops/argocd/core/<app>.yaml` |
+| com/social/store/org/space/blog/casa/scenario-dash | `<app>/Dockerfile` (or `automation/app/Dockerfile` for `scenario-dash`) | `.` | `devops/argocd/core/<app>.yaml` |
 
-(from the `all_images` list `.github/workflows/build-images.yml:168-182` — 13 images: gateway, computer, compute, studio, chat and the eight product SPAs, `org` included). Studio, computer, chat and team share one Dockerfile (`sdk/org/apps/web/Dockerfile`) and one build context (repo root `.`) — the same unified SPA image, deployed as four Deployments for four domains. (`team` used to have its own scaffold SPA; that directory is gone and lmthing.team is now a surface of the unified app.)
+(from the `all_images` list `.github/workflows/build-images.yml:203-226` — 15 images: gateway, computer, compute, compute-dsh, chat-auth, studio, team, and the eight product SPAs plus `scenario-dash`, `org` included). Studio, computer, and team share one Dockerfile (`sdk/org/apps/web/Dockerfile`) and one build context (repo root `.`) — the same unified SPA image, deployed as three Deployments for three domains. (`team` used to have its own scaffold SPA; that directory is gone and lmthing.team is now a surface of the unified app. `chat` was part of this group too until the lmthing.chat cutover to dsh — see `dsh/PROGRESS.md` — replaced it with the separate `compute-dsh` + `chat-auth` images above; `devops/argocd/core/chat.yaml` no longer exists.)
 
 **2. `build`** — matrix job over the detected images (`fail-fast: false`) `.github/workflows/build-images.yml:191-200`:
 - Azure login (`AZURE_CREDENTIALS` secret) → `az acr login --name lmthingacr` `.github/workflows/build-images.yml:211-217`.
@@ -240,10 +241,10 @@ asset is the authority on which commit produced it.
 
 ## Image build & tagging
 
-- **Registry:** `lmthingacr.azurecr.io` (Azure Container Registry). Every deployment and user pod pulls with `imagePullSecrets: [acr-pull-secret]`, e.g. `devops/argocd/core/chat.yaml:16-17`.
+- **Registry:** `lmthingacr.azurecr.io` (Azure Container Registry). Every deployment and user pod pulls with `imagePullSecrets: [acr-pull-secret]`, e.g. `devops/argocd/core/chat-auth.yaml:16-17`.
 - **Tags:** each build pushes `:<short-sha>` (immutable, what manifests pin) and `:latest` (moving) `.github/workflows/build-images.yml:226-228`.
 - **Cache:** registry `buildcache` layer cache, `mode=max` `.github/workflows/build-images.yml:229-230`.
-- **`imagePullPolicy`:** SPA/core deployments pin a SHA tag with `IfNotPresent` (e.g. `devops/argocd/core/chat.yaml:20-21`). Per-user compute pods track moving `compute:latest` with `Always` — so a recreated pod always re-pulls (see [devops/CLAUDE.md](../../../devops/CLAUDE.md) gotchas; digest-pinning path below is the fast-cold-start alternative).
+- **`imagePullPolicy`:** SPA/core deployments pin a SHA tag with `IfNotPresent` (e.g. `devops/argocd/core/chat-auth.yaml:20-21`). Per-user compute pods track moving `compute:latest` with `Always` — so a recreated pod always re-pulls (see [devops/CLAUDE.md](../../../devops/CLAUDE.md) gotchas; digest-pinning path below is the fast-cold-start alternative).
 
 ### Compute image digest pinning (fast cold-start)
 
@@ -304,7 +305,7 @@ cd devops/ansible && make argocd-sync APP=lmthing-core
 
 For an existing SPA the deploy is fully automatic: push a source change to `main`, `build-images.yml` detects it, builds+pushes `lmthingacr.azurecr.io/<app>:<sha>`, commits the tag into `devops/argocd/core/<app>.yaml`, and ArgoCD rolls it out.
 
-Studio/computer/chat share the unified image (`sdk/org/apps/web/Dockerfile`, context `.`) but are three separate `Deployment`+`Service` pairs (distinct domains, different Envoy routing) — `devops/argocd/core/chat.yaml` is the pattern: `Deployment` (nginx, port 80, `imagePullSecrets: [acr-pull-secret]`) + `Service` `devops/argocd/core/chat.yaml:1-42`. The other SPAs (`com`/`social`/`store`/`org`/`space`/`blog`/`casa`) each have their own `<app>/Dockerfile` + `<app>/nginx.conf`.
+Studio/computer/team share the unified image (`sdk/org/apps/web/Dockerfile`, context `.`) but are three separate `Deployment`+`Service` pairs (distinct domains, different Envoy routing) — `devops/argocd/core/computer.yaml` is the pattern: `Deployment` (nginx, port 80, `imagePullSecrets: [acr-pull-secret]`) + `Service` `devops/argocd/core/computer.yaml:1-42`. `lmthing.chat` is no longer part of this group — it's served by the separate `compute-dsh` (per-user pod, `compute.ts#dshDeployment`) and `chat-auth` (`devops/argocd/core/chat-auth.yaml`) images instead, see `dsh/PROGRESS.md`. The other SPAs (`com`/`social`/`store`/`org`/`space`/`blog`/`casa`) each have their own `<app>/Dockerfile` + `<app>/nginx.conf`.
 
 ### Adding a new static SPA
 

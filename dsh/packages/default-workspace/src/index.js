@@ -19,5 +19,5 @@ export const inject = ['workspaceRegistry']
 /** @param {{ path: string, title?: string }} config */
 export async function apply(ctx, config) {
   await mkdir(config.path, { recursive: true })
-  await ctx.workspaceRegistry.create(config.path, config.title ?? 'LMThing')
+  await ctx.workspaceRegistry.create(config.path, config.title ?? 'Personal')
 }

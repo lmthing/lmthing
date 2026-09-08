@@ -140,7 +140,7 @@ if (topLevelUsesPreset) {
   insert.push({
     id: 'lmthing-default-workspace',
     name: '@lmthing/dsh-default-workspace',
-    config: { path: join(dshHome, '..', 'workspace'), title: 'LMThing' },
+    config: { path: join(dshHome, '..', 'workspace'), title: 'Personal' },
   })
   // LMThing branding — must be inserted AFTER the base web bundle's own
   // @deepseek-ai/dsh-client-ui-brand-official (Cordis slots are last-registration-wins for a given

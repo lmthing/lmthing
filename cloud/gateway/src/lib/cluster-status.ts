@@ -1,6 +1,7 @@
 import {
   k8s,
   sweepIdlePods,
+  syncDshImages,
   ensurePod,
   resolvePodConfig,
   parsePrincipalKey,
@@ -244,6 +245,9 @@ let started = false;
 
 const SWEEP_TICK_MS = 60_000;
 const CRON_TICK_MS = 60_000;
+// Much less time-sensitive than the other two ticks — this is eventual-consistency image
+// reconcile, not anything user-latency-facing — so it runs far less often.
+const DSH_IMAGE_SYNC_TICK_MS = 10 * 60_000;
 const CRON_BATCH_LIMIT = 200; // max pods woken per cron tick
 const CRON_WAKE_COOLDOWN_MS = 5 * 60_000; // don't re-wake a still-booting pod
 const WAKE_CONCURRENCY = 8; // bounded fan-out so a wake burst doesn't hammer K8s
@@ -315,6 +319,13 @@ export function startRefresher() {
       console.warn("[cron-wake] tick failed:", err instanceof Error ? err.message : err),
     );
   }, CRON_TICK_MS);
+  setInterval(() => {
+    void (async () => {
+      if (await claimTick("dsh-image-sync", DSH_IMAGE_SYNC_TICK_MS * 0.8)) await syncDshImages();
+    })().catch((err) =>
+      console.warn("[dsh-image-sync] tick failed:", err instanceof Error ? err.message : err),
+    );
+  }, DSH_IMAGE_SYNC_TICK_MS);
 
   console.log("[cluster-status] background refresher + controllers started");
 }

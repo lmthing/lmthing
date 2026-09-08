@@ -24,6 +24,7 @@ const {
   getEnvVars,
   injectLiteLLMEnv,
   sweepIdlePods,
+  syncDshImages,
   wakePod,
   waitForDshPodReady,
 } = await import("./compute.js");
@@ -409,5 +410,51 @@ describe("sweepIdlePods", () => {
       "/apis/apps/v1/namespaces/user-379847/deployments/lmthing/scale",
     ]);
     expect(scaled.every((c) => c.body.spec.replicas === 0)).toBe(true);
+  });
+});
+
+describe("syncDshImages", () => {
+  it("patches only lmthing-dsh deployments whose image is behind current, leaving up-to-date ones alone", async () => {
+    stubK8s((path) => {
+      if (path.startsWith("/api/v1/namespaces?")) {
+        return { items: [{ metadata: { name: "user-stale" } }, { metadata: { name: "user-current" } }] };
+      }
+      if (path.endsWith("/deployments/lmthing-dsh") ) {
+        const stale = path.includes("user-stale");
+        return {
+          spec: {
+            template: {
+              spec: {
+                containers: [{ image: stale ? "old-image@sha256:aaa" : "lmthingacr.azurecr.io/compute-dsh:latest" }],
+              },
+            },
+          },
+        };
+      }
+      return undefined;
+    });
+
+    const result = await syncDshImages();
+
+    expect(result.checked).toBe(2);
+    expect(result.patched).toBe(1);
+    expect(result.errors).toBe(0);
+    const patch = calls.find((c) => c.method === "PATCH" && c.path.includes("/deployments/lmthing-dsh"));
+    expect(patch!.path).toContain("user-stale");
+    expect(patch!.body.spec.template.spec.containers[0].startupProbe.httpGet.path).toBe("/api/health");
+  });
+
+  it("skips a namespace that never provisioned an lmthing-dsh deployment", async () => {
+    stubK8s((path) => {
+      if (path.startsWith("/api/v1/namespaces?")) {
+        return { items: [{ metadata: { name: "user-no-dsh" } }] };
+      }
+      return undefined; // GET .../deployments/lmthing-dsh -> 404 -> null
+    });
+
+    const result = await syncDshImages();
+
+    expect(result).toEqual({ checked: 0, patched: 0, errors: 0 });
+    expect(calls.some((c) => c.method === "PATCH")).toBe(false);
   });
 });

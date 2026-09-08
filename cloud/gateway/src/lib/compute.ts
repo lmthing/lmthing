@@ -468,6 +468,18 @@ const COMPUTE_DSH_IMAGE = LOCAL_DEV
 const COMPUTE_DSH_IMAGE_PULL_POLICY =
   !LOCAL_DEV && COMPUTE_DSH_IMAGE_DIGEST ? "IfNotPresent" : "Always";
 
+// dsh's own pod-server answers this (see dsh/packages/pod-server/src/proxy.js) — same
+// startup-probe-only reasoning as the primary deployment. Shared by dshDeployment's own spec,
+// ensureDshResources's conflict-patch, and syncDshImages's periodic reconcile, so the three never
+// silently drift from each other.
+const DSH_STARTUP_PROBE = {
+  httpGet: { path: "/api/health", port: 8080 },
+  initialDelaySeconds: 0,
+  periodSeconds: 1,
+  timeoutSeconds: 5,
+  failureThreshold: 120,
+};
+
 function dshDeployment(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_CONFIG) {
   return {
     apiVersion: "apps/v1",
@@ -497,15 +509,7 @@ function dshDeployment(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_CONFIG) {
               },
               envFrom: [{ secretRef: { name: "user-env", optional: true } }],
               volumeMounts: [{ name: "data", mountPath: "/data" }],
-              // Same startup-probe-only reasoning as the primary deployment above — dsh's own
-              // pod-server answers this (see dsh/packages/pod-server/src/proxy.js).
-              startupProbe: {
-                httpGet: { path: "/api/health", port: 8080 },
-                initialDelaySeconds: 0,
-                periodSeconds: 1,
-                timeoutSeconds: 5,
-                failureThreshold: 120,
-              },
+              startupProbe: DSH_STARTUP_PROBE,
             },
           ],
           volumes: [{ name: "data", emptyDir: {} }],
@@ -528,6 +532,37 @@ function dshService(p: PodPrincipal) {
   };
 }
 
+/**
+ * The conflict-patch body shared by `ensureDshResources` (on every `/ensure` for an existing
+ * user) and `syncDshImages` (the periodic background reconcile, since dsh never scales to zero
+ * and Envoy routes straight to it without ever touching `/ensure` — see that function's own doc
+ * comment). Re-asserts `startupProbe` too, not just image/resources/placement, so a future
+ * probe-shape change reaches already-provisioned users the same way the primary pod's patch does.
+ */
+function dshConflictPatchBody(pod: PodConfig) {
+  return {
+    spec: {
+      template: {
+        spec: {
+          ...poolPlacement(),
+          containers: [
+            {
+              name: "compute-dsh",
+              image: COMPUTE_DSH_IMAGE,
+              imagePullPolicy: COMPUTE_DSH_IMAGE_PULL_POLICY,
+              resources: {
+                requests: { memory: pod.memRequest ?? pod.mem, cpu: pod.cpuRequest ?? pod.cpu },
+                limits: { memory: pod.mem, cpu: pod.cpu },
+              },
+              startupProbe: DSH_STARTUP_PROBE,
+            },
+          ],
+        },
+      },
+    },
+  };
+}
+
 /** Idempotently ensures the dsh Deployment+Service exist for a principal — conflict (already
  *  exists) is treated as success, matching every other resource-creation call in this file. */
 async function ensureDshResources(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_CONFIG): Promise<void> {
@@ -536,40 +571,12 @@ async function ensureDshResources(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_
   if (depResult === "conflict") {
     // Unlike the primary deployment, this one never scales to zero, so there's no "wake" moment to
     // piggyback a patch onto — pick up a new compute-dsh build (or a resource/env change) on every
-    // ensure instead. A strategic-merge patch that changes nothing is a no-op (no roll).
+    // ensure instead. A strategic-merge patch that changes nothing is a no-op (no roll). Most users
+    // never call /ensure again once their pod exists though — see syncDshImages for the backstop.
     await k8s(
       `/apis/apps/v1/namespaces/${ns}/deployments/lmthing-dsh`,
       "PATCH",
-      {
-        spec: {
-          template: {
-            spec: {
-              ...poolPlacement(),
-              containers: [
-                {
-                  name: "compute-dsh",
-                  image: COMPUTE_DSH_IMAGE,
-                  imagePullPolicy: COMPUTE_DSH_IMAGE_PULL_POLICY,
-                  resources: {
-                    requests: { memory: pod.memRequest ?? pod.mem, cpu: pod.cpuRequest ?? pod.cpu },
-                    limits: { memory: pod.mem, cpu: pod.cpu },
-                  },
-                  // Re-assert on every ensure, same as the primary deployment's own patch below —
-                  // otherwise a future probe-shape change here would never reach already-
-                  // provisioned users' lmthing-dsh deployments.
-                  startupProbe: {
-                    httpGet: { path: "/api/health", port: 8080 },
-                    initialDelaySeconds: 0,
-                    periodSeconds: 1,
-                    timeoutSeconds: 5,
-                    failureThreshold: 120,
-                  },
-                },
-              ],
-            },
-          },
-        },
-      },
+      dshConflictPatchBody(pod),
       "application/strategic-merge-patch+json",
     );
     console.log(`dsh deployment in ${ns} already exists, patched to current image/shape`);
@@ -1323,6 +1330,84 @@ export async function sweepIdlePods(): Promise<{
     console.log(`[sweep] scanned ${computeNs.length} pod(s), scaled down ${scaledDown}`);
   }
   return { scanned: computeNs.length, scaledDown };
+}
+
+/**
+ * Periodic backstop that keeps every EXISTING `lmthing-dsh` deployment's image current, without
+ * requiring a human to force-patch it. Unlike the primary `lmthing` deployment, `lmthing-dsh`
+ * never scales to zero (see `dshDeployment`'s own doc comment) — so there is no "wake" moment for
+ * `ensureDshResources`'s own conflict-patch to piggyback on, and Envoy's per-user Lua routing talks
+ * to the pod directly, never through the gateway's `/ensure`/`/wake` endpoints at all. A user who
+ * logs into lmthing.chat and simply starts chatting can therefore run the SAME `compute-dsh` image
+ * indefinitely, arbitrarily far behind `COMPUTE_DSH_IMAGE` — confirmed live 2026-09-08: three
+ * existing users' pods were still on week-old digests despite several intervening image builds,
+ * and required a manual `kubectl patch` to catch up. This tick is the fix: same enumeration as
+ * `sweepIdlePods` (label-selected compute namespaces), patch only the ones whose image actually
+ * differs (a no-op strategic-merge patch still triggers a pointless rollout otherwise), bounded
+ * concurrency so a fleet-wide catch-up after a release doesn't restart every dsh pod on the node
+ * at once (the exact scenario that starved the node's inotify-instance ceiling live today).
+ */
+const DSH_IMAGE_SYNC_CONCURRENCY = 3;
+
+export async function syncDshImages(): Promise<{
+  checked: number;
+  patched: number;
+  errors: number;
+}> {
+  const nsData = (await k8s(
+    `/api/v1/namespaces?labelSelector=${encodeURIComponent("lmthing.cloud/type=compute")}`,
+    "GET",
+  )) as {
+    items?: Array<{ metadata?: { name?: string } }>;
+  } | null;
+  const computeNs = (nsData?.items ?? [])
+    .map((n) => n.metadata?.name ?? "")
+    .filter(Boolean);
+
+  let checked = 0;
+  let patched = 0;
+  let errors = 0;
+  let i = 0;
+  const worker = async (): Promise<void> => {
+    while (i < computeNs.length) {
+      const ns = computeNs[i++]!;
+      const principal = principalFromNamespace(ns);
+      if (!principal) continue;
+      try {
+        const dep = (await k8s(
+          `/apis/apps/v1/namespaces/${ns}/deployments/lmthing-dsh`,
+          "GET",
+        )) as { spec?: { template?: { spec?: { containers?: Array<{ image?: string }> } } } } | null;
+        if (!dep) continue; // this principal has never used lmthing.chat
+        checked++;
+        const currentImage = dep.spec?.template?.spec?.containers?.[0]?.image;
+        if (currentImage === COMPUTE_DSH_IMAGE) continue; // already current, no-op
+
+        const pod = await resolvePodConfig(principalKey(principal));
+        await k8s(
+          `/apis/apps/v1/namespaces/${ns}/deployments/lmthing-dsh`,
+          "PATCH",
+          dshConflictPatchBody(pod),
+          "application/strategic-merge-patch+json",
+        );
+        patched++;
+        console.log(`[dsh-image-sync] patched ${ns} to current compute-dsh image`);
+      } catch (err) {
+        errors++;
+        console.warn(
+          `[dsh-image-sync] failed for ${ns}:`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(DSH_IMAGE_SYNC_CONCURRENCY, computeNs.length) }, worker),
+  );
+  if (checked > 0) {
+    console.log(`[dsh-image-sync] checked ${checked} dsh pod(s), patched ${patched}, ${errors} error(s)`);
+  }
+  return { checked, patched, errors };
 }
 
 /** Recover the principal a compute namespace belongs to, or null if it is neither shape. */

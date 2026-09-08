@@ -35,6 +35,42 @@ function LmthingBrandMark({ size, className }) {
   )
 }
 
+/**
+ * `sidebar.brand.mark` is rendered by `@deepseek-ai/dsh-client-ui-sidebar` from TWO call sites with
+ * IDENTICAL props (`{size: 24}`, confirmed live by reading the real shipped `SidebarRoot`'s JSX
+ * byte-for-byte) — one inside the expanded "brand row" next to `sidebar.brand.name` (wrapper class
+ * matching `*brandMark*`), one as the collapsed rail's own toggle-button icon (wrapper class
+ * matching `*railMark*`). Only one of the two ever mounts at a time (dsh's own `wide && (...)` /
+ * `!wide && (...)` branches), so there's no prop to key off of — the two call sites are
+ * distinguished here by their DIFFERENT ancestor class names instead, purely in CSS (no ref/effect
+ * needed, no flash of the wrong state): hidden by default, shown only inside `*railMark*`. Matched
+ * by substring, not the exact hashed class, since the hash prefix is a per-build artifact.
+ * Per user direction: the mark belongs on the collapsed rail (where it's the only thing standing in
+ * for the wordmark); the expanded brand row already carries the full `sidebar.brand.name` wordmark,
+ * so a second, redundant mark next to it is dropped there.
+ */
+const SIDEBAR_MARK_CLASS = 'lmthing-sidebar-mark'
+const SIDEBAR_MARK_STYLE_ID = 'lmthing-sidebar-mark-style'
+
+function injectSidebarMarkVisibility() {
+  if (document.getElementById(SIDEBAR_MARK_STYLE_ID)) return
+  const style = document.createElement('style')
+  style.id = SIDEBAR_MARK_STYLE_ID
+  style.textContent = `
+    .${SIDEBAR_MARK_CLASS} { display: none; }
+    [class*="railMark"] .${SIDEBAR_MARK_CLASS} { display: inline-flex; }
+  `
+  document.head.appendChild(style)
+}
+
+function LmthingSidebarMark({ size, className }) {
+  return (
+    <span className={SIDEBAR_MARK_CLASS}>
+      <LmthingBrandMark size={size} className={className} />
+    </span>
+  )
+}
+
 const LOGO_COLORS = ['#f5c815', '#f9a94a', '#f38358', '#ed92a1', '#d59ec8'] // logo-1..5, @lmthing/css tokens.json — frozen wordmark hues, never the palette
 const LETTERS = ['l', 'm', 't', 'h', 'i', 'n', 'g']
 // The 5 frozen hues are for the mark's own "thing" lettering per tokens.json; "lm" (the platform
@@ -125,6 +161,7 @@ export const inject = ['slots']
 export function apply(ctx) {
   injectBrandColors()
   injectFavicon()
+  injectSidebarMarkVisibility()
   // priority: -1 — confirmed live this is required: registering with no priority at all collided
   // with dsh-client-ui-brand-official's own registration ("already has a registration at priority
   // 0 ... register at a different priority to shadow it (lowest renders)"). Lower wins per that
@@ -132,7 +169,7 @@ export function apply(ctx) {
   ctx.slots.inject('sidebar.brand.mark', () =>
     ctx.slots.inject('sidebar.brand.name', () =>
       ctx.slots.inject('conversation.hero.brand.mark', function* () {
-        yield ctx.slots.register({ name: 'sidebar.brand.mark', priority: -1 }, LmthingBrandMark)
+        yield ctx.slots.register({ name: 'sidebar.brand.mark', priority: -1 }, LmthingSidebarMark)
         yield ctx.slots.register({ name: 'sidebar.brand.name', priority: -1 }, LmthingWordmark)
         yield ctx.slots.register({ name: 'conversation.hero.brand.mark', priority: -1 }, LmthingBrandMark)
       }),

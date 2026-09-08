@@ -37,6 +37,21 @@ window.__ModuleLoader__.load({
       const px = typeof size === "number" ? size : 20;
       return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: FAVICON_DATA_URI, width: px, height: px, className, style: { objectFit: "contain" }, "aria-hidden": "true" });
     }
+    var SIDEBAR_MARK_CLASS = "lmthing-sidebar-mark";
+    var SIDEBAR_MARK_STYLE_ID = "lmthing-sidebar-mark-style";
+    function injectSidebarMarkVisibility() {
+      if (document.getElementById(SIDEBAR_MARK_STYLE_ID)) return;
+      const style = document.createElement("style");
+      style.id = SIDEBAR_MARK_STYLE_ID;
+      style.textContent = `
+        .${SIDEBAR_MARK_CLASS} { display: none; }
+        [class*="railMark"] .${SIDEBAR_MARK_CLASS} { display: inline-flex; }
+      `;
+      document.head.appendChild(style);
+    }
+    function LmthingSidebarMark({ size, className }) {
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: SIDEBAR_MARK_CLASS, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LmthingBrandMark, { size, className }) });
+    }
     var LOGO_COLORS = ["#f5c815", "#f9a94a", "#f38358", "#ed92a1", "#d59ec8"];
     var LETTERS = ["l", "m", "t", "h", "i", "n", "g"];
     var LM_PREFIX_COLOR = "var(--lmthing-muted-foreground, #5c636b)";
@@ -84,12 +99,13 @@ window.__ModuleLoader__.load({
     function apply(ctx) {
       injectBrandColors();
       injectFavicon();
+      injectSidebarMarkVisibility();
       ctx.slots.inject(
         "sidebar.brand.mark",
         () => ctx.slots.inject(
           "sidebar.brand.name",
           () => ctx.slots.inject("conversation.hero.brand.mark", function* () {
-            yield ctx.slots.register({ name: "sidebar.brand.mark", priority: -1 }, LmthingBrandMark);
+            yield ctx.slots.register({ name: "sidebar.brand.mark", priority: -1 }, LmthingSidebarMark);
             yield ctx.slots.register({ name: "sidebar.brand.name", priority: -1 }, LmthingWordmark);
             yield ctx.slots.register({ name: "conversation.hero.brand.mark", priority: -1 }, LmthingBrandMark);
           })

@@ -145,16 +145,19 @@ function injectFavicon() {
  * That's a deliberate trust boundary (don't let a non-loopback page durably rewrite server-side
  * settings), not a bug — nothing to fix there, and nothing we should try to spoof.
  * No host-side config exists to disable the step (`dsh-client-ui-settings-models`'s host `apply()`
- * is a no-op). **Correction, found live in production 2026-09-08**: same `id` alone does NOT
- * replace the shipped entry — the shipped `WelcomeNotice` registers with the EXACT same
- * `{id: "welcome-notice", order: -100}` this component originally copied, so both landed at
- * identical id+order and cordis threw "list slot settings.onboarding already has an entry with id
- * welcome-notice ... register at a different priority to shadow it (lowest renders)" as an
- * uncaught error on every session (the popup happened to still render suppressed regardless, by
- * accident — dsh's own registration guard evidently still let the FIRST successful registration
- * win, and ours occasionally raced ahead — but this must not be relied on). Same fix shape as
- * `sidebar.brand.mark` below: a DIFFERENT order (lower wins) is what actually shadows, matching
- * dsh's own error text.
+ * is a no-op). **Correction, found live in production 2026-09-08, twice**: same `id` alone does
+ * NOT replace the shipped entry, and — a first attempted fix got this wrong too — neither does a
+ * different `order`. Read dsh-web-frontend's own bundled slots-registry source directly
+ * (`dist/assets/index-*.js`) to find the real rule: a list slot's collision check is
+ * `entry.id === newId && (entry.priority ?? 0) === (newEntry.priority ?? 0)` — `order` is a
+ * pure render-SORT field, entirely unrelated to collision/shadowing. The shipped `WelcomeNotice`
+ * sets no `priority` (defaults to 0); this component originally set none either, so both landed at
+ * identical id+priority(0) and cordis threw "list slot settings.onboarding already has an entry
+ * with id welcome-notice ... register at a different priority to shadow it (lowest renders)" as an
+ * uncaught error on every session (the popup happened to still render suppressed regardless — by
+ * accident, whichever registration cordis's internal Map happened to keep — never something to
+ * rely on). Fix: an explicit lower `priority` (matching how `sidebar.brand.mark` below already had
+ * to solve the identical problem on an exclusive-kind slot) actually shadows.
  */
 function NoWelcomeNotice() {
   return null
@@ -182,6 +185,7 @@ export function apply(ctx) {
     ),
   )
   ctx.slots.inject('settings.onboarding', () =>
-    ctx.slots.register({ name: 'settings.onboarding', id: 'welcome-notice', order: -200 }, NoWelcomeNotice),
+    // priority (NOT order — see the doc comment above) is what actually shadows the shipped entry.
+    ctx.slots.register({ name: 'settings.onboarding', id: 'welcome-notice', order: -100, priority: -1 }, NoWelcomeNotice),
   )
 }

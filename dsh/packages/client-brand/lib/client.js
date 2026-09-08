@@ -113,7 +113,10 @@ window.__ModuleLoader__.load({
       );
       ctx.slots.inject(
         "settings.onboarding",
-        () => ctx.slots.register({ name: "settings.onboarding", id: "welcome-notice", order: -200 }, NoWelcomeNotice)
+        () => (
+          // priority (NOT order — see the doc comment above) is what actually shadows the shipped entry.
+          ctx.slots.register({ name: "settings.onboarding", id: "welcome-notice", order: -100, priority: -1 }, NoWelcomeNotice)
+        )
       );
     }
     

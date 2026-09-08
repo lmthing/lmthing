@@ -554,6 +554,16 @@ async function ensureDshResources(p: PodPrincipal, pod: PodConfig = DEFAULT_POD_
                     requests: { memory: pod.memRequest ?? pod.mem, cpu: pod.cpuRequest ?? pod.cpu },
                     limits: { memory: pod.mem, cpu: pod.cpu },
                   },
+                  // Re-assert on every ensure, same as the primary deployment's own patch below —
+                  // otherwise a future probe-shape change here would never reach already-
+                  // provisioned users' lmthing-dsh deployments.
+                  startupProbe: {
+                    httpGet: { path: "/api/health", port: 8080 },
+                    initialDelaySeconds: 0,
+                    periodSeconds: 1,
+                    timeoutSeconds: 5,
+                    failureThreshold: 120,
+                  },
                 },
               ],
             },
@@ -1120,8 +1130,14 @@ export async function ensurePod(
   // (Envoy has no ready endpoint until the startup probe passes → "connection
   // refused" 503s). Warm pods return on the first check (~no delay). Capped well
   // under the ~15s ingress timeout; a slower boot just returns not-ready and the
-  // client polls /status.
-  await waitForPodReady(p, WAKE_READY_WAIT_MS);
+  // client polls /status. Waits on lmthing-dsh CONCURRENTLY (same budget, so no
+  // added latency in the common case — both pods are provisioned together and
+  // typically become ready around the same time) so a caller connecting to
+  // lmthing.chat doesn't race dsh's own cold-boot window either.
+  await Promise.all([
+    waitForPodReady(p, WAKE_READY_WAIT_MS),
+    waitForDshPodReady(p, WAKE_READY_WAIT_MS),
+  ]);
 
   if (LOCAL_DEV) {
     // Resolve the NodePort assigned to the user's service so the gateway proxy can reach it
@@ -1505,6 +1521,43 @@ export async function waitForPodReady(
     try {
       const st = await getPodStatus(p);
       if (st.ready) return true;
+    } catch {
+      /* transient — keep polling */
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return false;
+}
+
+/**
+ * Whether the principal's `lmthing-dsh` deployment currently reports a ready replica. Deliberately
+ * simpler than `getPodStatus` — no `PodStage`/progress-UI machinery, since that exists only for the
+ * primary pod's onboarding UI, which `lmthing-dsh` has none of.
+ */
+async function isDshPodReady(p: PodPrincipal): Promise<boolean> {
+  const dep = await k8s(
+    `/apis/apps/v1/namespaces/${nsOf(p)}/deployments/lmthing-dsh`,
+    "GET",
+  );
+  return (dep?.status?.readyReplicas ?? 0) > 0;
+}
+
+/**
+ * Bounded poll for `lmthing-dsh` to report ready, mirroring `waitForPodReady`. Used ONLY by
+ * `ensurePod` (backing `POST /api/compute/ensure`, which chat's own connect flow awaits) — NOT by
+ * `wakePod`/`wakeAndWaitPod` (the hot, surface-agnostic `/wake`/`wake-wait` path Envoy calls on
+ * every lmthing.app document navigation, which never proxies to dsh and shouldn't pay for a check
+ * that's irrelevant to it).
+ */
+export async function waitForDshPodReady(
+  p: PodPrincipal,
+  timeoutMs: number,
+): Promise<boolean> {
+  if (LOCAL_DEV) return true;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      if (await isDshPodReady(p)) return true;
     } catch {
       /* transient — keep polling */
     }

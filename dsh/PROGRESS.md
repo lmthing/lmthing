@@ -424,9 +424,15 @@ integration.
     cordis config validation, `"openai-completions"` (LiteLLM's `/v1` wire shape) is correct.
   - **New `devops/argocd/compute/Dockerfile.dsh`** — a from-scratch multi-stage image built from
     the `dsh/` workspace (build context = `dsh/`, not `sdk/org/`), `pnpm install --frozen-lockfile`
-    from the committed lockfile (Part A0's pin), runtime stage keeps `corepack prepare pnpm@10.17.1
-    --activate` (needed at **runtime**, not just build time — the profile bootstrap above runs
-    `pnpm install` again inside the running container against the PVC). Deliberately a **separate,
+    from the committed lockfile (Part A0's pin). At the time this was written, the runtime stage
+    also kept `corepack prepare pnpm@10.17.1 --activate` because the profile bootstrap below ran a
+    real `pnpm install` again inside the running container on every restart (see the "de-hackify"
+    fix further down this file: `lmthing-dsh`'s volume is `emptyDir`, not a PVC, so that "runtime
+    pnpm install" was never actually a first-boot-only cost in production — it re-ran on every
+    single restart). That has since been fixed: the profile is baked into the image at build time
+    (`scripts/lmthing-web-profile-manifest.mjs` + `pnpm install` in the builder stage), so the
+    runtime stage no longer runs `pnpm`/`npm` at all and the `corepack prepare` step was removed.
+    Deliberately a **separate,
     non-default image name** (e.g. `compute-dsh`) — `compute.ts` already resolves `COMPUTE_IMAGE`
     purely from env/CI-set vars with zero code changes needed, so this ships as a pure opt-in
     canary with no risk to the default `compute` image any real user pod runs today.
@@ -435,7 +441,15 @@ integration.
     `/api/health` correctly 503 during the ~2-3s dsh boot window and 200 once actually up; the
     proxied root page byte-for-byte **identical** (`diff` against the direct loopback response) to
     dsh's own real served HTML; a container **restart** reused the already-materialized profile
-    (no re-`pnpm install`, straight to a healthy boot) proving PVC persistence works; and, separately,
+    (no re-`pnpm install`, straight to a healthy boot). **Correction, found later:** this was
+    verified against a Docker bind-mount standing in for a PVC — it does NOT describe production,
+    where `lmthing-dsh`'s `/data` is `emptyDir` (`cloud/gateway/src/lib/compute.ts#dshDeployment`),
+    genuinely empty on every restart, not a PVC at all. So in production this "runtime `pnpm
+    install`" branch was never actually first-boot-only — it re-ran, over the network, on every
+    single pod restart. Fixed by baking the profile into the image at build time instead (see the
+    "de-hackify" entry further down this file); the "reused the already-materialized profile"
+    behavior above is now genuinely true for every boot, image-baked rather than PVC-persisted.
+    And, separately,
     booted again with fake `LMTHINGCLOUD_BASE_URL`/`LMTHINGCLOUD_API_KEY` env vars to confirm the
     real-provider patch generates correctly and dsh accepts the resulting config (cordis validation
     passes; no live LiteLLM endpoint was actually reachable from this sandbox, so a real model
@@ -475,13 +489,18 @@ integration.
       reading `scalePod`/`sweepIdlePods`: both hardcode the path `deployments/lmthing/scale`, so
       the existing idle-sweep backstop cannot reach (and therefore cannot break) `lmthing-dsh`
       either — this was a real risk to check, not an assumption.
-    - `DSH_TRUSTED_HOST=lmthing.chat` is injected as a container env var — dsh's own DNS-rebinding
-      fence (`isTrustedApiRequest`) needs the exact Host Envoy forwards, confirmed live via Docker
-      (`--trusted-host lmthing.chat` in the boot log, healthy startup).
-    - Verified: `pnpm exec tsc --noEmit` clean; `compute.test.ts` — 3 new tests (separate
-      deployment+service actually provisioned, `emptyDir` not the PVC, `DSH_TRUSTED_HOST` present)
-      plus all 17 pre-existing tests green (20/20; confirms the historical `compute`/`lmthing`
-      resource shape truly is untouched).
+    - ~~`DSH_TRUSTED_HOST=lmthing.chat` is injected as a container env var...~~ **Superseded, see
+      the "Third critical bug" paragraph above**: a real per-user Host (not a single static
+      `lmthing.chat`) is what Envoy actually forwards once traffic comes from a real user
+      namespace, so a static `--trusted-host` can never match it. This was caught and fixed
+      (Host/Origin rewrite to loopback in `@lmthing/dsh-pod-server`'s proxy) before this cutover
+      reached real users; `DSH_TRUSTED_HOST` was removed entirely and neither `compute.ts` nor
+      `compute.test.ts` reference it today. Left here, struck through rather than deleted, so this
+      entry doesn't silently imply a different, incompatible design was ever what shipped.
+    - Verified: `pnpm exec tsc --noEmit` clean; `compute.test.ts` — new tests for the separate
+      `lmthing-dsh` deployment+service actually being provisioned and its volume being `emptyDir`
+      (not the PVC) — plus all pre-existing tests green (confirms the historical
+      `compute`/`lmthing` resource shape truly is untouched).
   - **New `@lmthing/chat-auth`** (top-level `chat-auth/`, modeled directly on `space/`'s Vite app
     structure): the JWT-free login/handoff shell. Reuses the EXISTING, already-live cross-domain
     SSO bridge (`@lmthing/auth`'s `AuthProvider`/`useAuth`, identical to every other surface — a
@@ -662,6 +681,82 @@ no-op + a real esbuild-bundled `src/client.jsx`), inserted into the web profile 
   existing test user's pod (`user-384389006382622346`) patched to the same digest for consistency.
   Both of the cluster's existing dsh pods, and every future pod the gateway creates, now run
   0.1.2-rc.1.
+
+## De-hackify the dsh pod-server / lmthing.chat wrapper
+
+Investigated whether `@lmthing/dsh-pod-server`'s Host/Origin-rewrite proxy could be replaced by
+pure Envoy/dsh configuration. **Conclusion: no, not without redesigning per-user pod routing** —
+Envoy's `rewrite-host-from-header` filter is a DNS-based dynamic backend resolver; the `Host` it
+forwards MUST vary per user for routing to work at all, so it can never simultaneously be a static
+value dsh's own `isTrustedApiRequest` fence would trust. Confirmed, separately, that dsh's
+`--host 0.0.0.0` refusal is only a CLI-argument guard in `dsh-web-app`'s own `startup.js` — the
+`webserver` plugin's own config schema explicitly permits `"0.0.0.0"` as a value — but bypassing
+it via a direct config patch gains nothing: something must still translate the untrusted per-user
+dynamic Host into something dsh trusts before a request reaches it, so the wrapper's core job
+stays architecturally necessary either way.
+
+What WAS genuinely fixable, found by reading the actual code (not assumed):
+
+- [x] **The wrapper ran a real `pnpm install` over the network on every pod restart, not just true
+  first boot.** Root cause: `lmthing-dsh`'s `/data` is `emptyDir`, not a PVC (see Part B's cutover
+  section above) — genuinely empty on every restart, so `profile-bootstrap.js`'s
+  `!exists(package.json)` "first boot" gate was always true in production. The `lmthing-web`
+  profile's shape is 100% static (same for every user, every boot), so this was pure waste, and a
+  real reliability risk (a pod restart now depended on npm-registry reachability).
+  **Fix:** new `dsh/scripts/lmthing-web-profile-manifest.mjs` (single source of truth for the
+  profile's package.json/cordis.yml/pnpm-workspace.yaml, replacing what was inline-only in
+  `profile-bootstrap.js`); `devops/argocd/compute/Dockerfile.dsh`'s builder stage now runs it +
+  `pnpm install` once, at build time, into `/build/.profile-base/lmthing-web` (landed outside
+  `/data` so the runtime `emptyDir` mount never shadows it) and `COPY --from=builder`s it into the
+  runtime image; the runtime stage's `corepack enable && corepack prepare pnpm@10.17.1 --activate`
+  was removed entirely (confirmed nothing shells out to `pnpm`/`npm` at runtime anymore).
+  `profile-bootstrap.js` now, on a fresh profile, checks for this baked directory: if present, a
+  fast local `fs.cp` + a symlink fixup; if absent (local/dev checkouts with no Docker-built image),
+  falls back to the original write-manifest-then-`pnpm install` path unchanged.
+  **The fixup is load-bearing, not cosmetic:** pnpm's `link:` protocol writes RELATIVE symlinks
+  whose `../..` depth is computed from the on-disk nesting at install time. Build-time
+  `.profile-base/lmthing-web` and runtime `$DSH_HOME/profiles/lmthing-web` sit at different
+  depths, so a verbatim copy alone produces dangling `@lmthing/dsh-*` symlinks — found by an
+  implementation-spike sub-pass BEFORE writing any code, not live. Fix: after copying, re-`symlink`
+  each of `LMTHING_WEB_PROFILE_DEPS`'s entries with an ABSOLUTE target against *this boot's own*
+  `dshRoot`, sidestepping the depth math. Everything else in the hoisted `node_modules` (the
+  transitive `@deepseek-ai/*` deps) are real files/hardlinks from pnpm's content-addressable
+  store, unaffected by the copy.
+  **Verified live**, real `docker build` + `docker run` (not just unit tests): built the image;
+  booted it twice from an independently-wiped bind mount (genuinely simulating two separate
+  `emptyDir`-backed pod restarts, not a warm restart of the same container) — both boots clean, all
+  six `@lmthing/dsh-*` symlinks correctly re-linked to the image's own `/app/packages/*` (`readlink
+  -f` confirmed resolution), `/api/health` 200, root document byte-served, `dsh-client-brand`/
+  `dsh-client-space-components` present by name in the served boot HTML (proof their modules
+  actually resolved and mounted, not just that the server started), zero `pnpm`/network calls
+  observed in logs (`pnpm` isn't even on `PATH` in the runtime image anymore), and a measured cold
+  boot-to-healthy of ~1.4s. New `profile-bootstrap.test.js` test fabricates a baked profile with a
+  deliberately-wrong relative symlink and asserts the fixup re-links it correctly; all pre-existing
+  tests (which exercise the local/dev fallback, since a plain checkout has no baked profile)
+  unchanged and still green. Not independently re-verified in this pass: the
+  `LMTHINGCLOUD_BASE_URL`/real-model-provider patch path (unchanged by this fix, low risk, but
+  needs a reachable LiteLLM endpoint this sandbox didn't have).
+- [x] **`cloud/gateway/src/lib/compute.ts`'s `/api/compute/ensure` never actually waited for
+  `lmthing-dsh` readiness** — `waitForPodReady`/`getPodStatus` only ever polled the primary
+  `lmthing` deployment, so `ensurePod` could return "ready" before dsh's own startup probe had
+  gone green. Harmless in practice only because Envoy's own retry/wake-wait happened to paper over
+  the gap. **Fix:** new `isDshPodReady`/`waitForDshPodReady` (simplified — just `readyReplicas > 0`
+  on `lmthing-dsh`, no need for the fine-grained `PodStage` machinery that exists only for the
+  primary pod's onboarding progress UI), awaited concurrently with the existing
+  `waitForPodReady(p, WAKE_READY_WAIT_MS)` inside `ensurePod` specifically — NOT `wakePod`/
+  `wakeAndWaitPod` (the hot, surface-agnostic `/wake`/`wake-wait` path Envoy calls on every
+  `lmthing.app` navigation, which never proxies to dsh and shouldn't pay for an irrelevant check).
+  Concurrent, so no additional wall-clock latency in the common case — both pods are provisioned
+  together and typically become ready around the same time.
+- [x] **`ensureDshResources`'s conflict-patch path didn't re-assert `startupProbe`** — unlike the
+  primary pod's own conflict-patch, which explicitly re-asserts it on every `/ensure`. A future
+  probe-shape change to `dshDeployment()` would have silently never reached already-provisioned
+  users' `lmthing-dsh` deployments. Fixed by adding the same `startupProbe` block to the patched
+  container spec.
+
+None of this touches the Host/Origin-rewrite proxying itself, the health-check design, the
+hand-rolled (deliberately zero-dependency, already-tested) HTTP/WS proxy code, or the
+no-liveness-probe pattern shared with the primary pod — all correct as designed.
 
 ## Part C — remove the custom harness & dead web apps
 

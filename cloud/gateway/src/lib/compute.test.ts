@@ -24,6 +24,8 @@ const {
   getEnvVars,
   injectLiteLLMEnv,
   sweepIdlePods,
+  wakePod,
+  waitForDshPodReady,
 } = await import("./compute.js");
 const { TIERS } = await import("./tiers.js");
 
@@ -49,6 +51,9 @@ function stubK8s(handler?: (path: string, method: string) => unknown) {
         if (method === "GET") return new Response("", { status: 404 });
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       }
+      // A handler can return a Response directly for a non-200 status (e.g. 409 "already
+      // exists") — anything else is treated as a 200 JSON body, as before.
+      if (result instanceof Response) return result;
       return new Response(JSON.stringify(result), { status: 200 });
     }),
   );
@@ -261,6 +266,58 @@ describe("createPod — user principal (regression: unchanged shape)", () => {
     expect(volumes).toEqual([{ name: "data", emptyDir: {} }]);
   });
 
+});
+
+describe("ensureDshResources — re-ensuring an EXISTING lmthing-dsh deployment (via wakePod)", () => {
+  it("re-asserts startupProbe on the conflict-patch, same as the primary deployment's own patch", async () => {
+    stubK8s((path, method) => {
+      if (method === "GET" && path.endsWith("/deployments/lmthing")) {
+        // Pre-existing primary deployment, already scaled up — skip createPod/scalePod paths.
+        return { spec: { replicas: 1 }, status: {} };
+      }
+      if (method === "POST" && path.endsWith("/deployments")) {
+        // lmthing-dsh already exists too — exercise the conflict-patch branch.
+        return new Response("conflict", { status: 409 });
+      }
+      return undefined;
+    });
+    await wakePod(userPrincipal("user-1"), TIERS.free.pod);
+    const patch = calls.find(
+      (c) => c.method === "PATCH" && c.path.includes("/deployments/lmthing-dsh"),
+    )!.body;
+    const probe = patch.spec.template.spec.containers[0].startupProbe;
+    expect(probe).toEqual({
+      httpGet: { path: "/api/health", port: 8080 },
+      initialDelaySeconds: 0,
+      periodSeconds: 1,
+      timeoutSeconds: 5,
+      failureThreshold: 120,
+    });
+  });
+});
+
+describe("waitForDshPodReady", () => {
+  it("resolves true as soon as lmthing-dsh reports a ready replica", async () => {
+    stubK8s((path, method) => {
+      if (method === "GET" && path.endsWith("/deployments/lmthing-dsh")) {
+        return { status: { readyReplicas: 1 } };
+      }
+      return undefined;
+    });
+    const ready = await waitForDshPodReady(userPrincipal("user-1"), 2000);
+    expect(ready).toBe(true);
+  });
+
+  it("resolves false once the timeout elapses if lmthing-dsh never reports ready", async () => {
+    stubK8s((path, method) => {
+      if (method === "GET" && path.endsWith("/deployments/lmthing-dsh")) {
+        return { status: { readyReplicas: 0 } };
+      }
+      return undefined;
+    });
+    const ready = await waitForDshPodReady(userPrincipal("user-1"), 400);
+    expect(ready).toBe(false);
+  });
 });
 
 describe("createPod — team principal", () => {

@@ -2,6 +2,10 @@
 # Mirrors a real user's ~/.dsh — generated profile installs, not durable content.
 .dsh-home/
 
+# Image-build-time-baked profile output (devops/argocd/compute/Dockerfile.dsh); only ever
+# materializes on a real checkout via a test fixture (profile-bootstrap.test.js), never by hand.
+.profile-base/
+
 node_modules/
 *.log
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile, mkdtemp, rm } from 'node:fs/promises'
+import { readFile, mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -69,6 +69,33 @@ test('bootstrapProfile: with no LMTHINGCLOUD_BASE_URL set, generates no producti
     assert.deepEqual(patchPaths, [])
   } finally {
     if (original !== undefined) process.env.LMTHINGCLOUD_BASE_URL = original
+    await rm(dshHome, { recursive: true, force: true })
+  }
+})
+
+test('bootstrapProfile: when an image-baked profile exists, copies it and re-links @lmthing/* symlinks against THIS boot\'s dshRoot (never runs pnpm)', async () => {
+  const dshHome = await mkdtemp(join(tmpdir(), 'dsh-pod-server-test-'))
+  const profileBaseDir = join(dshRoot, '.profile-base')
+  const bakedProfileDir = join(profileBaseDir, 'lmthing-web')
+  try {
+    // Fabricate a minimal "baked at build time" profile — including a deliberately-wrong
+    // relative symlink of the exact shape pnpm's `link:` protocol would actually produce at
+    // THIS depth (.profile-base/lmthing-web/node_modules/@lmthing/ -> ../../../../packages/space
+    // resolves to dshRoot/packages/space from HERE, but would resolve to a nonexistent
+    // dshHome/packages/space if copied verbatim and never re-linked).
+    const bakedLinkDir = join(bakedProfileDir, 'node_modules', '@lmthing')
+    await mkdir(bakedLinkDir, { recursive: true })
+    await writeFile(join(bakedProfileDir, 'package.json'), '{"name":"dsh-profile-lmthing-web-baked-fixture"}\n', 'utf8')
+    await symlink('../../../../packages/space', join(bakedLinkDir, 'dsh-space'), 'dir')
+
+    await bootstrapProfile({ dshRoot, dshHome })
+
+    const linkPath = join(dshHome, 'profiles', 'lmthing-web', 'node_modules', '@lmthing', 'dsh-space')
+    assert.equal(await realpath(linkPath), await realpath(join(dshRoot, 'packages', 'space')))
+  } finally {
+    // Remove the whole fabricated .profile-base/, not just lmthing-web/ under it — otherwise an
+    // empty .profile-base/ directory is left behind in the real checkout.
+    await rm(profileBaseDir, { recursive: true, force: true })
     await rm(dshHome, { recursive: true, force: true })
   }
 })

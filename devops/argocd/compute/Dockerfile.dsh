@@ -58,6 +58,14 @@ COPY packages/ ./packages/
 COPY scripts/  ./scripts/
 COPY system-spaces/ ./system-spaces/
 
+# Bake the `lmthing-web` dsh profile — package.json/cordis.yml/pnpm-workspace.yaml + a real
+# `pnpm install` — here, at build time, since it's 100% static (same for every user, every boot).
+# Landed outside /data so the runtime `emptyDir` mount at /data never shadows it; profile-bootstrap
+# only needs to copy this + re-link its @lmthing/* symlinks (relative, and wrong at this depth —
+# see that module's doc comment) at boot, never run `pnpm install` over the network again.
+RUN node scripts/lmthing-web-profile-manifest.mjs /build /build/.profile-base/lmthing-web
+RUN cd /build/.profile-base/lmthing-web && pnpm install
+
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime
 # ---------------------------------------------------------------------------
@@ -65,13 +73,6 @@ FROM node:24-slim
 
 WORKDIR /app
 
-# corepack (+ a pre-activated pnpm) is needed at RUNTIME, not just build time: on a pod's first
-# boot against a fresh PVC, @lmthing/dsh-pod-server's profile-bootstrap materializes the
-# `lmthing-web` dsh profile — its own tiny pnpm project of `link:` deps — under
-# $DSH_HOME/profiles/ (see dsh/packages/pod-server/src/profile-bootstrap.js). `--activate` makes
-# this exact pinned version the default `pnpm` shim regardless of any nearby package.json (the
-# generated profile has none), so no network fetch is needed to resolve it at container startup.
-RUN corepack enable && corepack prepare pnpm@10.17.1 --activate
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /build/node_modules       ./node_modules
@@ -80,9 +81,14 @@ COPY --from=builder /build/scripts            ./scripts
 COPY --from=builder /build/system-spaces      ./system-spaces
 COPY --from=builder /build/package.json       ./package.json
 COPY --from=builder /build/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=builder /build/.profile-base      ./.profile-base
 
 # Runtime root — DSH_HOME (dsh's own $HOME-equivalent: profiles, sessions, credentials, the
-# agent-presets roster) persists on the pod's PVC, mounted at /data (compute.ts#dataPvc).
+# agent-presets roster) lives under /data, an `emptyDir` for THIS deployment (`lmthing-dsh`),
+# not the primary pod's `user-data` PVC — deliberately, to avoid doubling per-user storage cost
+# (see cloud/gateway/src/lib/compute.ts#dshDeployment). Genuinely empty on every restart, which
+# is exactly why profile-bootstrap.js materializes the profile from this image's own
+# .profile-base rather than assuming anything here survives a restart.
 ENV DSH_HOME=/data/.dsh-home
 RUN mkdir -p /data
 

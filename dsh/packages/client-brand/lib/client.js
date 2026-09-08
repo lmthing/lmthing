@@ -36,7 +36,7 @@ window.__ModuleLoader__.load({
       const px = typeof size === "number" ? size : 20;
       return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: px, height: px, viewBox: "0 0 24 24", className, "aria-hidden": "true", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { width: "24", height: "24", rx: "6", fill: "#15505c" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("text", { x: "12", y: "17", textAnchor: "middle", fontSize: "13", fontWeight: "700", fontFamily: "system-ui, sans-serif", fill: "#ffffff", children: "lm" })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("text", { x: "12", y: "17", textAnchor: "middle", fontSize: "13", fontWeight: "700", fontFamily: "system-ui, sans-serif", fill: "#ffffff", children: "lmt" })
       ] });
     }
     function LmthingWordmark() {
@@ -61,6 +61,9 @@ window.__ModuleLoader__.load({
       `;
       document.head.appendChild(style);
     }
+    function NoWelcomeNotice() {
+      return null;
+    }
     var inject = ["slots"];
     function apply(ctx) {
       injectBrandColors();
@@ -74,6 +77,10 @@ window.__ModuleLoader__.load({
             yield ctx.slots.register({ name: "conversation.hero.brand.mark", priority: -1 }, LmthingBrandMark);
           })
         )
+      );
+      ctx.slots.inject(
+        "settings.onboarding",
+        () => ctx.slots.register({ name: "settings.onboarding", id: "welcome-notice", order: -100 }, NoWelcomeNotice)
       );
     }
     

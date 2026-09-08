@@ -30,7 +30,7 @@ function LmthingBrandMark({ size, className }) {
     <svg width={px} height={px} viewBox="0 0 24 24" className={className} aria-hidden="true">
       <rect width="24" height="24" rx="6" fill="#15505c" />
       <text x="12" y="17" textAnchor="middle" fontSize="13" fontWeight="700" fontFamily="system-ui, sans-serif" fill="#ffffff">
-        lm
+        lmt
       </text>
     </svg>
   )
@@ -69,6 +69,26 @@ function injectBrandColors() {
   document.head.appendChild(style)
 }
 
+/**
+ * Suppresses dsh's own "Internal Testing Notice" onboarding step (`@deepseek-ai/dsh-client-ui-
+ * settings-models`, `id: "welcome-notice"` under the `settings.onboarding` list slot). It shows on
+ * every new session, never durably: that package's `WelcomeNoticeStore` binds through
+ * `ctx.settingsScope`, whose persistence is `ctx.remote.$host.isLoopback ? "host" : "memory"`
+ * (`@deepseek-ai/dsh-client-connection`'s `client.js`) — `isLoopback` there is a plain
+ * `window.location.hostname` check, so every one of our users (always `lmthing.chat`, never
+ * `127.0.0.1`) is "memory" mode by design, and the acknowledgement never survives a page reload.
+ * That's a deliberate trust boundary (don't let a non-loopback page durably rewrite server-side
+ * settings), not a bug — nothing to fix there, and nothing we should try to spoof.
+ * No host-side config exists to disable the step (`dsh-client-ui-settings-models`'s host `apply()`
+ * is a no-op). Re-registering the SAME `id` under the same list slot replaces the shipped entry
+ * rather than adding a second one — confirmed live: this component renders instead of
+ * `WelcomeNotice`, and since it returns `null` immediately, the onboarding sequence just skips
+ * straight past it.
+ */
+function NoWelcomeNotice() {
+  return null
+}
+
 /** Required service: the UI slot registry (matches dsh-client-ui-brand-official's own inject). */
 export const inject = ['slots']
 
@@ -87,5 +107,8 @@ export function apply(ctx) {
         yield ctx.slots.register({ name: 'conversation.hero.brand.mark', priority: -1 }, LmthingBrandMark)
       }),
     ),
+  )
+  ctx.slots.inject('settings.onboarding', () =>
+    ctx.slots.register({ name: 'settings.onboarding', id: 'welcome-notice', order: -100 }, NoWelcomeNotice),
   )
 }

@@ -646,10 +646,22 @@ no-op + a real esbuild-bundled `src/client.jsx`), inserted into the web profile 
     past the auth fence unmodified — then a real chrome-devtools browser session against that same
     local instance ran the full "echo: hello upgrade" delegation to completion
     (`[echo specialist] hello upgrade`) with the mock provider, end to end.
-  - **Not yet done:** a live production canary (real THING + `create_agent`, against the actual
-    `lmthingcloud`/LiteLLM route) — this section covers the local/mock verification only. Deploy
-    the rebuilt `compute-dsh` image and re-run the same "ask THING to create a new space" test used
-    for the original cutover before rolling to every user pod.
+- [x] **Live production canary — DONE.** `compute-dsh:704f8eb` (CI-built from the upgrade commit)
+  patched onto the existing `lmthing-dsh` deployment for the `dsh-cutover-test@example.com` test
+  user first (image-only patch — one crash-loop cycle on boot from the pre-existing, documented
+  transient chokidar EMFILE-during-rollout issue, self-resolved after 4 restarts, unrelated to this
+  upgrade). Real chrome-devtools session against `https://lmthing.chat` (real gateway JWT, real
+  pod), fresh `$DSH_HOME` (first-launch dialog), real `DeepSeek-V4-Flash-0731` via LiteLLM: asked
+  THING to "create a new space called verify-upgrade with an agent that just says hello" —
+  `create_agent · verify-upgrade` fired and `/data/spaces/verify-upgrade/agents/verify-upgrade/
+  {charter,instruct}.md` confirmed written on the real pod's filesystem. (The turn's final
+  summary text hung after the tool call completed — the pre-existing, already-documented
+  intermittent turn-hang bug above, not a regression from this upgrade; the tool call itself
+  completed correctly regardless.) CI's own `ci: update image tags to 704f8eb` commit updated
+  `gateway.yaml`'s `COMPUTE_DSH_IMAGE_TAG`/`DIGEST` automatically; ArgoCD force-synced; the second
+  existing test user's pod (`user-384389006382622346`) patched to the same digest for consistency.
+  Both of the cluster's existing dsh pods, and every future pod the gateway creates, now run
+  0.1.2-rc.1.
 
 ## Part C — remove the custom harness & dead web apps
 

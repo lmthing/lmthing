@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { bootstrapProfile } from './profile-bootstrap.js'
 import { createPodServer } from './proxy.js'
+import { captureLaunchToken, exchangeLaunchToken } from './dsh-auth.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 // This package ships at <dshRoot>/packages/pod-server/src/index.js.
@@ -51,7 +52,11 @@ async function main() {
   console.log(`[pod-server] starting dsh: ${dshBin} ${args.join(' ')}`)
   const child = spawn(dshBin, args, {
     cwd: dshRoot,
-    stdio: 'inherit',
+    // stdout is piped (not 'inherit') so this process can also scan it for dsh's one-time
+    // browser-session launch token (see dsh-auth.js) — every chunk is still mirrored to our own
+    // stdout untouched, so `kubectl logs` sees exactly what it always has. stderr passes straight
+    // through; only the launch-token line ever prints to stdout.
+    stdio: ['ignore', 'pipe', 'inherit'],
     env: { ...process.env, DSH_HOME, LMTHING_USER_SPACES_ROOT },
   })
 
@@ -68,7 +73,21 @@ async function main() {
     process.exit(shuttingDown ? 0 : (code ?? 1))
   })
 
-  const server = createPodServer({ backendPort: DSH_INTERNAL_PORT })
+  // dsh 0.1.2-rc.1 requires a signed browser-session cookie on every /api/* call and the index
+  // document (see dsh-auth.js and proxy.js's module doc comment) — perform that handshake here,
+  // once, as the loopback caller dsh already trusts, so no real end user ever needs to see it.
+  const dshAuth = { cookie: undefined }
+  captureLaunchToken(child.stdout, process.stdout)
+    .then((token) => exchangeLaunchToken({ host: '127.0.0.1', port: DSH_INTERNAL_PORT, token }))
+    .then((cookie) => {
+      dshAuth.cookie = cookie
+      console.log('[pod-server] dsh browser-session auth handshake complete')
+    })
+    .catch((error) => {
+      console.error('[pod-server] dsh browser-session auth handshake failed', error)
+    })
+
+  const server = createPodServer({ backendPort: DSH_INTERNAL_PORT, getDshAuthCookie: () => dshAuth.cookie })
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`[pod-server] listening on 0.0.0.0:${PORT}, proxying to 127.0.0.1:${DSH_INTERNAL_PORT}`)
   })

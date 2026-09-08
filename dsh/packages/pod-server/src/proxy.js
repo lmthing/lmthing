@@ -32,6 +32,16 @@
  * host` when Origin is present, and rewriting only one of the pair would fail that check instead.
  * An absent Origin skips it entirely — safe here, since Envoy + the JWT/cookie policy already
  * gated who could reach this process before this hop ever happens.
+ *
+ * dsh 0.1.2-rc.1 upgrade — browser-session cookie (see dsh/PROGRESS.md, the upgrade section):
+ * `@deepseek-ai/dsh-client-connection`'s `requestRejection` now ALSO requires a signed
+ * `dsh-auth-<hash>` cookie on every `/api/*` request (`isTrustedApiRequest` alone is no longer
+ * sufficient — a real behavior change from 0.1.1-rc.2, confirmed by reading the shipped bundle),
+ * and the index document route (`authorizeIndex`) requires the same cookie or dsh's one-time launch
+ * token. There is no config flag to disable this. `getDshAuthCookie()` (wired by index.js, which
+ * performs the token exchange once at boot — see its own doc comment) supplies that cookie so this
+ * hop stays transparent: dsh sees a loopback caller that is ALSO an authenticated browser session,
+ * exactly as a developer's own browser would after visiting the printed token URL once.
  */
 import http from 'node:http'
 import net from 'node:net'
@@ -57,20 +67,30 @@ function probeBackend(host, port) {
  * @param {object} opts
  * @param {number} opts.backendPort
  * @param {string} [opts.backendHost]
+ * @param {() => string | undefined} [opts.getDshAuthCookie] - returns the current
+ *   `dsh-auth-<hash>=<value>` cookie (see the module doc comment), or undefined before index.js has
+ *   completed the token exchange. Omit entirely (as every existing test does) to skip auth-cookie
+ *   handling altogether — only index.js's real boot sequence passes this.
  * @returns {import('node:http').Server}
  */
-export function createPodServer({ backendPort, backendHost = '127.0.0.1' }) {
+export function createPodServer({ backendPort, backendHost = '127.0.0.1', getDshAuthCookie }) {
   const server = http.createServer((req, res) => {
     if (req.url === HEALTH_PATH) {
+      // Gate readiness on the auth handshake too, not just TCP connectivity, when the caller wired
+      // one up — a startupProbe pass before the cookie exists would let real traffic through a
+      // window where every /api/* call 401s (see the module doc comment).
       probeBackend(backendHost, backendPort).then((ok) => {
-        res.writeHead(ok ? 200 : 503, { 'content-type': 'text/plain' })
-        res.end(ok ? 'ok' : 'backend not ready')
+        const ready = ok && (getDshAuthCookie === undefined || getDshAuthCookie() !== undefined)
+        res.writeHead(ready ? 200 : 503, { 'content-type': 'text/plain' })
+        res.end(ready ? 'ok' : 'backend not ready')
       })
       return
     }
 
     const headers = { ...req.headers, host: `${backendHost}:${backendPort}` }
     delete headers.origin
+    const dshAuthCookie = getDshAuthCookie?.()
+    if (dshAuthCookie !== undefined) headers.cookie = headers.cookie ? `${headers.cookie}; ${dshAuthCookie}` : dshAuthCookie
     const upstream = http.request(
       { host: backendHost, port: backendPort, method: req.method, path: req.url, headers },
       (upstreamRes) => {
@@ -92,12 +112,20 @@ export function createPodServer({ backendPort, backendHost = '127.0.0.1' }) {
     const upstreamSocket = net.connect({ host: backendHost, port: backendPort }, () => {
       const rawHeaders = req.rawHeaders
       const headerLines = []
+      const dshAuthCookie = getDshAuthCookie?.()
+      let sawCookie = false
       for (let i = 0; i < rawHeaders.length; i += 2) {
         const name = rawHeaders[i]
         const lower = name.toLowerCase()
         if (lower === 'origin') continue
+        if (lower === 'cookie' && dshAuthCookie !== undefined) {
+          sawCookie = true
+          headerLines.push(`${name}: ${rawHeaders[i + 1]}; ${dshAuthCookie}`)
+          continue
+        }
         headerLines.push(lower === 'host' ? `Host: ${backendHost}:${backendPort}` : `${name}: ${rawHeaders[i + 1]}`)
       }
+      if (dshAuthCookie !== undefined && !sawCookie) headerLines.push(`Cookie: ${dshAuthCookie}`)
       upstreamSocket.write(`${req.method} ${req.url} HTTP/1.1\r\n${headerLines.join('\r\n')}\r\n\r\n`)
       if (head?.length) upstreamSocket.write(head)
       upstreamSocket.pipe(clientSocket)

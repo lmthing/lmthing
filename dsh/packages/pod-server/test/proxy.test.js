@@ -74,6 +74,60 @@ test('proxy: rewrites Host to loopback and strips Origin before forwarding (dsh 
   }
 })
 
+test('proxy: with getDshAuthCookie wired, /api/health stays 503 until it returns a cookie (dsh 0.1.2 auth handshake)', async () => {
+  const backend = http.createServer((_req, res) => res.end('backend'))
+  const backendPort = await listen(backend)
+  let cookie
+  const proxy = createPodServer({ backendPort, getDshAuthCookie: () => cookie })
+  const port = await listen(proxy)
+  try {
+    let res = await fetch(`http://127.0.0.1:${port}/api/health`)
+    assert.equal(res.status, 503, 'backend is up but the auth handshake has not completed yet')
+    cookie = 'dsh-auth-abc=xyz'
+    res = await fetch(`http://127.0.0.1:${port}/api/health`)
+    assert.equal(res.status, 200)
+  } finally {
+    proxy.close()
+    backend.close()
+  }
+})
+
+test('proxy: attaches the dsh-auth cookie to every forwarded request once available (dsh 0.1.2 requires it on /api/*)', async () => {
+  let seenCookie
+  const backend = http.createServer((req, res) => {
+    seenCookie = req.headers.cookie
+    res.end('ok')
+  })
+  const backendPort = await listen(backend)
+  const proxy = createPodServer({ backendPort, getDshAuthCookie: () => 'dsh-auth-abc=xyz' })
+  const port = await listen(proxy)
+  try {
+    await fetch(`http://127.0.0.1:${port}/api/agentPreset.list`, { headers: { cookie: 'access_token=user-jwt' } })
+    assert.equal(seenCookie, 'access_token=user-jwt; dsh-auth-abc=xyz', 'the real user cookie and the proxy-owned auth cookie must both reach dsh')
+  } finally {
+    proxy.close()
+    backend.close()
+  }
+})
+
+test('proxy: with no getDshAuthCookie wired, forwards no cookie header the client did not send (pre-0.1.2 behavior preserved)', async () => {
+  let seenCookie = 'unset'
+  const backend = http.createServer((req, res) => {
+    seenCookie = req.headers.cookie
+    res.end('ok')
+  })
+  const backendPort = await listen(backend)
+  const proxy = createPodServer({ backendPort })
+  const port = await listen(proxy)
+  try {
+    await fetch(`http://127.0.0.1:${port}/anything`)
+    assert.equal(seenCookie, undefined)
+  } finally {
+    proxy.close()
+    backend.close()
+  }
+})
+
 test('proxy: returns 502 when the backend refuses the connection', async () => {
   const proxy = createPodServer({ backendPort: 1 })
   const port = await listen(proxy)
@@ -127,6 +181,81 @@ test('proxy: upgrades (WebSocket-style) are replayed to the backend over a raw s
     assert.match(received, /hello-from-backend/)
     assert.match(receivedRequestLine, new RegExp(`Host: 127\\.0\\.0\\.1:${backendPort}`))
     assert.ok(!/Origin:/i.test(receivedRequestLine), 'Origin must be stripped, not just left stale, on the loopback hop')
+    client.destroy()
+  } finally {
+    proxy.close()
+    backend.close()
+  }
+})
+
+test('proxy: upgrades append the dsh-auth cookie to an existing Cookie header', async () => {
+  let receivedRequestLine = ''
+  const backend = net.createServer((socket) => {
+    let buf = ''
+    socket.on('data', (chunk) => {
+      buf += chunk.toString('utf8')
+      if (buf.includes('\r\n\r\n')) {
+        receivedRequestLine = buf
+        socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n')
+      }
+    })
+  })
+  await new Promise((resolve) => backend.listen(0, '127.0.0.1', resolve))
+  const backendPort = backend.address().port
+
+  const proxy = createPodServer({ backendPort, getDshAuthCookie: () => 'dsh-auth-abc=xyz' })
+  const port = await listen(proxy)
+  try {
+    const client = net.connect({ host: '127.0.0.1', port })
+    await new Promise((resolve, reject) => {
+      client.on('data', () => resolve())
+      client.on('error', reject)
+      client.on('connect', () => {
+        client.write(
+          'GET /ws HTTP/1.1\r\nHost: x\r\nCookie: access_token=user-jwt\r\n' +
+            'Connection: Upgrade\r\nUpgrade: websocket\r\n' +
+            'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n',
+        )
+      })
+    })
+    assert.match(receivedRequestLine, /Cookie: access_token=user-jwt; dsh-auth-abc=xyz/)
+    client.destroy()
+  } finally {
+    proxy.close()
+    backend.close()
+  }
+})
+
+test('proxy: upgrades add a Cookie header for the dsh-auth cookie when the client sent none', async () => {
+  let receivedRequestLine = ''
+  const backend = net.createServer((socket) => {
+    let buf = ''
+    socket.on('data', (chunk) => {
+      buf += chunk.toString('utf8')
+      if (buf.includes('\r\n\r\n')) {
+        receivedRequestLine = buf
+        socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n')
+      }
+    })
+  })
+  await new Promise((resolve) => backend.listen(0, '127.0.0.1', resolve))
+  const backendPort = backend.address().port
+
+  const proxy = createPodServer({ backendPort, getDshAuthCookie: () => 'dsh-auth-abc=xyz' })
+  const port = await listen(proxy)
+  try {
+    const client = net.connect({ host: '127.0.0.1', port })
+    await new Promise((resolve, reject) => {
+      client.on('data', () => resolve())
+      client.on('error', reject)
+      client.on('connect', () => {
+        client.write(
+          'GET /ws HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n' +
+            'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n',
+        )
+      })
+    })
+    assert.match(receivedRequestLine, /Cookie: dsh-auth-abc=xyz/)
     client.destroy()
   } finally {
     proxy.close()

@@ -80,9 +80,13 @@ function toStopReason(reason) {
 
 /** Read one settled child's result from events after its activation boundary — ported verbatim
  *  (no structured-output support: this provider declares `capabilities.outputSchema: false`, so
- *  the service rejects a request needing it before ever calling `start()`). */
+ *  the service rejects a request needing it before ever calling `start()`).
+ *  dsh 0.1.2-rc.1 upgrade (see dsh/PROGRESS.md): `session.events` (a raw array property) was
+ *  replaced by a `snapshotEvents(boundary)` method — confirmed live ("Cannot read properties of
+ *  undefined (reading 'slice')" once isSeeded was fixed) and against the stock driver's own
+ *  updated `readResult`. */
 function readResult(child, boundary, cancelled) {
-  const own = child.session.events.slice(boundary)
+  const own = child.session.snapshotEvents(boundary)
   const lastEnd = foldConsumedWork(own).end
   const output = finalAssistantOutput(own) ?? []
   const recorded = toStopReason(lastEnd?.data.reason)
@@ -172,7 +176,11 @@ export function registerPresetSubagentProvider(ctx, config) {
 
       const handle = await parent.ctx.agents.create({
         sessionId: childId,
-        meta: childSessionMeta(parent, childDepth, 0),
+        // dsh 0.1.2-rc.1 upgrade (see dsh/PROGRESS.md): childSessionMeta's third parameter was
+        // renamed lineageSeedLength (a number) -> isSeeded (a boolean) and is now strictly
+        // schema-validated ("session header isSeeded must be a boolean") — confirmed live, this
+        // provider never seeds a child (no `prepared.seed`, unlike the stock driver), so `false`.
+        meta: childSessionMeta(parent, childDepth, false),
         agentOptions: resolveChildAgentOptions(parent, request.agentOptions, childDepth),
         signal: request.signal,
         setup,

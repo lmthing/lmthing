@@ -601,6 +601,56 @@ no-op + a real esbuild-bundled `src/client.jsx`), inserted into the web profile 
   (`--dsw-specific-sidebar-nav-item-active-accent`, at least) is NOT yet touched. A real start on
   "move the web UI to LMThing colors", not a claimed full reskin.
 
+## dsh version upgrade: 0.1.1-rc.2 → 0.1.2-rc.1
+
+- [x] **Pinned every `@deepseek-ai/{dsh,dsh-*,cordis}` version across `dsh/` from `0.1.1-rc.2`/
+  `4.0.1` to `0.1.2-rc.1`/`4.0.2` (exact, per the pin-hard policy).** Full clean reinstall
+  (`rm -rf node_modules pnpm-lock.yaml && pnpm install`) so the whole transitive graph resolves to
+  the new versions consistently, not just our directly-declared deps — a first `pnpm install`
+  without wiping the lockfile left several transitive `dsh-*` packages (`dsh-code-runtime`,
+  `dsh-jobs`, `dsh-sandbox`, `dsh-attachment`, `dsh-session-query`, `dsh-session-persistence`,
+  `dsh-settings`) stuck on the old version with unmet-peer warnings.
+- [x] **Two real breaking changes found and fixed, both only surfaced by a real browser session
+  against the upgraded dsh (never by `node --test` or a plain boot) — this upgrade would have
+  broken production silently without the live check:**
+  1. **Every `/api/*` request and the index document now require a signed browser-session cookie**
+     (`@deepseek-ai/dsh-client-connection`'s `requestRejection`: `isTrustedApiRequest` alone is no
+     longer sufficient; `PRIVILEGED_METHODS`'s old loopback-only carve-out is gone, replaced by a
+     mandatory `BrowserAuth` gate with no config opt-out). Fixed at the proxy layer, matching the
+     existing Host/Origin-rewrite pattern: `dsh-auth.js` (new) scans dsh's own stdout for the
+     one-time launch-token URL it prints at boot, exchanges it for the signed `dsh-auth-<hash>`
+     cookie via one internal loopback request, and `proxy.js` attaches that cookie to every
+     forwarded request (HTTP and the raw WS-upgrade path) from then on — transparent to real end
+     users, who are separately authenticated via the LMThing gateway JWT + `chat-auth`'s cookie
+     handoff, never dsh's own session concept. `/api/health` now also gates on the handshake being
+     complete, not just TCP connectivity, so the K8s startupProbe can't report ready before real
+     traffic would actually succeed.
+  2. **`@lmthing/dsh-subagent-preset` (our forked `SubagentProvider`, Part A2) broke on the first
+     real delegation** — two upstream `@deepseek-ai/dsh-subagent` API changes, found one after the
+     other by literally clicking through the same "echo: hello" test that verified Part A2
+     originally:
+     - `childSessionMeta`'s third parameter was renamed `lineageSeedLength` (a number) →
+       `isSeeded` (a boolean) and is now strictly schema-validated (new `@deepseek-ai/schemastery`
+       dependency) — our fork still passed the literal `0`, failing with `session header isSeeded
+       must be a boolean`. Fixed: pass `false` (this provider never seeds a child).
+     - `child.session.events.slice(boundary)` → `child.session.snapshotEvents(boundary)` (the raw
+       array property was replaced by a method) — failed with `Cannot read properties of undefined
+       (reading 'slice')` once the first fix cleared the earlier error. Fixed to call the new
+       method with the same `boundary` semantics.
+  - **Verify:** all 21 `packages/pod-server` tests (5 new: 2 for `dsh-auth.js`'s token
+    capture/exchange, 3 for the proxy's cookie injection on HTTP/health/WS) plus every other
+    package's suite green, unchanged counts. Live: production entrypoint
+    (`packages/pod-server/src/index.js`) booted against a fresh `$DSH_HOME`, `/api/health` 503
+    until the handshake completes then 200, a simulated Envoy request (fake dynamic Host + real
+    Origin, no client-supplied token or cookie) reached `/` with 200 and `/api/agentPreset.list`
+    past the auth fence unmodified — then a real chrome-devtools browser session against that same
+    local instance ran the full "echo: hello upgrade" delegation to completion
+    (`[echo specialist] hello upgrade`) with the mock provider, end to end.
+  - **Not yet done:** a live production canary (real THING + `create_agent`, against the actual
+    `lmthingcloud`/LiteLLM route) — this section covers the local/mock verification only. Deploy
+    the rebuilt `compute-dsh` image and re-run the same "ask THING to create a new space" test used
+    for the original cutover before rolling to every user pod.
+
 ## Part C — remove the custom harness & dead web apps
 
 - [x] **Decouple `@lmthing/ui` from `@lmthing/core` (keep ui in full). DONE, brought forward.**
